@@ -1,0 +1,42 @@
+{
+  "name": "easy_suburban",
+  "description": "Easy cruise through a suburban neighborhood with cul-de-sacs and parks",
+  "grid_size": 11,
+  "max_battery": 16,
+  "starting_battery": 16,
+  "layout": [
+    "BBBBBBBBBBB",
+    "BPRRRRRRRPB",
+    "BRBBBBBBRBB",
+    "BRRRRRRRRBB",
+    "BBBRRRRRBRB",
+    "BSRRRHRRRSB",
+    "BBBRRRRRBRB",
+    "BRRRRRRRRBB",
+    "BRBBBBBBRBB",
+    "BPRRRRRRRPB",
+    "BBBBBBBBBBB"
+  ],
+  "legend": {
+    "B": "building",
+    "H": "home",
+    "P": "park",
+    "R": "road",
+    "S": "supercharger",
+    "W": "water"
+  },
+  "wall_crash_ends_game": true,
+  "messages": {
+    "welcome": "Welcome to easy_suburban!",
+    "home_charge": "Home sweet home! Battery fully charged!",
+    "supercharger_charge": "Supercharger! Battery fully charged!",
+    "park_visited": "Park visited! Score: %d",
+    "park_already_visited": "Already visited this park",
+    "victory": "Excellent! All %d parks visited!",
+    "out_of_battery": "Battery depleted! Try again!",
+    "stranded": "No battery left! Game Over!",
+    "cant_move": "Can't go there!",
+    "battery_status": "Battery: %d/%d",
+    "hit_wall": "You crashed into a wall! Game Over!"
+  }
+}

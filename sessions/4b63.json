@@ -1,0 +1,4529 @@
+{
+  "id": "4b63",
+  "config_name": "classic",
+  "created_at": "2025-10-03T22:06:07.694165-04:00",
+  "last_accessed_at": "2025-10-03T22:06:14.823959-04:00",
+  "game_state": {
+    "grid": [
+      [
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "water"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "park",
+          "id": "park_0"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "water"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        }
+      ],
+      [
+        {
+          "type": "building"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "building"
+        }
+      ],
+      [
+        {
+          "type": "building"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "supercharger"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "park",
+          "id": "park_1"
+        },
+        {
+          "type": "building"
+        }
+      ],
+      [
+        {
+          "type": "building"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "park",
+          "id": "park_2"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "park",
+          "id": "park_3"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "building"
+        }
+      ],
+      [
+        {
+          "type": "building"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        }
+      ],
+      [
+        {
+          "type": "building"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "building"
+        }
+      ],
+      [
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "water"
+        },
+        {
+          "type": "water"
+        },
+        {
+          "type": "water"
+        },
+        {
+          "type": "water"
+        },
+        {
+          "type": "water"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        }
+      ],
+      [
+        {
+          "type": "park",
+          "id": "park_4"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "home"
+        },
+        {
+          "type": "home"
+        },
+        {
+          "type": "home"
+        },
+        {
+          "type": "home"
+        },
+        {
+          "type": "home"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "park",
+          "id": "park_5"
+        }
+      ],
+      [
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "water"
+        },
+        {
+          "type": "water"
+        },
+        {
+          "type": "water"
+        },
+        {
+          "type": "water"
+        },
+        {
+          "type": "water"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        }
+      ],
+      [
+        {
+          "type": "building"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "building"
+        }
+      ],
+      [
+        {
+          "type": "building"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        }
+      ],
+      [
+        {
+          "type": "building"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "park",
+          "id": "park_6"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "park",
+          "id": "park_7"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "building"
+        }
+      ],
+      [
+        {
+          "type": "building"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "supercharger"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "park",
+          "id": "park_8"
+        },
+        {
+          "type": "building"
+        }
+      ],
+      [
+        {
+          "type": "building"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "road"
+        },
+        {
+          "type": "building"
+        }
+      ],
+      [
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "water"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "park",
+          "id": "park_9"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "water"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        },
+        {
+          "type": "building"
+        }
+      ]
+    ],
+    "player_pos": {
+      "x": 10,
+      "y": 7
+    },
+    "battery": 19,
+    "max_battery": 20,
+    "score": 0,
+    "visited_parks": {},
+    "message": "Battery: 19/20",
+    "game_over": false,
+    "victory": false,
+    "config_name": "Classic Layout",
+    "move_history": [
+      {
+        "action": "right",
+        "from_position": {
+          "x": 9,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": true,
+        "move_number": 1
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 2
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 3
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 4
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 5
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 6
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 7
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 8
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 9
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 10
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 11
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 12
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 13
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 14
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 15
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 16
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 17
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 18
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 19
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 20
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 21
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 22
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 23
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 24
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 25
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 26
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 27
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 28
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 29
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 30
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 31
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 32
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 33
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 34
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 35
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 36
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 37
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 38
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 39
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 40
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 41
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 42
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 43
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 44
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 45
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 46
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 47
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 48
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 49
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 50
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 51
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 52
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 53
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 54
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 55
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 56
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 57
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 58
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 59
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 60
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 61
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 62
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 63
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 64
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 65
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 66
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 67
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 68
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 69
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 70
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 71
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 72
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 73
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 74
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 75
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 76
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 77
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 78
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 79
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 80
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 81
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 82
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 83
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 84
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 85
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 86
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 87
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 88
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 89
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 90
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 91
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 92
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 93
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 94
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 95
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 96
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 97
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 98
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 99
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 100
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 101
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 102
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 103
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 104
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 105
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 106
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 107
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 108
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 109
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 110
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 111
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 112
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 113
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 114
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 115
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 116
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 117
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 118
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 119
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 120
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 121
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 122
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 123
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 124
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 125
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 126
+      }
+    ],
+    "total_moves": 126,
+    "current_moves": [
+      {
+        "action": "right",
+        "from_position": {
+          "x": 9,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": true,
+        "move_number": 1
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 2
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 3
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 4
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 5
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 6
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 7
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 8
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 9
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 10
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 11
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 12
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 13
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 14
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 15
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 16
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 17
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 18
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 19
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 20
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 21
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 22
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 23
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 24
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 25
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 26
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 27
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 28
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 29
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 30
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 31
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 32
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 33
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 34
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 35
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 36
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 37
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 38
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 39
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 40
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543567,
+        "success": false,
+        "move_number": 41
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 42
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 43
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 44
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 45
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 46
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 47
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 48
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 49
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 50
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 51
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 52
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 53
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 54
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 55
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 56
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 57
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 58
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 59
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 60
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 61
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 62
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 63
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 64
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 65
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 66
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 67
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 68
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 69
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 70
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 71
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 72
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 73
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 74
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 75
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 76
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 77
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 78
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 79
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 80
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 81
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 82
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 83
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 84
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 85
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 86
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 87
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 88
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 89
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 90
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 91
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 92
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 93
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 94
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 95
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 96
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 97
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 98
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 99
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 100
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 101
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 102
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 103
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 104
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 105
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 106
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 107
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 108
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 109
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 110
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 111
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 112
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 113
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 114
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 115
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 116
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 117
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 118
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 119
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 120
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 121
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 122
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 123
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 124
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 125
+      },
+      {
+        "action": "",
+        "from_position": {
+          "x": 10,
+          "y": 7
+        },
+        "to_position": {
+          "x": 10,
+          "y": 7
+        },
+        "battery": 19,
+        "timestamp": 1759543568,
+        "success": false,
+        "move_number": 126
+      }
+    ],
+    "current_moves_count": 126,
+    "local_view_3x3": [
+      "WBB",
+      "HTR",
+      "WBB"
+    ],
+    "battery_risk": "SAFE"
+  }
+}

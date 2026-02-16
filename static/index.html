@@ -1,0 +1,1648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tesla Road Trip - Live View</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #ffffff;
+            color: #171a20;
+            min-height: 100vh;
+            padding: 0;
+            margin: 0;
+            overflow: hidden;
+            font-weight: 400;
+            letter-spacing: -0.01em;
+        }
+
+        .tesla-dashboard {
+            display: flex;
+            height: 100vh;
+            background: #f8f9fa;
+        }
+
+        .map-section {
+            flex: 2;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: #ffffff;
+        }
+
+        .control-panel {
+            flex: 1;
+            background: #f5f5f5;
+            padding: 48px 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            border-left: 1px solid #d0d1d2;
+        }
+
+        .dashboard-header {
+            text-align: left;
+            margin-bottom: 30px;
+        }
+
+        .dashboard-title {
+            color: #171a20;
+            font-size: 32px;
+            font-weight: 500;
+            margin-bottom: 4px;
+            letter-spacing: -0.02em;
+        }
+
+        .dashboard-subtitle {
+            color: #5c5e62;
+            font-size: 15px;
+            font-weight: 400;
+            letter-spacing: 0;
+        }
+
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-weight: 400;
+            font-size: 13px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: none;
+            z-index: 1000;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+            letter-spacing: 0;
+        }
+
+        .connected {
+            color: #008000;
+        }
+
+        .disconnected {
+            color: #cc0000;
+        }
+
+        .stat-section {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .stat-item {
+            padding: 0;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #5c5e62;
+            margin-bottom: 12px;
+            font-weight: 500;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+
+        .stat-value {
+            font-size: 52px;
+            font-weight: 300;
+            color: #171a20;
+            line-height: 1;
+            margin-bottom: 24px;
+            letter-spacing: -0.02em;
+        }
+
+        .battery-display {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .battery-bar {
+            width: 100%;
+            height: 4px;
+            background: #d0d1d2;
+            border-radius: 2px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .battery-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff00 0%, #00cc00 100%);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 4px;
+            position: relative;
+        }
+
+        .battery-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%);
+            animation: batteryShimmer 3s infinite;
+        }
+
+        @keyframes batteryShimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .battery-fill.low {
+            background: linear-gradient(90deg, #ff0000 0%, #ff4444 100%);
+        }
+
+        .battery-fill.medium {
+            background: linear-gradient(90deg, #ffaa00 0%, #ff8800 100%);
+        }
+
+        .battery-text {
+            font-size: 36px;
+            color: #171a20;
+            font-weight: 300;
+            line-height: 1;
+            letter-spacing: -0.01em;
+        }
+
+        .status-message {
+            padding: 16px 20px;
+            border-radius: 4px;
+            font-size: 15px;
+            font-weight: 400;
+            color: #171a20;
+            background: #ffffff;
+            border: none;
+            margin-top: 24px;
+            margin-bottom: 32px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            letter-spacing: 0;
+        }
+
+        .game-grid {
+            display: block;
+            width: fit-content;
+            border-radius: 4px;
+            overflow: hidden;
+            border: none;
+            background: #ffffff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .game-grid table {
+            border-collapse: collapse;
+            background: transparent;
+        }
+
+        .game-grid td {
+            width: 40px;
+            height: 40px;
+            border: 1px solid #f4f4f4;
+            text-align: center;
+            vertical-align: middle;
+            font-size: 20px;
+            position: relative;
+            transition: all 0.2s ease;
+        }
+
+        /* Cell types - Tesla light theme */
+        .cell-road {
+            background: #fafafa;
+        }
+
+        .cell-home {
+            background: linear-gradient(135deg, #fff4f4 0%, #ffe8e8 100%);
+        }
+
+        .cell-park {
+            background: linear-gradient(135deg, #f0fff4 0%, #e6f7ed 100%);
+        }
+
+        .cell-park.visited {
+            background: #f4f4f4;
+            opacity: 0.5;
+        }
+
+        .cell-supercharger {
+            background: linear-gradient(135deg, #fff9f0 0%, #ffedcc 100%);
+            animation: superchargerPulse 3s infinite;
+        }
+
+        @keyframes superchargerPulse {
+            0%, 100% { 
+                opacity: 1;
+            }
+            50% { 
+                opacity: 0.85;
+            }
+        }
+
+        .cell-water {
+            background: linear-gradient(135deg, #f0f8ff 0%, #e1f2ff 100%);
+        }
+
+        .cell-building {
+            background: linear-gradient(135deg, #e8e8e8 0%, #d8d8d8 100%);
+        }
+
+        .player {
+            animation: teslaGlow 2s infinite;
+            z-index: 10;
+            position: relative;
+            filter: drop-shadow(0 0 6px rgba(231,29,35,0.3));
+        }
+        
+        /* Multi-session car animations */
+        .multi-car {
+            position: absolute;
+            font-size: 40px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 10;
+            animation: teslaGlow 2s infinite;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            left: 0;
+            top: 0;
+        }
+        
+        #unifiedGrid {
+            position: relative;
+        }
+        
+        #unifiedGrid td {
+            position: relative;
+        }
+
+        @keyframes teslaGlow {
+            0%, 100% { 
+                transform: scale(1); 
+                filter: drop-shadow(0 0 6px rgba(231,29,35,0.3));
+            }
+            50% { 
+                transform: scale(1.02); 
+                filter: drop-shadow(0 0 10px rgba(231,29,35,0.5));
+            }
+        }
+
+        .trail-dot {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 5;
+            pointer-events: none;
+            transition: all 0.4s ease;
+            opacity: 0.8;
+        }
+
+        .trail-dot.fade {
+            opacity: 0.6;
+            transform: translate(-50%, -50%) scale(0.5);
+        }
+
+        .message {
+            text-align: center;
+            padding: 20px;
+            margin: 24px 0;
+            border-radius: 12px;
+            font-weight: 500;
+            font-size: 1.1em;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .message.info {
+            background: #f8f9fa;
+            color: #333333;
+            border-color: #e0e0e0;
+        }
+
+        .message.success {
+            background: rgba(0,255,65,0.1);
+            color: #00ff41;
+            border-color: rgba(0,255,65,0.3);
+        }
+
+        .message.warning {
+            background: rgba(255,136,0,0.1);
+            color: #ff8800;
+            border-color: rgba(255,136,0,0.3);
+        }
+
+        .message.error {
+            background: rgba(231,29,35,0.1);
+            color: #e31d23;
+            border-color: rgba(231,29,35,0.3);
+        }
+
+        .api-info {
+            margin-top: 20px;
+            padding: 20px;
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            font-family: 'Inter', monospace;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .api-info h3 {
+            margin-bottom: 15px;
+            color: #1a1a1a;
+            font-size: 1.1em;
+            font-weight: 600;
+        }
+
+        .api-example {
+            background: #f5f5f5;
+            color: #2d8659;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+            overflow-x: auto;
+            border: 1px solid #e0e0e0;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            font-size: 0.9em;
+        }
+
+        .game-over-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .game-over-overlay.active {
+            display: flex;
+        }
+
+        .game-over-content {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 400px;
+            position: relative;
+        }
+
+        .game-over-content h2 {
+            margin-bottom: 20px;
+            font-size: 2em;
+        }
+
+        .victory h2 {
+            color: #4caf50;
+        }
+
+        .defeat h2 {
+            color: #f44336;
+        }
+
+        /* Collapsible Right Menu */
+        .menu-toggle {
+            position: fixed;
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+            background: #171a20;
+            color: #ffffff;
+            border: none;
+            padding: 10px 6px;
+            border-radius: 4px 0 0 4px;
+            cursor: pointer;
+            font-size: 16px;
+            z-index: 1001;
+            box-shadow: -1px 0 4px rgba(0,0,0,0.1);
+            transition: all 0.2s ease;
+        }
+
+        .menu-toggle:hover {
+            background: #393c41;
+        }
+
+        .slide-menu {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 400px;
+            height: 100vh;
+            background: #f5f5f5;
+            border-left: 1px solid #d0d1d2;
+            box-shadow: -2px 0 8px rgba(0,0,0,0.08);
+            transition: right 0.25s ease;
+            z-index: 1000;
+            overflow-y: auto;
+            padding: 80px 30px 30px;
+        }
+
+        .slide-menu.open {
+            right: 0;
+        }
+
+        .menu-header {
+            margin-bottom: 32px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #d0d1d2;
+        }
+
+        .menu-title {
+            font-size: 20px;
+            font-weight: 500;
+            color: #171a20;
+            margin-bottom: 4px;
+            letter-spacing: -0.01em;
+        }
+
+        .menu-subtitle {
+            color: #5c5e62;
+            font-size: 13px;
+        }
+
+        .menu-section {
+            margin-bottom: 30px;
+        }
+
+        .menu-section h3 {
+            font-size: 15px;
+            font-weight: 500;
+            color: #171a20;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e4e4e4;
+        }
+
+        /* Config viewer styles */
+        .config-item {
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            overflow: hidden;
+            transition: all 0.2s ease;
+        }
+
+        .config-header {
+            padding: 12px 16px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #fafafa;
+            transition: background 0.2s ease;
+        }
+
+        .config-header:hover {
+            background: #f0f0f0;
+        }
+
+        .config-title {
+            font-weight: 500;
+            font-size: 14px;
+            color: #171a20;
+        }
+
+        .config-badge {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .config-badge.active {
+            background: #4caf50;
+            color: white;
+        }
+
+        .config-badge.easy {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .config-badge.medium {
+            background: #fff3e0;
+            color: #e65100;
+        }
+
+        .config-badge.hard {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .config-details {
+            display: none;
+            padding: 16px;
+            background: #ffffff;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .config-details.open {
+            display: block;
+        }
+
+        .config-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .config-stat {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .config-stat-label {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .config-stat-value {
+            font-size: 16px;
+            font-weight: 500;
+            color: #171a20;
+        }
+
+        .config-grid-preview {
+            background: #f5f5f5;
+            padding: 12px;
+            border-radius: 6px;
+            overflow-x: auto;
+        }
+
+        .config-grid-preview table {
+            border-collapse: collapse;
+            margin: 0 auto;
+        }
+
+        .config-grid-preview td {
+            width: 12px;
+            height: 12px;
+            border: 1px solid #fff;
+            font-size: 8px;
+            text-align: center;
+            line-height: 12px;
+        }
+
+        .preview-road { background: #fafafa; }
+        .preview-home { background: #ffe8e8; }
+        .preview-park { background: #e6f7ed; }
+        .preview-supercharger { background: #ffedcc; }
+        .preview-water { background: #e1f2ff; }
+        .preview-building { background: #d8d8d8; }
+
+        /* Cave Mode Styles */
+        .cave-mode-hidden {
+            background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%) !important;
+            color: transparent !important;
+            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+            position: relative;
+        }
+
+        .cave-mode-hidden::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><rect width="20" height="20" fill="%23000000" fill-opacity="0.1"/><circle cx="3" cy="3" r="1" fill="%23ffffff" fill-opacity="0.05"/><circle cx="17" cy="7" r="1" fill="%23ffffff" fill-opacity="0.03"/><circle cx="11" cy="15" r="1" fill="%23ffffff" fill-opacity="0.04"/></svg>');
+            pointer-events: none;
+        }
+
+        .cave-mode-visible {
+            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+
+        .cave-mode-revealed {
+            animation: caveReveal 0.8s ease-out;
+            box-shadow: 0 0 15px rgba(255,255,255,0.15);
+        }
+
+        @keyframes caveReveal {
+            0% {
+                opacity: 0;
+                transform: scale(0.8);
+                filter: brightness(0.3);
+            }
+            50% {
+                opacity: 0.7;
+                transform: scale(1.05);
+                filter: brightness(1.3);
+                box-shadow: 0 0 25px rgba(255,255,255,0.3);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+                filter: brightness(1);
+                box-shadow: 0 0 15px rgba(255,255,255,0.15);
+            }
+        }
+
+        /* Enhanced player glow in cave mode */
+        body.cave-mode .player {
+            animation: teslaGlowCave 2s infinite;
+            filter: drop-shadow(0 0 12px rgba(231,29,35,0.6));
+            z-index: 20;
+        }
+
+        @keyframes teslaGlowCave {
+            0%, 100% { 
+                transform: scale(1); 
+                filter: drop-shadow(0 0 12px rgba(231,29,35,0.6));
+            }
+            50% { 
+                transform: scale(1.05); 
+                filter: drop-shadow(0 0 20px rgba(231,29,35,0.8));
+            }
+        }
+        
+        @keyframes flashPulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            25% { opacity: 0.8; transform: scale(1.05); }
+            50% { opacity: 1; transform: scale(1.1); }
+            75% { opacity: 0.8; transform: scale(1.05); }
+        }
+
+        /* Toggle switch active state */
+        #cave-mode-toggle:checked + span {
+            background-color: #4caf50;
+        }
+
+        #cave-mode-toggle:checked + span #cave-toggle-slider {
+            transform: translateX(20px);
+        }
+
+        /* Session Management Screen Styles */
+        .session-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            min-height: 100vh;
+        }
+
+        .session-container {
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+            padding: 48px;
+            max-width: 800px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .session-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .session-title {
+            font-size: 32px;
+            font-weight: 500;
+            color: #171a20;
+            margin-bottom: 8px;
+            letter-spacing: -0.02em;
+        }
+
+        .session-subtitle {
+            font-size: 16px;
+            color: #5c5e62;
+            font-weight: 400;
+        }
+
+        .session-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 32px;
+            margin-bottom: 24px;
+        }
+
+        .session-option {
+            padding: 24px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            background: #fafafa;
+            transition: all 0.3s ease;
+        }
+
+        .session-option:hover {
+            border-color: #4caf50;
+            background: #f8fff8;
+        }
+
+        .session-option h3 {
+            margin: 0 0 16px 0;
+            font-size: 18px;
+            font-weight: 500;
+            color: #171a20;
+        }
+
+        .session-input-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .session-input-group input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #d0d1d2;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+
+        .session-input-group input:focus {
+            outline: none;
+            border-color: #4caf50;
+        }
+
+        .btn-primary {
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            background: #45a049;
+            transform: translateY(-1px);
+        }
+
+        .btn-large {
+            width: 100%;
+            padding: 16px 32px;
+            font-size: 16px;
+            margin-top: 24px;
+        }
+
+        .session-help {
+            color: #666;
+            font-size: 14px;
+            margin: 0;
+            line-height: 1.4;
+        }
+        
+        /* Session List Styles */
+        .session-list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        
+        .btn-refresh {
+            background: #e0e0e0;
+            color: #333;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-refresh:hover {
+            background: #d0d0d0;
+        }
+        
+        .session-count {
+            font-size: 13px;
+            color: #666;
+        }
+        
+        .session-list-container {
+            height: 280px;
+            overflow-y: auto;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            background: white;
+            margin-bottom: 12px;
+        }
+        
+        .session-loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4caf50;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 12px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .session-list {
+            padding: 8px;
+        }
+        
+        .session-item {
+            padding: 12px;
+            margin-bottom: 8px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: default;
+            transition: all 0.2s ease;
+            background: #fafafa;
+            position: relative;
+        }
+
+        .session-item:hover {
+            background: #f8f8f8;
+        }
+
+        .session-item.multi-selected {
+            border-color: #9c27b0;
+            background: #f3e5f5;
+            transform: translateX(4px);
+        }
+
+        .session-checkbox {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .session-item-content {
+            padding-left: 32px;
+        }
+        
+        .session-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        
+        .session-id {
+            font-size: 16px;
+            font-weight: 600;
+            color: #171a20;
+            letter-spacing: 1px;
+        }
+        
+        .session-status {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+        
+        .session-status.active {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+        
+        .session-status.victory {
+            background: #e8f5e9;
+            color: #4caf50;
+        }
+        
+        .session-status.gameover {
+            background: #ffebee;
+            color: #f44336;
+        }
+        
+        .session-details {
+            display: flex;
+            gap: 12px;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .session-detail {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .session-time {
+            font-size: 11px;
+            color: #999;
+            margin-top: 6px;
+        }
+        
+        .no-sessions {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .no-sessions p {
+            margin: 8px 0;
+            color: #666;
+        }
+
+        .config-selector {
+            margin-bottom: 20px;
+        }
+
+        .config-selector label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #5c5e62;
+            font-weight: 500;
+        }
+
+        .config-selector select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #d0d1d2;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+        }
+
+        .config-selector select:focus {
+            outline: none;
+            border-color: #4caf50;
+        }
+
+        .config-details {
+            margin-bottom: 20px;
+        }
+
+        .config-preview {
+            background: #f8f9fa;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .preview-title {
+            font-size: 16px;
+            font-weight: 500;
+            color: #171a20;
+        }
+
+        .preview-stats {
+            font-size: 12px;
+            color: #666;
+            background: #fff;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        .preview-grid {
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            overflow-x: auto;
+            min-height: 200px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .preview-grid table {
+            border-collapse: collapse;
+            margin: 0 auto;
+        }
+
+        .preview-grid td {
+            width: 16px;
+            height: 16px;
+            border: 1px solid #f0f0f0;
+            font-size: 10px;
+            text-align: center;
+            line-height: 16px;
+        }
+
+        .preview-legend {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .legend-icon {
+            font-size: 14px;
+        }
+
+        .session-error {
+            background: #ffebee;
+            border: 1px solid #f44336;
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: #c62828;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            .session-container {
+                padding: 24px;
+            }
+
+            .session-options {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="connection-status disconnected" id="status">
+        Disconnected
+    </div>
+
+    <!-- Session Management Screen -->
+    <div class="session-screen" id="sessionScreen">
+        <div class="session-container">
+            <div class="session-header">
+                <div class="session-title">Tesla Road Trip Game</div>
+                <div class="session-subtitle">Select or Create a Game Session</div>
+                <div style="margin-top: 16px;">
+                    <a href="/config-builder.html" style="display: inline-block; padding: 10px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 500; font-size: 14px; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);">
+                        🗺️ Create Custom Map
+                    </a>
+                </div>
+            </div>
+            
+            <div class="session-options">
+                <!-- Join Existing Session -->
+                <div class="session-option">
+                    <h3>🎮 Join Existing Session</h3>
+                    <div class="session-list-header">
+                        <button onclick="refreshSessionList()" class="btn-refresh">↻ Refresh</button>
+                        <span id="session-count" class="session-count">Loading...</span>
+                    </div>
+                    <div id="session-list-container" class="session-list-container">
+                        <div id="session-list-loading" class="session-loading">
+                            <div class="spinner"></div>
+                            <span>Loading sessions...</span>
+                        </div>
+                        <div id="session-list" class="session-list" style="display: none;">
+                            <!-- Sessions will be populated here -->
+                        </div>
+                        <div id="no-sessions" class="no-sessions" style="display: none;">
+                            <p>No active sessions found</p>
+                            <p class="session-help">Create a new session to start playing!</p>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px; margin-top: 12px;">
+                        <button onclick="joinSelectedSession()" class="btn-primary" style="width: 100%;" id="joinSessionBtn" disabled>
+                            Join <span id="joinButtonText">Selected</span> (<span id="selectedCount">0</span>)
+                        </button>
+                    </div>
+                    <p class="session-help">Use checkboxes to select sessions. Select multiple for multi-session view.</p>
+                </div>
+                
+                <!-- Create New Session -->
+                <div class="session-option">
+                    <h3>🚀 Create New Session</h3>
+                    <div class="config-selector">
+                        <label for="config-selector">Choose Game Configuration:</label>
+                        <select id="config-selector">
+                            <!-- Dynamically populated from server -->
+                            <option value="">Loading configurations...</option>
+                        </select>
+                    </div>
+
+                    <!-- Configuration Details -->
+                    <div id="config-list" class="config-details">
+                        <!-- Configuration details will be displayed here -->
+                    </div>
+
+                    <!-- Live Preview Area -->
+                    <div class="config-preview">
+                        <div class="preview-header">
+                            <span class="preview-title">Preview</span>
+                            <span class="preview-stats" id="previewStats">Loading...</span>
+                        </div>
+                        <div class="preview-grid" id="previewGrid">
+                            <!-- Grid preview will be rendered here -->
+                        </div>
+                        <div class="preview-legend">
+                            <div class="legend-item"><span class="legend-icon home">🏠</span> Home/Charging</div>
+                            <div class="legend-item"><span class="legend-icon park">🌳</span> Parks to Collect</div>
+                            <div class="legend-item"><span class="legend-icon supercharger">⚡</span> Supercharger</div>
+                            <div class="legend-item"><span class="legend-icon obstacle">🏢💧</span> Obstacles</div>
+                        </div>
+                    </div>
+                    
+                    <button onclick="createNewGameSession()" class="btn-primary btn-large">Create & Start Session</button>
+                </div>
+            </div>
+            
+            <div class="session-error" id="sessionError" style="display: none;"></div>
+        </div>
+    </div>
+
+    <div class="tesla-dashboard" id="gameDashboard" style="display: none;">
+        <!-- Map Section (Left) -->
+        <div class="map-section">
+            <div class="game-grid">
+                <table id="grid">
+                    <!-- Grid will be rendered here -->
+                </table>
+            </div>
+        </div>
+
+        <!-- Control Panel (Right) -->
+        <div class="control-panel">
+            <div class="dashboard-header">
+                <div class="dashboard-title">Navigation</div>
+                <div class="dashboard-subtitle">Autonomous Road Trip System</div>
+            </div>
+            
+            <!-- Current Session Info -->
+            <div class="current-session-info" style="margin-bottom: 24px; padding: 16px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e0e0e0;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-size: 14px; color: #5c5e62; font-weight: 500;">Active Session</div>
+                        <div style="font-size: 16px; color: #171a20; font-weight: 600; margin-top: 2px;" id="currentSessionId">XXXX</div>
+                        <div style="font-size: 12px; color: #666; margin-top: 4px;" id="currentConfigName">Classic Configuration</div>
+                    </div>
+                    <button onclick="showSessionScreen()" style="padding: 8px 16px; background: #2196f3; color: white; border: none; border-radius: 4px; font-size: 13px; cursor: pointer;">
+                        Switch Session
+                    </button>
+                </div>
+            </div>
+            
+            <div class="status-message" id="message">
+                Waiting for connection...
+            </div>
+            
+            <div class="vehicle-status">
+                <div class="stat-section">
+                    <div class="stat-item">
+                        <div class="stat-label">Parks Collected</div>
+                        <div class="stat-value" id="score">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Battery Level</div>
+                        <div class="battery-display">
+                            <div class="battery-text" id="battery-text">10/10</div>
+                            <div class="battery-bar">
+                                <div class="battery-fill" id="battery-bar" style="width: 100%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Total Moves</div>
+                        <div class="stat-value" id="total-moves">0</div>
+                    </div>
+                </div>
+                
+                <!-- Keyboard Controls Info -->
+                <div style="margin: 16px 0; padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; color: white; font-size: 13px; text-align: center; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);">
+                    🎮 <strong>Controls:</strong> Arrow Keys or WASD to move • R to reset
+                </div>
+
+                <!-- Reset Button -->
+                <div style="margin: 16px 0;">
+                    <button onclick="resetCurrentGame()" style="width: 100%; padding: 12px 24px; background: #ff5722; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; font-weight: 500; transition: background-color 0.3s;">
+                        🔄 Reset Game
+                    </button>
+                </div>
+                
+                <!-- Move History Section (Now in main panel) -->
+                <div style="margin-top: 32px;">
+                    <div style="font-size: 14px; color: #5c5e62; margin-bottom: 12px; font-weight: 500;">Move History</div>
+                    <div style="max-height: 160px; overflow-y: auto; background: #ffffff; border-radius: 4px; padding: 0; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
+                        <div id="move-history-list" style="font-size: 14px;">
+                            <p style="color: #939395; text-align: center; margin: 0; padding: 24px 0; font-weight: 400;">No moves yet</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Multi-Session Dashboard (Unified View) -->
+    <div class="tesla-dashboard" id="multiSessionDashboard" style="display: none;">
+        <!-- Unified Map Section (Left) -->
+        <div class="map-section">
+            <div class="game-grid">
+                <table id="unifiedGrid">
+                    <!-- Unified grid will be rendered here -->
+                </table>
+            </div>
+            
+            <!-- Combined Move History below grid -->
+            <div style="margin-top: 24px; background: white; border-radius: 8px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h3 style="font-size: 16px; font-weight: 500; margin: 0; color: #171a20;">Combined Move History</h3>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <button onclick="refreshCombinedHistory()" style="padding: 4px 8px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; transition: all 0.2s ease;">↻ Refresh</button>
+                        <span style="font-size: 12px; color: #666;" id="historyStats">Loading...</span>
+                    </div>
+                </div>
+                <div id="combinedMoveHistory" style="max-height: 300px; overflow-y: auto; border: 1px solid #f0f0f0; border-radius: 6px; background: #fafafa;">
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; color: #666;">
+                        <div style="width: 24px; height: 24px; border: 2px solid #f3f3f3; border-top: 2px solid #4caf50; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 12px;"></div>
+                        <span>Loading move history...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Multi-Session Stats Panel (Right) -->
+        <div class="control-panel">
+            <div class="dashboard-header">
+                <div class="dashboard-title">Multi-Session View</div>
+                <div class="dashboard-subtitle">Unified Grid Visualization</div>
+            </div>
+            
+            <!-- Configuration Info -->
+            <div style="margin-bottom: 24px; padding: 16px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e0e0e0;">
+                <div style="font-size: 14px; color: #5c5e62; font-weight: 500;">Configuration</div>
+                <div style="font-size: 18px; color: #171a20; font-weight: 600; margin-top: 4px;" id="unifiedConfigName">Loading...</div>
+                <div style="font-size: 13px; color: #666; margin-top: 4px;">
+                    <span id="totalSessionCount">0</span> active sessions • 
+                    <span id="totalParksCount">0</span> total parks
+                </div>
+            </div>
+            
+            <!-- Session Stats List -->
+            <div style="margin-top: 24px;">
+                <div style="font-size: 14px; color: #5c5e62; margin-bottom: 12px; font-weight: 500;">Session Progress</div>
+                <div id="sessionStatsList" style="max-height: 400px; overflow-y: auto; background: #ffffff; border-radius: 8px; padding: 0; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
+                    <!-- Individual session stats will be rendered here -->
+                </div>
+            </div>
+            
+            <!-- Add Sessions Section -->
+            <div style="margin-top: 24px; padding: 16px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e0e0e0;">
+                <div style="font-size: 14px; color: #5c5e62; font-weight: 500; margin-bottom: 12px;">Add Sessions to View</div>
+                <div style="display: flex; gap: 8px;">
+                    <select id="addSessionSelect" style="flex: 1; padding: 8px 12px; border: 1px solid #d0d1d2; border-radius: 4px; text-transform: uppercase; background: white; cursor: pointer;">
+                        <option value="">Select a session...</option>
+                    </select>
+                    <button onclick="refreshSessionDropdown()" style="padding: 8px 12px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; transition: all 0.2s ease;" onmouseover="this.style.background='#d0d0d0'" onmouseout="this.style.background='#e0e0e0'">↻</button>
+                    <button onclick="addSelectedSessionToUnified()" style="padding: 8px 16px; background: #2196f3; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px;">Add</button>
+                </div>
+                <div style="margin-top: 12px; font-size: 12px; color: #888;">
+                    <div id="sessionListStatus" style="display: none;">
+                        <span class="session-list-spinner"></span>
+                        Loading sessions...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Mode Toggle -->
+    <div class="view-mode-selector" id="viewModeSelector" style="position: fixed; top: 20px; left: 20px; z-index: 1000; background: white; padding: 8px 12px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: none;">
+        <span style="font-size: 14px; font-weight: 500; margin-right: 12px;">View Mode:</span>
+        <button id="singleViewBtn" onclick="setViewMode('single')" style="padding: 6px 12px; background: #4caf50; color: white; border: none; border-radius: 4px 0 0 4px; cursor: pointer; font-size: 13px;">Single Session</button>
+        <button id="multiViewBtn" onclick="setViewMode('multi')" style="padding: 6px 12px; background: #e0e0e0; color: #333; border: none; border-radius: 0 4px 4px 0; cursor: pointer; font-size: 13px;">Multi-Session</button>
+    </div>
+
+    <!-- Menu Toggle Button -->
+    <button class="menu-toggle" onclick="toggleMenu()">⚙️</button>
+
+    <!-- Collapsible Right Menu -->
+    <div class="slide-menu" id="slideMenu">
+        <div class="menu-header">
+            <div class="menu-title">Controls & AI</div>
+            <div class="menu-subtitle">Remote control and AI assistance</div>
+        </div>
+
+        <!-- Integration Guide Section -->
+        <div class="menu-section">
+            <h3>🔌 Integration & Remote Control</h3>
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px; text-align: center;">
+                <p style="color: white; margin-bottom: 15px; font-size: 1.1em;">
+                    Connect your game with REST APIs, MCP, and AI assistants
+                </p>
+                <a href="/integration" style="display: inline-block; padding: 12px 24px; background: white; color: #764ba2; text-decoration: none; border-radius: 8px; font-weight: 600; transition: transform 0.3s, box-shadow 0.3s;">
+                    📚 View Integration Guide
+                </a>
+            </div>
+            <div style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-radius: 8px;">
+                <h4 style="margin-top: 0; color: #333;">Quick Start:</h4>
+                <div class="api-example" style="margin: 10px 0;">
+# Create session
+curl -X POST http://localhost:8080/api/sessions
+
+# Move Tesla  
+curl -X POST "http://localhost:8080/api?sessionId=ID" \
+  -d '{"action":"right"}'</div>
+                <p style="margin: 0; color: #666; font-size: 0.9em;">
+                    Full documentation for REST API, MCP integration, and AI assistance available in the guide.
+                </p>
+            </div>
+        </div>
+
+        <!-- Cave Mode Settings Section -->
+        <div class="menu-section">
+            <h3>🕳️ Cave Mode</h3>
+            <div style="background: #f9f9f9; border: 1px solid #e0e0e0; padding: 16px; border-radius: 8px; margin-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <span style="font-weight: 500; font-size: 14px;">Enable Cave Mode</span>
+                    <label style="position: relative; display: inline-block; width: 44px; height: 24px;">
+                        <input type="checkbox" id="cave-mode-toggle" style="opacity: 0; width: 0; height: 0;" onchange="toggleCaveMode()">
+                        <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: 0.4s; border-radius: 24px;">
+                            <span id="cave-toggle-slider" style="position: absolute; content: ''; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: 0.4s; border-radius: 50%;"></span>
+                        </span>
+                    </label>
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label for="cave-radius" style="font-size: 13px; color: #666; margin-bottom: 6px; display: block;">Visibility Radius: <span id="radius-value">2</span> cells</label>
+                    <input type="range" id="cave-radius" min="1" max="3" value="2" style="width: 100%; margin: 0;" oninput="updateRadius(this.value)">
+                    <div style="display: flex; justify-content: space-between; font-size: 11px; color: #888; margin-top: 2px;">
+                        <span>Close</span>
+                        <span>Medium</span>
+                        <span>Far</span>
+                    </div>
+                </div>
+                <p style="margin: 0; color: #666; font-size: 12px; line-height: 1.4;">
+                    🌟 Fog of war mode - only see immediate surroundings. Creates mystery and exploration challenge!
+                </p>
+            </div>
+        </div>
+
+                     placeholder="Enter your task here...">
+                    [Edit this: e.g., "Collect all parks efficiently", "Navigate home from current position", "Win the game with optimal moves"]
+                </div>
+                <p style="margin-top: 8px; margin-bottom: 0; font-size: 0.85em; color: #555;">
+                    ✏️ Click above to edit your task before copying the prompt
+                </p>
+            </div>
+
+            <details style="margin-bottom: 15px;">
+                <summary style="cursor: pointer; padding: 10px; background: #f5f5f5; border-radius: 6px; font-weight: 500; user-select: none;">
+                    📋 System Prompt (click to expand)
+                </summary>
+                <div class="api-example" id="ai-prompt-content" style="margin-top: 10px; max-height: 300px; overflow-y: auto;">
+                    <pre style="white-space: pre-wrap; margin: 0; font-size: 0.85em;">You are playing a grid-based navigation game via API. This is a strategic puzzle where you navigate through a grid to collect all objectives while managing limited resources.
+
+🎮 GAME API ENDPOINT: http://localhost:8080/api
+
+🚀 SESSION SETUP (REQUIRED FIRST):
+# Create a new game session - returns a 4-character session ID
+SESSION_ID=$(curl -s -X POST http://localhost:8080/api/sessions | jq -r '.session_id')
+echo "Your session ID: $SESSION_ID"
+
+# Or create session with specific configuration:
+SESSION_ID=$(curl -s -X POST http://localhost:8080/api/sessions \
+  -H "Content-Type: application/json" \
+  -d '{"config_name":"easy"}' | jq -r '.session_id')
+
+# Use this session ID in all subsequent commands by appending ?sessionId=$SESSION_ID
+
+📊 INITIAL ANALYSIS STEPS:
+1. Get current game state for your session:
+   curl -s "http://localhost:8080/api?sessionId=$SESSION_ID" | jq '.'
+
+2. Map all important elements in the grid:
+   curl -s "http://localhost:8080/api?sessionId=$SESSION_ID" | jq -r '.grid | to_entries | map(.key as $row | .value | to_entries | map("\($row),\(.key):\(.value.type)") | .[]) | .[]' | grep -E "(park|supercharger|home)" | sort
+
+3. Check game statistics:
+   curl -s "http://localhost:8080/api?sessionId=$SESSION_ID" | jq '{player_pos, battery, max_battery, score, victory, message}'
+
+4. Count total parks needed for victory:
+   curl -s "http://localhost:8080/api?sessionId=$SESSION_ID" | jq '.grid | map(map(select(.type == "park"))) | add | length'
+
+5. List available configurations:
+   curl -s http://localhost:8080/api/configs | jq '.'
+
+🎯 AVAILABLE ACTIONS:
+# Single move:
+curl -X POST "http://localhost:8080/api?sessionId=$SESSION_ID" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"left"}'
+
+# Bulk moves (more efficient):
+curl -X POST "http://localhost:8080/api?sessionId=$SESSION_ID" \
+  -H "Content-Type: application/json" \
+  -d '{"actions":["up","right","down","left"]}'
+
+# Move with reset (resets game before moving):
+curl -X POST "http://localhost:8080/api?sessionId=$SESSION_ID" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"up","reset":true}'
+
+# Management actions:
+curl -X POST "http://localhost:8080/api?sessionId=$SESSION_ID" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"reset"}'  # Reset game
+  
+curl -X POST "http://localhost:8080/api?sessionId=$SESSION_ID" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"save"}'   # Save game state
+
+⚡ EFFICIENT EXECUTION PATTERNS:
+# Execute multiple moves quickly:
+for i in {1..5}; do curl -sX POST http://localhost:8080/api -d '{"action":"right"}' 2>/dev/null; done
+
+# Chain moves together:
+curl -sX POST http://localhost:8080/api -d '{"action":"up"}' && \
+curl -sX POST http://localhost:8080/api -d '{"action":"left"}' && \
+curl -sX POST http://localhost:8080/api -d '{"action":"up"}'
+
+# Check status after moves:
+curl -s http://localhost:8080/api | jq '{player_pos, battery, score, message}'
+
+🗺️ GRID CELL TYPES:
+- road: Traversable path (empty cell)
+- home: Starting position + resource restoration point (🏠)
+- park: Collectible objective with unique ID (🌳)
+- supercharger: Resource restoration station (⚡)
+- water/building: Impassable obstacles (💧/🏢)
+
+🧠 SYSTEMATIC NAVIGATION STRATEGIES:
+
+🗺️ CORRIDOR NAVIGATION TECHNIQUE:
+1. Look for horizontal/vertical corridors of passable cells
+2. Use safe corridors to navigate around obstacle clusters
+3. Identify "golden corridors" - long straight paths for efficient movement
+4. Plan multi-corridor routes for complex obstacle patterns
+
+🎯 BUILDING OBSTACLE MASTERY:
+1. Map all building locations systematically
+2. Find alternative routes when direct paths are blocked
+3. Use perpendicular approaches - if east is blocked, try north/south first
+4. Look for building-free zones and corridors between obstacle clusters
+
+⚡ BATTERY MANAGEMENT EXCELLENCE:
+1. Always know your distance to nearest charging point
+2. Recharge proactively, not reactively (before you're forced to)
+3. Plan routes that pass through charging stations efficiently
+4. Calculate worst-case battery requirements for each segment
+
+🧩 COMPLEX MAZE NAVIGATION:
+1. Break large areas into smaller, manageable sections
+2. Solve one section completely before moving to the next  
+3. Use charging stations as "base camps" between sections
+4. Document successful routes for reuse in similar patterns
+
+📋 ITERATIVE PROBLEM SOLVING:
+1. When stuck, step back and re-analyze the obstacle pattern
+2. Try different approach angles if direct routes fail
+3. Use systematic trial-and-error with route documentation
+4. Build upon partial successes rather than starting over
+
+⚠️ KEY STRATEGIC INSIGHTS:
+1. Resources are limited - plan your route carefully
+2. Resource stations are essential for completing longer routes
+3. Pre-plan your entire route before making moves
+4. Group objectives by proximity to resource stations
+5. Home positions also restore resources when crossed
+6. Document your world understanding as you explore
+7. Use safe corridors to navigate around complex obstacles
+8. Multiple approach angles solve most navigation challenges
+
+🛤️ WINNING STRATEGY FRAMEWORK:
+Phase 1 - World Mapping:
+1. Create ASCII representation of the grid layout
+2. Locate all objectives and record their positions
+3. Find all resource restoration points
+4. Identify safe navigation corridors
+5. Map all obstacle patterns and building clusters
+
+Phase 2 - Route Architecture:
+1. Divide the grid into manageable sections
+2. Plan corridor-based routes between sections
+3. Design charging station utilization strategy
+4. Create contingency routes for obstacle encounters
+5. Calculate resource requirements for each planned segment
+
+Phase 3 - Systematic Execution:
+1. Execute one section at a time with full resource management
+2. Use proven corridor techniques for obstacle navigation
+3. Document successful routes for pattern replication
+4. Monitor resource levels and recharge proactively
+5. Adapt routes based on obstacle discoveries
+
+Phase 4 - Iterative Refinement:
+1. When routes fail, analyze the specific obstacle pattern
+2. Try alternative approach angles (north/south vs east/west)
+3. Update your world map with newly discovered obstacles
+4. Refine your corridor navigation techniques
+5. Build upon partial successes
+
+⚠️ COMMON PITFALLS:
+- Attempting direct routes without checking for obstacles
+- Not mapping resource stations before starting
+- Making individual moves instead of batch execution
+- Depleting resources without a restoration plan
+- Abandoning successful partial routes instead of refining them
+- Not documenting obstacle patterns for future reference
+- Ignoring corridor navigation opportunities
+
+🎯 VICTORY CONDITIONS:
+- Collect ALL objectives on the map
+- Maintain positive resource levels
+- Avoid collisions with obstacles
+
+💡 ADVANCED OPTIMIZATION TECHNIQUES:
+1. Create ASCII world maps to visualize your understanding
+2. Use corridor navigation for complex obstacle bypass
+3. Implement systematic section-by-section completion
+4. Apply iterative refinement when initial approaches fail
+5. Document building patterns and successful navigation routes
+6. Maintain resource safety buffers for unexpected obstacles
+7. Use perpendicular approach strategies for blocked direct routes
+8. Plan multi-stage routes with strategic charging stops
+
+📁 ADDITIONAL ENDPOINTS:
+- GET /api/configs - List available game configurations
+- GET /api/saves - List saved games with timestamps
+
+YOUR TASK:
+[Task will be inserted here]</pre>
+                </div>
+            </details>
+            
+    </div>
+
+    <div class="game-over-overlay" id="game-over">
+        <div class="game-over-content" id="game-over-content">
+            <h2 id="game-over-title">Game Over</h2>
+            <p id="game-over-message"></p>
+            <button onclick="resetGameAndCloseOverlay()" style="margin-top: 20px; padding: 12px 24px; background: #ff5722; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; font-weight: 500;">🔄 Reset Game</button>
+        </div>
+    </div>
+
+    <script src="/game.js"></script></body>
+</html>

@@ -1,0 +1,47 @@
+# Binaries
+statefullgame
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binaries
+*.test
+
+# Output of go coverage
+*.out
+coverage.html
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Go build cache
+/vendor/
+/dist/
+
+# IDE specific files
+.idea/
+*.swp
+*.swo
+*~
+.vscode/
+*.sublime-*
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Save files (local game data)
+saves/
+
+# Temporary files
+tmp/
+temp/
+node_modules/
+settings.local.json

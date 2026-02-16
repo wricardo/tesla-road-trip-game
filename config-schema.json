@@ -1,0 +1,236 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Tesla Road Trip Game Configuration",
+  "description": "Schema for Tesla Road Trip game configuration files",
+  "type": "object",
+  "required": [
+    "name",
+    "description",
+    "grid_size",
+    "max_battery",
+    "starting_battery",
+    "layout",
+    "legend",
+    "messages"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Name of the game configuration",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "description": {
+      "type": "string",
+      "description": "Description of the game difficulty/mode",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "grid_size": {
+      "type": "integer",
+      "description": "Size of the square grid",
+      "minimum": 5,
+      "maximum": 50
+    },
+    "max_battery": {
+      "type": "integer",
+      "description": "Maximum battery capacity",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "starting_battery": {
+      "type": "integer",
+      "description": "Initial battery level",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "layout": {
+      "type": "array",
+      "description": "Grid layout as array of strings",
+      "minItems": 5,
+      "maxItems": 50,
+      "items": {
+        "type": "string",
+        "pattern": "^[RHPSWB]+$",
+        "minLength": 5,
+        "maxLength": 50
+      }
+    },
+    "legend": {
+      "type": "object",
+      "description": "Mapping of characters to cell types",
+      "required": ["R", "H", "P", "S", "W", "B"],
+      "properties": {
+        "R": {
+          "type": "string",
+          "enum": ["road"]
+        },
+        "H": {
+          "type": "string",
+          "enum": ["home"]
+        },
+        "P": {
+          "type": "string",
+          "enum": ["park"]
+        },
+        "S": {
+          "type": "string",
+          "enum": ["supercharger"]
+        },
+        "W": {
+          "type": "string",
+          "enum": ["water"]
+        },
+        "B": {
+          "type": "string",
+          "enum": ["building"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "wall_crash_ends_game": {
+      "type": "boolean",
+      "description": "Whether hitting a wall ends the game",
+      "default": false
+    },
+    "messages": {
+      "type": "object",
+      "description": "Game messages for various events",
+      "required": [
+        "welcome",
+        "home_charge",
+        "supercharger_charge",
+        "park_visited",
+        "park_already_visited",
+        "victory",
+        "out_of_battery",
+        "stranded",
+        "cant_move",
+        "battery_status"
+      ],
+      "properties": {
+        "welcome": {
+          "type": "string",
+          "description": "Welcome message when game starts",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "home_charge": {
+          "type": "string",
+          "description": "Message when charging at home",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "supercharger_charge": {
+          "type": "string",
+          "description": "Message when using supercharger",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "park_visited": {
+          "type": "string",
+          "description": "Message when visiting a park (use %d for score)",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": ".*%d.*"
+        },
+        "park_already_visited": {
+          "type": "string",
+          "description": "Message when revisiting a park",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "victory": {
+          "type": "string",
+          "description": "Victory message (use %d for park count)",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": ".*%d.*"
+        },
+        "out_of_battery": {
+          "type": "string",
+          "description": "Message when battery depletes",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "stranded": {
+          "type": "string",
+          "description": "Message when stranded without power",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "cant_move": {
+          "type": "string",
+          "description": "Message when move is blocked",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "battery_status": {
+          "type": "string",
+          "description": "Battery status message (use %d/%d for current/max)",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": ".*%d.*%d.*"
+        },
+        "hit_wall": {
+          "type": "string",
+          "description": "Message when crashing into wall (if wall_crash_ends_game is true)",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "description": "starting_battery must not exceed max_battery",
+      "if": {
+        "properties": {
+          "starting_battery": { "type": "integer" },
+          "max_battery": { "type": "integer" }
+        }
+      },
+      "then": {
+        "properties": {
+          "starting_battery": {
+            "maximum": { "$data": "1/max_battery" }
+          }
+        }
+      }
+    },
+    {
+      "description": "layout array length must match grid_size",
+      "if": {
+        "properties": {
+          "grid_size": { "type": "integer" },
+          "layout": { "type": "array" }
+        }
+      },
+      "then": {
+        "properties": {
+          "layout": {
+            "minItems": { "$data": "1/grid_size" },
+            "maxItems": { "$data": "1/grid_size" }
+          }
+        }
+      }
+    },
+    {
+      "description": "if wall_crash_ends_game is true, hit_wall message is required",
+      "if": {
+        "properties": {
+          "wall_crash_ends_game": { "const": true }
+        }
+      },
+      "then": {
+        "properties": {
+          "messages": {
+            "required": ["hit_wall"]
+          }
+        }
+      }
+    }
+  ]
+}

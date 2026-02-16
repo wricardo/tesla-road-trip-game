@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "tesla-stdin": {
+      "command": "/Users/wricardo/go/src/github.com/wricardo/mcp-training/statefullgame/statefullgame",
+      "args": ["stdio-mcp"]
+    }
+  }
+}
