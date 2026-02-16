@@ -1,0 +1,45 @@
+{
+  "name": "medium_island",
+  "description": "Medium difficulty - Navigate between islands connected by bridges",
+  "grid_size": 14,
+  "max_battery": 20,
+  "starting_battery": 20,
+  "layout": [
+    "BBBBBBBBBBBBBB",
+    "BPRRRRRRRRRRPB",
+    "BRRBBBRRBBBRBB",
+    "BRRBBRRRRBBRRB",
+    "BRSBPRRRRPBSRB",
+    "BBBBBRRRRBBBRB",
+    "BWWWWRRRRWWWWB",
+    "BWWWWRHHRWWWWB",
+    "BWWWWRRRRWWWWB",
+    "BBBBRRRRRBBBRB",
+    "BRRBSRRRRSBRBB",
+    "BRRBBRRRRBBRRB",
+    "BRRBBBRRBBBRBB",
+    "BBBBBBBBBBBBBB"
+  ],
+  "legend": {
+    "B": "building",
+    "H": "home",
+    "P": "park",
+    "R": "road",
+    "S": "supercharger",
+    "W": "water"
+  },
+  "wall_crash_ends_game": true,
+  "messages": {
+    "welcome": "Welcome to medium_island!",
+    "home_charge": "Home sweet home! Battery fully charged!",
+    "supercharger_charge": "Supercharger! Battery fully charged!",
+    "park_visited": "Park visited! Score: %d",
+    "park_already_visited": "Already visited this park",
+    "victory": "Excellent! All %d parks visited!",
+    "out_of_battery": "Battery depleted! Try again!",
+    "stranded": "No battery left! Game Over!",
+    "cant_move": "Can't go there!",
+    "battery_status": "Battery: %d/%d",
+    "hit_wall": "You crashed into a wall! Game Over!"
+  }
+}

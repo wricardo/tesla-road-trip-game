@@ -1,0 +1,47 @@
+{
+  "name": "Strategic Maze",
+  "description": "Medium difficulty - plan your route carefully to reach all parks",
+  "grid_size": 16,
+  "max_battery": 22,
+  "starting_battery": 22,
+  "layout": [
+    "BBBBBBBBBBBBBBBB",
+    "BPRRRRBBBBRRRRPB",
+    "BRBBRRBBBBRRBBRB",
+    "BRBBRRRRRRRRBBRB",
+    "BRBBBBBRRBBBBBRB",
+    "BRRRRRRRRRRRRRRB",
+    "BBBRBBBRRBBBRBBB",
+    "BPRRBBRHHBBRRRSB",
+    "BBRRBBRHHBBRRBBB",
+    "BBRRBBRRRBBRRBBB",
+    "BRRRRRRRRRRRRRRB",
+    "BRBBBBBRRBBBBBRB",
+    "BRBBRRRRRRRRBBRB",
+    "BRBBRRBSSBRRBBRB",
+    "BPRRRRBBBBRRRRPB",
+    "BBBBBBBBBBBBBBBB"
+  ],
+  "legend": {
+    "R": "road",
+    "H": "home",
+    "P": "park",
+    "S": "supercharger",
+    "W": "water",
+    "B": "building"
+  },
+  "wall_crash_ends_game": true,
+  "messages": {
+    "welcome": "Welcome to Strategic Maze! Plan your route to collect all 5 parks!",
+    "home_charge": "Home base! Battery fully charged!",
+    "supercharger_charge": "Supercharger station! Battery fully charged!",
+    "park_visited": "Park discovered! Score: %d",
+    "park_already_visited": "Already visited this park",
+    "victory": "Maze mastered! All %d parks visited!",
+    "out_of_battery": "Battery empty! Game Over!",
+    "stranded": "Lost in the maze! Game Over!",
+    "cant_move": "Wall ahead!",
+    "battery_status": "Battery: %d/%d",
+    "hit_wall": "You crashed into a wall! Game Over!"
+  }
+}
