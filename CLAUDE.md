@@ -298,3 +298,13 @@ are the nearst chargers/home? how much battery do I have left?
 any walls nearby?
 
 
+
+
+## Documentation
+
+For detailed technical documentation, see the `docs/` directory:
+- **[docs/architecture.md](docs/architecture.md)** - System design and architecture
+- **[docs/ai-strategy.md](docs/ai-strategy.md)** - Comprehensive AI strategy guide
+- **[docs/mcp-integration.md](docs/mcp-integration.md)** - MCP server setup and usage
+- **[docs/config-schema.md](docs/config-schema.md)** - Configuration format reference
+- **[docs/README.md](docs/README.md)** - Documentation index

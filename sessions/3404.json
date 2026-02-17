@@ -2,7 +2,7 @@
   "id": "3404",
   "config_name": "medium_island",
   "created_at": "2025-10-03T23:12:19.206934-04:00",
-  "last_accessed_at": "2026-02-16T08:30:14.93871-05:00",
+  "last_accessed_at": "2026-02-16T20:23:58.918761-05:00",
   "game_state": {
     "grid": [
       [
@@ -198,7 +198,6 @@
         },
         {
           "type": "park",
-          "visited": true,
           "id": "park_2"
         },
         {
@@ -215,7 +214,6 @@
         },
         {
           "type": "park",
-          "visited": true,
           "id": "park_3"
         },
         {
@@ -629,18 +627,15 @@
       ]
     ],
     "player_pos": {
-      "x": 4,
-      "y": 4
+      "x": 7,
+      "y": 7
     },
-    "battery": 9,
+    "battery": 20,
     "max_battery": 20,
-    "score": 2,
-    "visited_parks": {
-      "park_2": true,
-      "park_3": true
-    },
-    "message": "You crashed into a wall! Game Over! [Hit: building at (3,4)]",
-    "game_over": true,
+    "score": 0,
+    "visited_parks": {},
+    "message": "Welcome to medium_island!",
+    "game_over": false,
     "victory": false,
     "config_name": "medium_island",
     "move_history": [
@@ -4561,298 +4556,12 @@
       }
     ],
     "total_moves": 261,
-    "current_moves": [
-      {
-        "action": "left",
-        "from_position": {
-          "x": 7,
-          "y": 7
-        },
-        "to_position": {
-          "x": 6,
-          "y": 7
-        },
-        "battery": 20,
-        "timestamp": 1771242149,
-        "success": true,
-        "move_number": 243
-      },
-      {
-        "action": "up",
-        "from_position": {
-          "x": 6,
-          "y": 7
-        },
-        "to_position": {
-          "x": 6,
-          "y": 6
-        },
-        "battery": 19,
-        "timestamp": 1771242149,
-        "success": true,
-        "move_number": 244
-      },
-      {
-        "action": "up",
-        "from_position": {
-          "x": 6,
-          "y": 6
-        },
-        "to_position": {
-          "x": 6,
-          "y": 5
-        },
-        "battery": 18,
-        "timestamp": 1771242150,
-        "success": true,
-        "move_number": 245
-      },
-      {
-        "action": "down",
-        "from_position": {
-          "x": 6,
-          "y": 5
-        },
-        "to_position": {
-          "x": 6,
-          "y": 6
-        },
-        "battery": 17,
-        "timestamp": 1771242543,
-        "success": true,
-        "move_number": 246
-      },
-      {
-        "action": "down",
-        "from_position": {
-          "x": 6,
-          "y": 6
-        },
-        "to_position": {
-          "x": 6,
-          "y": 7
-        },
-        "battery": 20,
-        "timestamp": 1771242543,
-        "success": true,
-        "move_number": 247
-      },
-      {
-        "action": "up",
-        "from_position": {
-          "x": 6,
-          "y": 7
-        },
-        "to_position": {
-          "x": 6,
-          "y": 6
-        },
-        "battery": 19,
-        "timestamp": 1771242544,
-        "success": true,
-        "move_number": 248
-      },
-      {
-        "action": "up",
-        "from_position": {
-          "x": 6,
-          "y": 6
-        },
-        "to_position": {
-          "x": 6,
-          "y": 5
-        },
-        "battery": 18,
-        "timestamp": 1771242544,
-        "success": true,
-        "move_number": 249
-      },
-      {
-        "action": "right",
-        "from_position": {
-          "x": 6,
-          "y": 5
-        },
-        "to_position": {
-          "x": 7,
-          "y": 5
-        },
-        "battery": 17,
-        "timestamp": 1771242544,
-        "success": true,
-        "move_number": 250
-      },
-      {
-        "action": "right",
-        "from_position": {
-          "x": 7,
-          "y": 5
-        },
-        "to_position": {
-          "x": 8,
-          "y": 5
-        },
-        "battery": 16,
-        "timestamp": 1771242545,
-        "success": true,
-        "move_number": 251
-      },
-      {
-        "action": "up",
-        "from_position": {
-          "x": 8,
-          "y": 5
-        },
-        "to_position": {
-          "x": 8,
-          "y": 4
-        },
-        "battery": 15,
-        "timestamp": 1771242545,
-        "success": true,
-        "move_number": 252
-      },
-      {
-        "action": "right",
-        "from_position": {
-          "x": 8,
-          "y": 4
-        },
-        "to_position": {
-          "x": 9,
-          "y": 4
-        },
-        "battery": 14,
-        "timestamp": 1771242546,
-        "success": true,
-        "move_number": 253
-      },
-      {
-        "action": "left",
-        "from_position": {
-          "x": 9,
-          "y": 4
-        },
-        "to_position": {
-          "x": 8,
-          "y": 4
-        },
-        "battery": 13,
-        "timestamp": 1771242546,
-        "success": true,
-        "move_number": 254
-      },
-      {
-        "action": "left",
-        "from_position": {
-          "x": 8,
-          "y": 4
-        },
-        "to_position": {
-          "x": 7,
-          "y": 4
-        },
-        "battery": 12,
-        "timestamp": 1771242546,
-        "success": true,
-        "move_number": 255
-      },
-      {
-        "action": "left",
-        "from_position": {
-          "x": 7,
-          "y": 4
-        },
-        "to_position": {
-          "x": 6,
-          "y": 4
-        },
-        "battery": 11,
-        "timestamp": 1771242547,
-        "success": true,
-        "move_number": 256
-      },
-      {
-        "action": "left",
-        "from_position": {
-          "x": 6,
-          "y": 4
-        },
-        "to_position": {
-          "x": 5,
-          "y": 4
-        },
-        "battery": 10,
-        "timestamp": 1771242547,
-        "success": true,
-        "move_number": 257
-      },
-      {
-        "action": "left",
-        "from_position": {
-          "x": 5,
-          "y": 4
-        },
-        "to_position": {
-          "x": 4,
-          "y": 4
-        },
-        "battery": 9,
-        "timestamp": 1771242547,
-        "success": true,
-        "move_number": 258
-      },
-      {
-        "action": "left",
-        "from_position": {
-          "x": 4,
-          "y": 4
-        },
-        "to_position": {
-          "x": 4,
-          "y": 4
-        },
-        "battery": 9,
-        "timestamp": 1771242547,
-        "success": false,
-        "move_number": 259
-      },
-      {
-        "action": "right",
-        "from_position": {
-          "x": 4,
-          "y": 4
-        },
-        "to_position": {
-          "x": 4,
-          "y": 4
-        },
-        "battery": 9,
-        "timestamp": 1771242548,
-        "success": false,
-        "move_number": 260
-      },
-      {
-        "action": "right",
-        "from_position": {
-          "x": 4,
-          "y": 4
-        },
-        "to_position": {
-          "x": 4,
-          "y": 4
-        },
-        "battery": 9,
-        "timestamp": 1771242548,
-        "success": false,
-        "move_number": 261
-      }
-    ],
-    "current_moves_count": 19,
+    "current_moves": [],
+    "current_moves_count": 0,
     "local_view_3x3": [
-      "BBR",
-      "BTR",
-      "BBR"
+      "RRR",
+      "HTR",
+      "RRR"
     ],
     "battery_risk": "SAFE"
   }
