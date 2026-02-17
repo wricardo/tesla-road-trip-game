@@ -112,6 +112,7 @@ When routes fail:
 ### Movement Tools
 - `move(session_id, direction, intent)`: Single careful move with reasoning
 - `bulk_move(session_id, moves, intent)`: Execute planned sequences with reasoning
+- **Intent parameter**: Brief explanation of your reasoning (serves as rubber duck debugging to clarify your strategy)
 - Both support optional `reset: true` parameter to restart before moving
 
 ### Session Management
