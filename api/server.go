@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/wricardo/mcp-training/statefullgame/game/engine"
-	"github.com/wricardo/mcp-training/statefullgame/game/service"
-	"github.com/wricardo/mcp-training/statefullgame/transport/websocket"
+	"github.com/wricardo/tesla-road-trip-game/game/engine"
+	"github.com/wricardo/tesla-road-trip-game/game/service"
+	"github.com/wricardo/tesla-road-trip-game/transport/websocket"
 )
 
 // Server represents the REST API server

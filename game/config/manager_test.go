@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/wricardo/mcp-training/statefullgame/game/engine"
+	"github.com/wricardo/tesla-road-trip-game/game/engine"
 )
 
 func createTestConfigDir(t *testing.T) string {

@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wricardo/mcp-training/statefullgame/game/engine"
+	"github.com/wricardo/tesla-road-trip-game/game/engine"
 )
 
 // gameServiceImpl implements the GameService interface
