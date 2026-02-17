@@ -12,8 +12,8 @@ import (
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
-	"github.com/wricardo/mcp-training/statefullgame/game/engine"
-	"github.com/wricardo/mcp-training/statefullgame/game/service"
+	"github.com/wricardo/tesla-road-trip-game/game/engine"
+	"github.com/wricardo/tesla-road-trip-game/game/service"
 )
 
 // Client is a thin MCP client that proxies to the REST API

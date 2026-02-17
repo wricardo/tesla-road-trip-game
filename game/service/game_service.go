@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/wricardo/mcp-training/statefullgame/game/engine"
+	"github.com/wricardo/tesla-road-trip-game/game/engine"
 )
 
 // GameService defines all game-related operations

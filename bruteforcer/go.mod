@@ -1,6 +1,3 @@
-module github.com/wricardo/mcp-training/statefullgame/bruteforcer
+module github.com/wricardo/tesla-road-trip-game/bruteforcer
 
 go 1.21
-
-require (
-)

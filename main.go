@@ -25,12 +25,12 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/mark3labs/mcp-go/server"
-	"github.com/wricardo/mcp-training/statefullgame/api"
-	"github.com/wricardo/mcp-training/statefullgame/game/config"
-	"github.com/wricardo/mcp-training/statefullgame/game/service"
-	"github.com/wricardo/mcp-training/statefullgame/game/session"
-	"github.com/wricardo/mcp-training/statefullgame/transport/mcp"
-	"github.com/wricardo/mcp-training/statefullgame/transport/websocket"
+	"github.com/wricardo/tesla-road-trip-game/api"
+	"github.com/wricardo/tesla-road-trip-game/game/config"
+	"github.com/wricardo/tesla-road-trip-game/game/service"
+	"github.com/wricardo/tesla-road-trip-game/game/session"
+	"github.com/wricardo/tesla-road-trip-game/transport/mcp"
+	"github.com/wricardo/tesla-road-trip-game/transport/websocket"
 	"golang.ngrok.com/ngrok"
 	ngrokConfig "golang.ngrok.com/ngrok/config"
 )
