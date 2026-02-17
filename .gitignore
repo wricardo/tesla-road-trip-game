@@ -1,5 +1,6 @@
 # Binaries
 statefullgame
+tesla-desktop
 *.exe
 *.dll
 *.so
@@ -39,9 +40,12 @@ logs/
 
 # Save files (local game data)
 saves/
+sessions/
+test_sessions/
 
 # Temporary files
 tmp/
 temp/
 node_modules/
 settings.local.json
+*.html

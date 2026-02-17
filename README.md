@@ -1,8 +1,7 @@
 # Tesla Road Trip Game Server
 
-[![CI](https://github.com/wricardo/mcp-training/workflows/CI/badge.svg)](https://github.com/wricardo/mcp-training/actions)
-[![Go Report Card](https://goreportcard.com/badge/github.com/wricardo/mcp-training/statefullgame)](https://goreportcard.com/report/github.com/wricardo/mcp-training/statefullgame)
-[![Coverage](https://codecov.io/gh/wricardo/mcp-training/branch/main/graph/badge.svg)](https://codecov.io/gh/wricardo/mcp-training)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Go Report Card](https://goreportcard.com/badge/github.com/wricardo/tesla-road-trip-game)](https://goreportcard.com/report/github.com/wricardo/tesla-road-trip-game)
 
 A multi-session, grid-based game server where players control Tesla vehicles to collect parks while managing battery life. Built with Go, featuring configurable game layouts, persistent sessions, real-time WebSocket updates, and Model Context Protocol (MCP) integration for AI assistance.
 
@@ -37,11 +36,11 @@ A multi-session, grid-based game server where players control Tesla vehicles to 
 
 ```bash
 # Clone the repository
-git clone https://github.com/wricardo/mcp-training.git
-cd mcp-training/statefullgame
+git clone https://github.com/wricardo/tesla-road-trip-game.git
+cd tesla-road-trip-game
 
 # Install dependencies
-make deps
+go mod download
 
 # Build the server
 make build
@@ -595,9 +594,13 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- **Issues**: [GitHub Issues](https://github.com/wricardo/mcp-training/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/wricardo/mcp-training/discussions)
+- **Issues**: [GitHub Issues](https://github.com/wricardo/tesla-road-trip-game/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/wricardo/tesla-road-trip-game/discussions)
 - **Documentation**: [Project Docs](docs/)
+  - [Architecture](docs/architecture.md) - System design and components
+  - [AI Strategy Guide](docs/ai-strategy.md) - Techniques for AI agents
+  - [MCP Integration](docs/mcp-integration.md) - AI assistant setup
+  - [Configuration Schema](docs/config-schema.md) - Custom game configs
 
 ---
 
