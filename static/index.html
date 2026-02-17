@@ -389,45 +389,6 @@
             font-size: 0.9em;
         }
 
-        .game-over-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.8);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-
-        .game-over-overlay.active {
-            display: flex;
-        }
-
-        .game-over-content {
-            background: white;
-            padding: 40px;
-            border-radius: 20px;
-            text-align: center;
-            max-width: 400px;
-            position: relative;
-        }
-
-        .game-over-content h2 {
-            margin-bottom: 20px;
-            font-size: 2em;
-        }
-
-        .victory h2 {
-            color: #4caf50;
-        }
-
-        .defeat h2 {
-            color: #f44336;
-        }
-
         /* Collapsible Right Menu */
         .menu-toggle {
             position: fixed;
@@ -751,52 +712,7 @@
         }
 
         .session-options {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 32px;
             margin-bottom: 24px;
-        }
-
-        .session-option {
-            padding: 24px;
-            border: 2px solid #e0e0e0;
-            border-radius: 12px;
-            background: #fafafa;
-            transition: all 0.3s ease;
-        }
-
-        .session-option:hover {
-            border-color: #4caf50;
-            background: #f8fff8;
-        }
-
-        .session-option h3 {
-            margin: 0 0 16px 0;
-            font-size: 18px;
-            font-weight: 500;
-            color: #171a20;
-        }
-
-        .session-input-group {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 12px;
-        }
-
-        .session-input-group input {
-            flex: 1;
-            padding: 12px 16px;
-            border: 2px solid #d0d1d2;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 500;
-            text-align: center;
-            letter-spacing: 2px;
-        }
-
-        .session-input-group input:focus {
-            outline: none;
-            border-color: #4caf50;
         }
 
         .btn-primary {
@@ -823,181 +739,33 @@
             margin-top: 24px;
         }
 
-        .session-help {
-            color: #666;
-            font-size: 14px;
-            margin: 0;
-            line-height: 1.4;
+        .resume-session {
+            margin-bottom: 16px;
         }
-        
-        /* Session List Styles */
-        .session-list-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-        
-        .btn-refresh {
-            background: #e0e0e0;
-            color: #333;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 13px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        
-        .btn-refresh:hover {
-            background: #d0d0d0;
-        }
-        
-        .session-count {
-            font-size: 13px;
-            color: #666;
-        }
-        
-        .session-list-container {
-            height: 280px;
-            overflow-y: auto;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            background: white;
-            margin-bottom: 12px;
-        }
-        
-        .session-loading {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 40px;
-            color: #666;
-        }
-        
-        .spinner {
-            width: 32px;
-            height: 32px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #4caf50;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 12px;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .session-list {
-            padding: 8px;
-        }
-        
-        .session-item {
-            padding: 12px;
+
+        .resume-session label {
+            display: block;
             margin-bottom: 8px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            cursor: default;
-            transition: all 0.2s ease;
-            background: #fafafa;
-            position: relative;
-        }
-
-        .session-item:hover {
-            background: #f8f8f8;
-        }
-
-        .session-item.multi-selected {
-            border-color: #9c27b0;
-            background: #f3e5f5;
-            transform: translateX(4px);
-        }
-
-        .session-checkbox {
-            position: absolute;
-            left: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 18px;
-            height: 18px;
-            cursor: pointer;
-        }
-
-        .session-item-content {
-            padding-left: 32px;
-        }
-        
-        .session-item-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 6px;
-        }
-        
-        .session-id {
-            font-size: 16px;
-            font-weight: 600;
-            color: #171a20;
-            letter-spacing: 1px;
-        }
-        
-        .session-status {
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 11px;
+            font-size: 14px;
+            color: #5c5e62;
             font-weight: 500;
-            text-transform: uppercase;
         }
-        
-        .session-status.active {
-            background: #e3f2fd;
-            color: #1976d2;
-        }
-        
-        .session-status.victory {
-            background: #e8f5e9;
-            color: #4caf50;
-        }
-        
-        .session-status.gameover {
-            background: #ffebee;
-            color: #f44336;
-        }
-        
-        .session-details {
-            display: flex;
-            gap: 12px;
-            font-size: 12px;
-            color: #666;
-        }
-        
-        .session-detail {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-        
-        .session-time {
-            font-size: 11px;
-            color: #999;
-            margin-top: 6px;
-        }
-        
-        .no-sessions {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 40px;
+
+        .resume-session input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #d0d1d2;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            letter-spacing: 2px;
             text-align: center;
+            box-sizing: border-box;
         }
-        
-        .no-sessions p {
-            margin: 8px 0;
-            color: #666;
+
+        .resume-session input:focus {
+            outline: none;
+            border-color: #4caf50;
         }
 
         .config-selector {
@@ -1126,6 +894,173 @@
                 gap: 20px;
             }
         }
+
+        /* === HYBRID VIEW STYLES === */
+
+        /* Active player car styling */
+        .active-player-car {
+            font-size: 48px !important;
+            filter: drop-shadow(0 0 12px rgba(231,29,35,0.8)) !important;
+            z-index: 20 !important;
+        }
+
+        /* Observer car styling */
+        .observer-car {
+            font-size: 36px !important;
+            opacity: 0.7;
+            z-index: 10 !important;
+        }
+
+        /* Active session panel */
+        .active-session-panel {
+            background: linear-gradient(135deg, #fff4f4 0%, #ffe8e8 100%);
+            border: 2px solid #e31d23;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        .active-session-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin: 16px 0;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .session-id-badge {
+            background: #171a20;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        .keyboard-hint {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 13px;
+            margin-top: 16px;
+        }
+
+        /* Observer sessions panel */
+        .observer-sessions-panel {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        .panel-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #171a20;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .observer-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .observer-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .observer-icon {
+            font-size: 32px;
+        }
+
+        .observer-info {
+            flex: 1;
+        }
+
+        .observer-id {
+            font-weight: 600;
+            font-size: 13px;
+            color: #171a20;
+            letter-spacing: 1px;
+        }
+
+        .observer-stats {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .no-observers {
+            text-align: center;
+            color: #999;
+            padding: 40px 20px;
+            font-size: 14px;
+        }
+
+        .btn-icon {
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+
+        .btn-icon:hover {
+            opacity: 1;
+        }
+
+        .btn-secondary {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-secondary:hover {
+            background: #1976d2;
+        }
+
+        .info-panel {
+            background: #f8f9fa;
+            padding: 16px;
+            border-radius: 8px;
+        }
+
+        .info-label {
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .info-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #171a20;
+        }
     </style>
 </head>
 <body>
@@ -1138,7 +1073,7 @@
         <div class="session-container">
             <div class="session-header">
                 <div class="session-title">Tesla Road Trip Game</div>
-                <div class="session-subtitle">Select or Create a Game Session</div>
+                <div class="session-subtitle">Pick a configuration and play</div>
                 <div style="margin-top: 16px;">
                     <a href="/config-builder.html" style="display: inline-block; padding: 10px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 500; font-size: 14px; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);">
                         🗺️ Create Custom Map
@@ -1147,234 +1082,130 @@
             </div>
             
             <div class="session-options">
-                <!-- Join Existing Session -->
-                <div class="session-option">
-                    <h3>🎮 Join Existing Session</h3>
-                    <div class="session-list-header">
-                        <button onclick="refreshSessionList()" class="btn-refresh">↻ Refresh</button>
-                        <span id="session-count" class="session-count">Loading...</span>
-                    </div>
-                    <div id="session-list-container" class="session-list-container">
-                        <div id="session-list-loading" class="session-loading">
-                            <div class="spinner"></div>
-                            <span>Loading sessions...</span>
-                        </div>
-                        <div id="session-list" class="session-list" style="display: none;">
-                            <!-- Sessions will be populated here -->
-                        </div>
-                        <div id="no-sessions" class="no-sessions" style="display: none;">
-                            <p>No active sessions found</p>
-                            <p class="session-help">Create a new session to start playing!</p>
-                        </div>
-                    </div>
-                    <div style="display: flex; gap: 8px; margin-top: 12px;">
-                        <button onclick="joinSelectedSession()" class="btn-primary" style="width: 100%;" id="joinSessionBtn" disabled>
-                            Join <span id="joinButtonText">Selected</span> (<span id="selectedCount">0</span>)
-                        </button>
-                    </div>
-                    <p class="session-help">Use checkboxes to select sessions. Select multiple for multi-session view.</p>
+                <div class="config-selector">
+                    <label for="config-selector">Configuration:</label>
+                    <select id="config-selector">
+                        <!-- Dynamically populated from server -->
+                        <option value="">Loading configurations...</option>
+                    </select>
                 </div>
-                
-                <!-- Create New Session -->
-                <div class="session-option">
-                    <h3>🚀 Create New Session</h3>
-                    <div class="config-selector">
-                        <label for="config-selector">Choose Game Configuration:</label>
-                        <select id="config-selector">
-                            <!-- Dynamically populated from server -->
-                            <option value="">Loading configurations...</option>
-                        </select>
-                    </div>
 
-                    <!-- Configuration Details -->
-                    <div id="config-list" class="config-details">
-                        <!-- Configuration details will be displayed here -->
-                    </div>
-
-                    <!-- Live Preview Area -->
-                    <div class="config-preview">
-                        <div class="preview-header">
-                            <span class="preview-title">Preview</span>
-                            <span class="preview-stats" id="previewStats">Loading...</span>
-                        </div>
-                        <div class="preview-grid" id="previewGrid">
-                            <!-- Grid preview will be rendered here -->
-                        </div>
-                        <div class="preview-legend">
-                            <div class="legend-item"><span class="legend-icon home">🏠</span> Home/Charging</div>
-                            <div class="legend-item"><span class="legend-icon park">🌳</span> Parks to Collect</div>
-                            <div class="legend-item"><span class="legend-icon supercharger">⚡</span> Supercharger</div>
-                            <div class="legend-item"><span class="legend-icon obstacle">🏢💧</span> Obstacles</div>
-                        </div>
-                    </div>
-                    
-                    <button onclick="createNewGameSession()" class="btn-primary btn-large">Create & Start Session</button>
+                <!-- Configuration Details -->
+                <div id="config-list" class="config-details">
+                    <!-- Configuration details will be displayed here -->
                 </div>
+
+                <!-- Live Preview Area -->
+                <div class="config-preview">
+                    <div class="preview-header">
+                        <span class="preview-title">Preview</span>
+                        <span class="preview-stats" id="previewStats">Loading...</span>
+                    </div>
+                    <div class="preview-grid" id="previewGrid">
+                        <!-- Grid preview will be rendered here -->
+                    </div>
+                    <div class="preview-legend">
+                        <div class="legend-item"><span class="legend-icon home">🏠</span> Home/Charging</div>
+                        <div class="legend-item"><span class="legend-icon park">🌳</span> Parks to Collect</div>
+                        <div class="legend-item"><span class="legend-icon supercharger">⚡</span> Supercharger</div>
+                        <div class="legend-item"><span class="legend-icon obstacle">🏢💧</span> Obstacles</div>
+                    </div>
+                </div>
+
+                <!-- Resume existing session (optional) -->
+                <div class="resume-session">
+                    <label for="resume-session-id">Resume session (optional):</label>
+                    <input type="text" id="resume-session-id" placeholder="Enter session ID" maxlength="8">
+                </div>
+
+                <button onclick="startGame()" class="btn-primary btn-large">▶ Play</button>
             </div>
             
             <div class="session-error" id="sessionError" style="display: none;"></div>
         </div>
     </div>
 
-    <div class="tesla-dashboard" id="gameDashboard" style="display: none;">
-        <!-- Map Section (Left) -->
+    <!-- Unified Hybrid Dashboard -->
+    <div id="unifiedDashboard" class="tesla-dashboard" style="display: none;">
+        <!-- Left: Unified Grid -->
         <div class="map-section">
             <div class="game-grid">
-                <table id="grid">
-                    <!-- Grid will be rendered here -->
-                </table>
+                <table id="unifiedGrid"></table>
+            </div>
+
+            <!-- Cave mode controls -->
+            <div class="cave-controls" style="margin-top: 20px;">
+                <label style="font-size: 14px; color: #5c5e62;">
+                    <input type="checkbox" id="caveModeToggle" onchange="toggleCaveMode()">
+                    Cave Mode (Radius: <span id="caveRadiusDisplay">2</span>)
+                </label>
+                <input type="range" id="caveRadiusSlider" min="1" max="5" value="2"
+                       onchange="updateCaveRadius(this.value)"
+                       style="width: 120px; margin-left: 10px;">
             </div>
         </div>
 
-        <!-- Control Panel (Right) -->
+        <!-- Right: Control Panel -->
         <div class="control-panel">
             <div class="dashboard-header">
-                <div class="dashboard-title">Navigation</div>
-                <div class="dashboard-subtitle">Autonomous Road Trip System</div>
+                <div class="dashboard-title">Tesla Road Trip</div>
+                <button onclick="showSessionScreen()" class="btn-secondary" style="margin-top: 12px;">
+                    Switch Session
+                </button>
             </div>
-            
-            <!-- Current Session Info -->
-            <div class="current-session-info" style="margin-bottom: 24px; padding: 16px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e0e0e0;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <div style="font-size: 14px; color: #5c5e62; font-weight: 500;">Active Session</div>
-                        <div style="font-size: 16px; color: #171a20; font-weight: 600; margin-top: 2px;" id="currentSessionId">XXXX</div>
-                        <div style="font-size: 12px; color: #666; margin-top: 4px;" id="currentConfigName">Classic Configuration</div>
-                    </div>
-                    <button onclick="showSessionScreen()" style="padding: 8px 16px; background: #2196f3; color: white; border: none; border-radius: 4px; font-size: 13px; cursor: pointer;">
-                        Switch Session
-                    </button>
+
+            <!-- Active Session Panel -->
+            <div class="active-session-panel">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <div class="panel-title">Your Session</div>
+                    <div class="session-id-badge" id="activeSessionId">----</div>
                 </div>
-            </div>
-            
-            <div class="status-message" id="message">
-                Waiting for connection...
-            </div>
-            
-            <div class="vehicle-status">
-                <div class="stat-section">
-                    <div class="stat-item">
-                        <div class="stat-label">Parks Collected</div>
-                        <div class="stat-value" id="score">0</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-label">Battery Level</div>
+
+                <div class="active-session-stats">
+                    <div class="stat-card">
+                        <div class="stat-label">Battery</div>
                         <div class="battery-display">
-                            <div class="battery-text" id="battery-text">10/10</div>
+                            <div class="battery-text" id="activeBattery">10/10</div>
                             <div class="battery-bar">
-                                <div class="battery-fill" id="battery-bar" style="width: 100%"></div>
+                                <div class="battery-fill" id="activeBatteryBar" style="width: 100%;"></div>
                             </div>
                         </div>
                     </div>
-                    <div class="stat-item">
-                        <div class="stat-label">Total Moves</div>
-                        <div class="stat-value" id="total-moves">0</div>
+                    <div class="stat-card">
+                        <div class="stat-label">Parks</div>
+                        <div class="stat-value" id="activeScore">0/5</div>
                     </div>
-                </div>
-                
-                <!-- Keyboard Controls Info -->
-                <div style="margin: 16px 0; padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; color: white; font-size: 13px; text-align: center; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);">
-                    🎮 <strong>Controls:</strong> Arrow Keys or WASD to move • R to reset
+                    <div class="stat-card">
+                        <div class="stat-label">Moves</div>
+                        <div class="stat-value" id="activeMoves">0</div>
+                    </div>
                 </div>
 
-                <!-- Reset Button -->
-                <div style="margin: 16px 0;">
-                    <button onclick="resetCurrentGame()" style="width: 100%; padding: 12px 24px; background: #ff5722; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; font-weight: 500; transition: background-color 0.3s;">
-                        🔄 Reset Game
-                    </button>
+                <div class="status-message" id="activeMessage">Ready to drive</div>
+
+                <div class="keyboard-hint">
+                    🎮 Arrow Keys or WASD to move • R to reset
                 </div>
-                
-                <!-- Move History Section (Now in main panel) -->
-                <div style="margin-top: 32px;">
-                    <div style="font-size: 14px; color: #5c5e62; margin-bottom: 12px; font-weight: 500;">Move History</div>
-                    <div style="max-height: 160px; overflow-y: auto; background: #ffffff; border-radius: 4px; padding: 0; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
-                        <div id="move-history-list" style="font-size: 14px;">
-                            <p style="color: #939395; text-align: center; margin: 0; padding: 24px 0; font-weight: 400;">No moves yet</p>
-                        </div>
-                    </div>
+            </div>
+
+            <!-- Observer Sessions Panel -->
+            <div class="observer-sessions-panel">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <div class="panel-title">Other Players</div>
+                    <button onclick="refreshObserverSessions()" class="btn-icon" title="Refresh">↻</button>
                 </div>
+
+                <div id="observerSessionsList" class="observer-list">
+                    <p class="no-observers">No other players</p>
+                </div>
+            </div>
+
+            <!-- Config Info -->
+            <div class="info-panel">
+                <div class="info-label">Configuration</div>
+                <div class="info-value" id="unifiedConfigName">-</div>
             </div>
         </div>
-    </div>
-
-    <!-- Multi-Session Dashboard (Unified View) -->
-    <div class="tesla-dashboard" id="multiSessionDashboard" style="display: none;">
-        <!-- Unified Map Section (Left) -->
-        <div class="map-section">
-            <div class="game-grid">
-                <table id="unifiedGrid">
-                    <!-- Unified grid will be rendered here -->
-                </table>
-            </div>
-            
-            <!-- Combined Move History below grid -->
-            <div style="margin-top: 24px; background: white; border-radius: 8px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                    <h3 style="font-size: 16px; font-weight: 500; margin: 0; color: #171a20;">Combined Move History</h3>
-                    <div style="display: flex; gap: 8px; align-items: center;">
-                        <button onclick="refreshCombinedHistory()" style="padding: 4px 8px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; transition: all 0.2s ease;">↻ Refresh</button>
-                        <span style="font-size: 12px; color: #666;" id="historyStats">Loading...</span>
-                    </div>
-                </div>
-                <div id="combinedMoveHistory" style="max-height: 300px; overflow-y: auto; border: 1px solid #f0f0f0; border-radius: 6px; background: #fafafa;">
-                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; color: #666;">
-                        <div style="width: 24px; height: 24px; border: 2px solid #f3f3f3; border-top: 2px solid #4caf50; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 12px;"></div>
-                        <span>Loading move history...</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Multi-Session Stats Panel (Right) -->
-        <div class="control-panel">
-            <div class="dashboard-header">
-                <div class="dashboard-title">Multi-Session View</div>
-                <div class="dashboard-subtitle">Unified Grid Visualization</div>
-            </div>
-            
-            <!-- Configuration Info -->
-            <div style="margin-bottom: 24px; padding: 16px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e0e0e0;">
-                <div style="font-size: 14px; color: #5c5e62; font-weight: 500;">Configuration</div>
-                <div style="font-size: 18px; color: #171a20; font-weight: 600; margin-top: 4px;" id="unifiedConfigName">Loading...</div>
-                <div style="font-size: 13px; color: #666; margin-top: 4px;">
-                    <span id="totalSessionCount">0</span> active sessions • 
-                    <span id="totalParksCount">0</span> total parks
-                </div>
-            </div>
-            
-            <!-- Session Stats List -->
-            <div style="margin-top: 24px;">
-                <div style="font-size: 14px; color: #5c5e62; margin-bottom: 12px; font-weight: 500;">Session Progress</div>
-                <div id="sessionStatsList" style="max-height: 400px; overflow-y: auto; background: #ffffff; border-radius: 8px; padding: 0; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
-                    <!-- Individual session stats will be rendered here -->
-                </div>
-            </div>
-            
-            <!-- Add Sessions Section -->
-            <div style="margin-top: 24px; padding: 16px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e0e0e0;">
-                <div style="font-size: 14px; color: #5c5e62; font-weight: 500; margin-bottom: 12px;">Add Sessions to View</div>
-                <div style="display: flex; gap: 8px;">
-                    <select id="addSessionSelect" style="flex: 1; padding: 8px 12px; border: 1px solid #d0d1d2; border-radius: 4px; text-transform: uppercase; background: white; cursor: pointer;">
-                        <option value="">Select a session...</option>
-                    </select>
-                    <button onclick="refreshSessionDropdown()" style="padding: 8px 12px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; transition: all 0.2s ease;" onmouseover="this.style.background='#d0d0d0'" onmouseout="this.style.background='#e0e0e0'">↻</button>
-                    <button onclick="addSelectedSessionToUnified()" style="padding: 8px 16px; background: #2196f3; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px;">Add</button>
-                </div>
-                <div style="margin-top: 12px; font-size: 12px; color: #888;">
-                    <div id="sessionListStatus" style="display: none;">
-                        <span class="session-list-spinner"></span>
-                        Loading sessions...
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- View Mode Toggle -->
-    <div class="view-mode-selector" id="viewModeSelector" style="position: fixed; top: 20px; left: 20px; z-index: 1000; background: white; padding: 8px 12px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: none;">
-        <span style="font-size: 14px; font-weight: 500; margin-right: 12px;">View Mode:</span>
-        <button id="singleViewBtn" onclick="setViewMode('single')" style="padding: 6px 12px; background: #4caf50; color: white; border: none; border-radius: 4px 0 0 4px; cursor: pointer; font-size: 13px;">Single Session</button>
-        <button id="multiViewBtn" onclick="setViewMode('multi')" style="padding: 6px 12px; background: #e0e0e0; color: #333; border: none; border-radius: 0 4px 4px 0; cursor: pointer; font-size: 13px;">Multi-Session</button>
     </div>
 
     <!-- Menu Toggle Button -->
@@ -1441,9 +1272,12 @@ curl -X POST "http://localhost:8080/api?sessionId=ID" \
             </div>
         </div>
 
-                     placeholder="Enter your task here...">
-                    [Edit this: e.g., "Collect all parks efficiently", "Navigate home from current position", "Win the game with optimal moves"]
-                </div>
+        <!-- AI Prompt Section -->
+        <div class="menu-section">
+            <h3>🤖 AI Assistant Prompt</h3>
+            <div style="background: #f9f9f9; border: 1px solid #e0e0e0; padding: 16px; border-radius: 8px; margin-bottom: 15px;">
+                <label for="user-task" style="display: block; margin-bottom: 8px; font-weight: 500; font-size: 14px;">Your Task:</label>
+                <textarea id="user-task" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #e0e0e0; font-size: 0.9em; font-family: 'Inter', sans-serif; resize: vertical; min-height: 80px; box-sizing: border-box;" placeholder="Enter your task here...">[Edit this: e.g., "Collect all parks efficiently", "Navigate home from current position", "Win the game with optimal moves"]</textarea>
                 <p style="margin-top: 8px; margin-bottom: 0; font-size: 0.85em; color: #555;">
                     ✏️ Click above to edit your task before copying the prompt
                 </p>
@@ -1634,14 +1468,6 @@ YOUR TASK:
                 </div>
             </details>
             
-    </div>
-
-    <div class="game-over-overlay" id="game-over">
-        <div class="game-over-content" id="game-over-content">
-            <h2 id="game-over-title">Game Over</h2>
-            <p id="game-over-message"></p>
-            <button onclick="resetGameAndCloseOverlay()" style="margin-top: 20px; padding: 12px 24px; background: #ff5722; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; font-weight: 500;">🔄 Reset Game</button>
-        </div>
     </div>
 
     <script src="/game.js"></script></body>
