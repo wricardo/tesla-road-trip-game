@@ -182,6 +182,11 @@ func (m *MockConfigManager) GetDefault() *engine.GameConfig {
 	return m.configs["default"]
 }
 
+func (m *MockConfigManager) SaveConfig(name string, config *engine.GameConfig) error {
+	m.configs[name] = config
+	return nil
+}
+
 // Test cases
 func TestGameService_CreateSession(t *testing.T) {
 	ctx := context.Background()

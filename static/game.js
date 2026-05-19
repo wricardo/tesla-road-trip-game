@@ -24,6 +24,71 @@ let isAnimating = false;
 let processingState = false; // Prevent race condition
 const ANIMATION_DELAY_MS = 500; // Half second between moves
 
+async function graphqlRequest(query, variables = {}) {
+    const response = await fetch('/graphql', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, variables })
+    });
+    const payload = await response.json();
+    if (payload.errors && payload.errors.length) {
+        throw new Error(payload.errors.map(e => e.message).join('; '));
+    }
+    return camelToSnake(payload.data);
+}
+
+function camelToSnake(value) {
+    if (Array.isArray(value)) return value.map(camelToSnake);
+    if (value && typeof value === 'object') {
+        const out = {};
+        Object.entries(value).forEach(([key, val]) => {
+            out[key.replace(/[A-Z]/g, letter => '_' + letter.toLowerCase())] = camelToSnake(val);
+        });
+        return out;
+    }
+    return value;
+}
+
+const CONFIG_FIELDS = `filename configId name description gridSize maxBattery`;
+const GAME_CONFIG_FIELDS = `name description gridSize maxBattery startingBattery layout wallCrashEndsGame messages { welcome homeCharge superchargerCharge parkVisited parkAlreadyVisited victory outOfBattery stranded cantMove batteryStatus hitWall }`;
+const GAME_STATE_FIELDS = `grid { type visited id } playerPos { x y } battery maxBattery score visitedParks { id visited } message gameOver victory configName moveHistory { action fromPosition { x y } toPosition { x y } battery timestamp success moveNumber } totalMoves localView { x y type } currentMoves { action fromPosition { x y } toPosition { x y } battery timestamp success moveNumber } currentMovesCount localView3x3 batteryRisk`;
+const SESSION_FIELDS = `id configName createdAt lastAccessedAt gameState { ${GAME_STATE_FIELDS} } gameConfig { ${GAME_CONFIG_FIELDS} }`;
+
+async function apiListConfigs() {
+    const data = await graphqlRequest(`query { configs { ${CONFIG_FIELDS} } }`);
+    return data.configs;
+}
+
+async function apiConfig(name) {
+    const data = await graphqlRequest(`query($name: String!) { config(name: $name) { ${GAME_CONFIG_FIELDS} } }`, { name });
+    return data.config;
+}
+
+async function apiCreateSession(configName) {
+    const data = await graphqlRequest(`mutation($configName: String) { createSession(configName: $configName) { ${SESSION_FIELDS} } }`, { configName });
+    return data.create_session;
+}
+
+async function apiSession(sessionId) {
+    const data = await graphqlRequest(`query($id: ID!) { session(id: $id) { ${SESSION_FIELDS} } }`, { id: sessionId });
+    return data.session;
+}
+
+async function apiUnifiedSessions(configName) {
+    const data = await graphqlRequest(`query($configName: String) { unifiedSessions(configName: $configName) { configName count sessions { sessionId createdAt lastAccessedAt gameState { ${GAME_STATE_FIELDS} } gameConfig { ${GAME_CONFIG_FIELDS} } } } }`, { configName });
+    return data.unified_sessions;
+}
+
+async function apiReset(sessionId) {
+    const data = await graphqlRequest(`mutation($sessionID: ID!) { reset(sessionID: $sessionID) { ${GAME_STATE_FIELDS} } }`, { sessionID: sessionId });
+    return data.reset;
+}
+
+async function apiMove(sessionId, direction) {
+    const data = await graphqlRequest(`mutation($sessionID: ID!, $direction: Direction!) { move(sessionID: $sessionID, direction: $direction) { success message gameState { ${GAME_STATE_FIELDS} } } }`, { sessionID: sessionId, direction: direction.toUpperCase() });
+    return data.move;
+}
+
 const cellIcons = {
     'home': '🏠',
     'park': '🌳',
@@ -266,16 +331,14 @@ function toggleMenu() {
 async function loadConfigurations() {
     try {
         // First get the list of configs
-        const response = await fetch('/api/configs');
-        const configList = await response.json();
+        const configList = await apiListConfigs();
 
         // Then fetch full details for each config
         const configsWithDetails = await Promise.all(
             configList.map(async (config) => {
                 try {
                     const name = config.filename.replace('.json', '');
-                    const detailResponse = await fetch(`/api/configs/${name}`);
-                    const details = await detailResponse.json();
+                    const details = await apiConfig(name);
                     return {
                         ...config,
                         ...details
@@ -405,11 +468,7 @@ function closeGameOverlay() {
 
 function resetGameAndCloseOverlay() {
     if (activeSessionId) {
-        fetch(`/api/sessions/${activeSessionId}/reset`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        })
-        .then(response => response.json())
+        apiReset(activeSessionId)
         .then(data => {
             console.log('Game reset successfully');
             closeGameOverlay();
@@ -423,11 +482,7 @@ function resetGameAndCloseOverlay() {
 function resetCurrentGame() {
     const sessionId = activeSessionId || currentSessionId;
     if (sessionId) {
-        fetch(`/api/sessions/${sessionId}/reset`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        })
-        .then(response => response.json())
+        apiReset(sessionId)
         .then(data => {
             console.log('Game reset successfully');
         })
@@ -462,15 +517,13 @@ async function loadConfigPreview(configName) {
     try {
         // First get the list of configs if we don't have them cached
         if (Object.keys(configsData).length === 0) {
-            const response = await fetch('/api/configs');
-            const configList = await response.json();
+            const configList = await apiListConfigs();
 
             // Fetch full details for each config
             for (const config of configList) {
                 try {
                     const name = config.filename.replace('.json', '');
-                    const detailResponse = await fetch(`/api/configs/${name}`);
-                    const details = await detailResponse.json();
+                    const details = await apiConfig(name);
                     configsData[name] = {
                         ...config,
                         ...details
@@ -543,12 +596,7 @@ function startGame() {
         }).catch(() => showSessionError('Session not found: ' + resumeId));
     } else {
         // Create new session
-        fetch('/api/sessions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ config_name: selectedConfig })
-        })
-        .then(r => r.json())
+        apiCreateSession(selectedConfig)
         .then(data => {
             if (data.id) {
                 loadHybridSession(data.id).then(() => {
@@ -576,8 +624,7 @@ function showSessionError(message) {
 
 // Load available configurations from server
 function loadAvailableConfigurations() {
-    fetch('/api/configs')
-        .then(response => response.json())
+    apiListConfigs()
         .then(configs => {
             const selector = document.getElementById('config-selector');
             selector.innerHTML = ''; // Clear existing options
@@ -669,8 +716,7 @@ function loadHybridSession(sessionId) {
     hybridMode = true;
 
     // Load active session details
-    return fetch(`/api/sessions/${sessionId}`)
-        .then(response => response.json())
+    return apiSession(sessionId)
         .then(sessionData => {
             gameState = sessionData.game_state;
             currentSessionId = sessionId; // Backward compatibility
@@ -698,8 +744,7 @@ function loadHybridSession(sessionId) {
 }
 
 function loadObserverSessions(configName) {
-    fetch(`/api/sessions/unified?configName=${encodeURIComponent(configName)}`)
-        .then(response => response.json())
+    apiUnifiedSessions(configName)
         .then(data => {
             // Filter out active session
             observerSessionIds = data.sessions
@@ -1078,21 +1123,13 @@ function setupHybridKeyboardControls() {
             e.preventDefault();
             if (action === 'reset') {
                 // Call dedicated reset endpoint
-                fetch(`/api/sessions/${activeSessionId}/reset`, {
-                    method: 'POST'
-                })
-                .then(response => response.json())
+                apiReset(activeSessionId)
                 .then(result => {
                     // WebSocket will handle state update
                 });
             } else {
                 // Send move to active session only
-                fetch(`/api/sessions/${activeSessionId}/move`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({direction: action})
-                })
-                .then(response => response.json())
+                apiMove(activeSessionId, action)
                 .then(result => {
                     if (!result.success && result.message) {
                         console.warn('Move failed:', result.message);

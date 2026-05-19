@@ -1074,11 +1074,6 @@
             <div class="session-header">
                 <div class="session-title">Tesla Road Trip Game</div>
                 <div class="session-subtitle">Pick a configuration and play</div>
-                <div style="margin-top: 16px;">
-                    <a href="/config-builder.html" style="display: inline-block; padding: 10px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 500; font-size: 14px; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);">
-                        🗺️ Create Custom Map
-                    </a>
-                </div>
             </div>
             
             <div class="session-options">
@@ -1122,6 +1117,11 @@
             </div>
             
             <div class="session-error" id="sessionError" style="display: none;"></div>
+
+            <div style="margin-top: 24px; display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
+                <a href="/config-builder.html" style="color: #5c5e62; font-size: 12px; text-decoration: none;">🗺️ Create Custom Map</a>
+                <a href="/llms.txt" style="color: #5c5e62; font-size: 12px; text-decoration: none;">🤖 LLM API Guide</a>
+            </div>
         </div>
     </div>
 
@@ -1223,7 +1223,7 @@
             <h3>🔌 Integration & Remote Control</h3>
             <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px; text-align: center;">
                 <p style="color: white; margin-bottom: 15px; font-size: 1.1em;">
-                    Connect your game with REST APIs, MCP, and AI assistants
+                    Connect your game with GraphQL, MCP, and AI assistants
                 </p>
                 <a href="/integration" style="display: inline-block; padding: 12px 24px; background: white; color: #764ba2; text-decoration: none; border-radius: 8px; font-weight: 600; transition: transform 0.3s, box-shadow 0.3s;">
                     📚 View Integration Guide
@@ -1233,13 +1233,13 @@
                 <h4 style="margin-top: 0; color: #333;">Quick Start:</h4>
                 <div class="api-example" style="margin: 10px 0;">
 # Create session
-curl -X POST http://localhost:8080/api/sessions
+curl -X POST http://localhost:8080/graphql/sessions
 
 # Move Tesla  
-curl -X POST "http://localhost:8080/api?sessionId=ID" \
+curl -X POST "http://localhost:8080/graphql?sessionId=ID" \
   -d '{"action":"right"}'</div>
                 <p style="margin: 0; color: #666; font-size: 0.9em;">
-                    Full documentation for REST API, MCP integration, and AI assistance available in the guide.
+                    Full documentation for GraphQL API, MCP integration, and AI assistance available in the guide.
                 </p>
             </div>
         </div>
@@ -1290,15 +1290,15 @@ curl -X POST "http://localhost:8080/api?sessionId=ID" \
                 <div class="api-example" id="ai-prompt-content" style="margin-top: 10px; max-height: 300px; overflow-y: auto;">
                     <pre style="white-space: pre-wrap; margin: 0; font-size: 0.85em;">You are playing a grid-based navigation game via API. This is a strategic puzzle where you navigate through a grid to collect all objectives while managing limited resources.
 
-🎮 GAME API ENDPOINT: http://localhost:8080/api
+🎮 GRAPHQL API ENDPOINT: http://localhost:8080/graphql
 
 🚀 SESSION SETUP (REQUIRED FIRST):
 # Create a new game session - returns a 4-character session ID
-SESSION_ID=$(curl -s -X POST http://localhost:8080/api/sessions | jq -r '.session_id')
+SESSION_ID=$(curl -s -X POST http://localhost:8080/graphql/sessions | jq -r '.session_id')
 echo "Your session ID: $SESSION_ID"
 
 # Or create session with specific configuration:
-SESSION_ID=$(curl -s -X POST http://localhost:8080/api/sessions \
+SESSION_ID=$(curl -s -X POST http://localhost:8080/graphql/sessions \
   -H "Content-Type: application/json" \
   -d '{"config_name":"easy"}' | jq -r '.session_id')
 
@@ -1306,56 +1306,56 @@ SESSION_ID=$(curl -s -X POST http://localhost:8080/api/sessions \
 
 📊 INITIAL ANALYSIS STEPS:
 1. Get current game state for your session:
-   curl -s "http://localhost:8080/api?sessionId=$SESSION_ID" | jq '.'
+   curl -s "http://localhost:8080/graphql?sessionId=$SESSION_ID" | jq '.'
 
 2. Map all important elements in the grid:
-   curl -s "http://localhost:8080/api?sessionId=$SESSION_ID" | jq -r '.grid | to_entries | map(.key as $row | .value | to_entries | map("\($row),\(.key):\(.value.type)") | .[]) | .[]' | grep -E "(park|supercharger|home)" | sort
+   curl -s "http://localhost:8080/graphql?sessionId=$SESSION_ID" | jq -r '.grid | to_entries | map(.key as $row | .value | to_entries | map("\($row),\(.key):\(.value.type)") | .[]) | .[]' | grep -E "(park|supercharger|home)" | sort
 
 3. Check game statistics:
-   curl -s "http://localhost:8080/api?sessionId=$SESSION_ID" | jq '{player_pos, battery, max_battery, score, victory, message}'
+   curl -s "http://localhost:8080/graphql?sessionId=$SESSION_ID" | jq '{player_pos, battery, max_battery, score, victory, message}'
 
 4. Count total parks needed for victory:
-   curl -s "http://localhost:8080/api?sessionId=$SESSION_ID" | jq '.grid | map(map(select(.type == "park"))) | add | length'
+   curl -s "http://localhost:8080/graphql?sessionId=$SESSION_ID" | jq '.grid | map(map(select(.type == "park"))) | add | length'
 
 5. List available configurations:
-   curl -s http://localhost:8080/api/configs | jq '.'
+   curl -s http://localhost:8080/graphql/configs | jq '.'
 
 🎯 AVAILABLE ACTIONS:
 # Single move:
-curl -X POST "http://localhost:8080/api?sessionId=$SESSION_ID" \
+curl -X POST "http://localhost:8080/graphql?sessionId=$SESSION_ID" \
   -H "Content-Type: application/json" \
   -d '{"action":"left"}'
 
 # Bulk moves (more efficient):
-curl -X POST "http://localhost:8080/api?sessionId=$SESSION_ID" \
+curl -X POST "http://localhost:8080/graphql?sessionId=$SESSION_ID" \
   -H "Content-Type: application/json" \
   -d '{"actions":["up","right","down","left"]}'
 
 # Move with reset (resets game before moving):
-curl -X POST "http://localhost:8080/api?sessionId=$SESSION_ID" \
+curl -X POST "http://localhost:8080/graphql?sessionId=$SESSION_ID" \
   -H "Content-Type: application/json" \
   -d '{"action":"up","reset":true}'
 
 # Management actions:
-curl -X POST "http://localhost:8080/api?sessionId=$SESSION_ID" \
+curl -X POST "http://localhost:8080/graphql?sessionId=$SESSION_ID" \
   -H "Content-Type: application/json" \
   -d '{"action":"reset"}'  # Reset game
   
-curl -X POST "http://localhost:8080/api?sessionId=$SESSION_ID" \
+curl -X POST "http://localhost:8080/graphql?sessionId=$SESSION_ID" \
   -H "Content-Type: application/json" \
   -d '{"action":"save"}'   # Save game state
 
 ⚡ EFFICIENT EXECUTION PATTERNS:
 # Execute multiple moves quickly:
-for i in {1..5}; do curl -sX POST http://localhost:8080/api -d '{"action":"right"}' 2>/dev/null; done
+for i in {1..5}; do curl -sX POST http://localhost:8080/graphql -d '{"action":"right"}' 2>/dev/null; done
 
 # Chain moves together:
-curl -sX POST http://localhost:8080/api -d '{"action":"up"}' && \
-curl -sX POST http://localhost:8080/api -d '{"action":"left"}' && \
-curl -sX POST http://localhost:8080/api -d '{"action":"up"}'
+curl -sX POST http://localhost:8080/graphql -d '{"action":"up"}' && \
+curl -sX POST http://localhost:8080/graphql -d '{"action":"left"}' && \
+curl -sX POST http://localhost:8080/graphql -d '{"action":"up"}'
 
 # Check status after moves:
-curl -s http://localhost:8080/api | jq '{player_pos, battery, score, message}'
+curl -s http://localhost:8080/graphql | jq '{player_pos, battery, score, message}'
 
 🗺️ GRID CELL TYPES:
 - road: Traversable path (empty cell)
@@ -1460,8 +1460,8 @@ Phase 4 - Iterative Refinement:
 8. Plan multi-stage routes with strategic charging stops
 
 📁 ADDITIONAL ENDPOINTS:
-- GET /api/configs - List available game configurations
-- GET /api/saves - List saved games with timestamps
+- GET /graphql - List available game configurations
+- GET /graphql - List saved games with timestamps
 
 YOUR TASK:
 [Task will be inserted here]</pre>

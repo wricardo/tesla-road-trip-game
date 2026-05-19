@@ -1,7 +1,7 @@
 // Command statefullgame starts the Tesla Road Trip Game server.
 //
 // It supports two modes:
-//  1. "server" (default) – runs the HTTP server exposing REST API, WebSocket, and an /mcp HTTP endpoint
+//  1. "server" (default) – runs the HTTP server exposing GraphQL, WebSocket, and an /mcp HTTP endpoint
 //  2. "stdio-mcp" – runs an MCP stdio server and spins up an internal HTTP API if none is available
 //
 // Flags control host/port, config directory, debug logging, version output,
@@ -10,12 +10,9 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"log"
-	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -23,13 +20,15 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/joho/godotenv"
-	"github.com/mark3labs/mcp-go/server"
 	"github.com/wricardo/tesla-road-trip-game/api"
 	"github.com/wricardo/tesla-road-trip-game/game/config"
 	"github.com/wricardo/tesla-road-trip-game/game/service"
 	"github.com/wricardo/tesla-road-trip-game/game/session"
-	"github.com/wricardo/tesla-road-trip-game/transport/mcp"
+	"github.com/wricardo/tesla-road-trip-game/graph"
+	"github.com/wricardo/tesla-road-trip-game/graph/generated"
 	"github.com/wricardo/tesla-road-trip-game/transport/websocket"
 	"golang.ngrok.com/ngrok"
 	ngrokConfig "golang.ngrok.com/ngrok/config"
@@ -67,8 +66,8 @@ func init() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [OPTIONS] [MODE]\n\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "%s v%s\n\n", AppName, Version)
 		fmt.Fprintf(os.Stderr, "Available modes:\n")
-		fmt.Fprintf(os.Stderr, "  server, http     Run HTTP server with API, WebSocket, and MCP endpoint (default)\n")
-		fmt.Fprintf(os.Stderr, "  stdio-mcp        Run MCP stdio server with internal HTTP server\n")
+		fmt.Fprintf(os.Stderr, "  server, http     Run HTTP server with GraphQL and WebSocket (default)\n")
+		fmt.Fprintf(os.Stderr, "  stdio-mcp        Disabled: MCP transport needs GraphQL migration\n")
 		fmt.Fprintf(os.Stderr, "  mcp-stdio        Alias for stdio-mcp\n")
 		fmt.Fprintf(os.Stderr, "  mcp              Alias for stdio-mcp\n")
 		fmt.Fprintf(os.Stderr, "\nOptions:\n")
@@ -125,12 +124,11 @@ func main() {
 
 	switch mode {
 	case "stdio-mcp", "mcp-stdio", "mcp":
-		// Run MCP stdio server with internal HTTP server
-		runStdioMCPWithInternalServer(gameService)
+		log.Fatalf("stdio MCP is disabled because the REST API was removed; migrate MCP transport to GraphQL first")
 		return
 
 	case "server", "http":
-		// Run HTTP server with API, WebSocket, and MCP endpoint
+		// Run HTTP server with GraphQL and WebSocket
 		runHTTPServer(gameService)
 
 	default:
@@ -138,53 +136,29 @@ func main() {
 	}
 }
 
-// runHTTPServer starts the HTTP server with REST API, WebSocket hub, and an /mcp proxy endpoint.
+// runHTTPServer starts the HTTP server with GraphQL, WebSocket hub, and an /mcp proxy endpoint.
 // If ngrok is enabled (via flag or environment), it also provisions a public tunnel.
 func runHTTPServer(gameService service.GameService) {
 	// Create WebSocket hub
 	hub := websocket.NewHub()
 	go hub.Run()
 
-	// Create API server
+	// Create static/WebSocket server
 	apiServer := api.NewServer(gameService, hub)
 
 	// Setup HTTP server address
 	addr := fmt.Sprintf("%s:%d", *host, *port)
 
-	// Create MCP client for /mcp endpoint
-	baseURL := fmt.Sprintf("http://%s", addr)
-	mcpClient := mcp.NewClient(baseURL)
-
-	// Create main router that combines API and MCP
+	// Create main router.
 	mainRouter := http.NewServeMux()
 
-	// Mount API server at root
+	// GraphQL is the public game API.
+	graphqlResolver := graph.NewResolver(gameService, hub)
+	mainRouter.Handle("/graphql", handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: graphqlResolver})))
+	mainRouter.Handle("/playground", playground.Handler("GraphQL playground", "/graphql"))
+
+	// Mount static UI and WebSocket routes at root.
 	mainRouter.Handle("/", apiServer)
-
-	// Always add MCP endpoint for HTTP server
-	mainRouter.HandleFunc("/mcp", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			http.Error(w, "Failed to read request", http.StatusBadRequest)
-			return
-		}
-		defer r.Body.Close()
-
-		response := mcpClient.GetMCPServer().HandleMessage(r.Context(), body)
-
-		w.Header().Set("Content-Type", "application/json")
-		responseData, err := json.Marshal(response)
-		if err != nil {
-			http.Error(w, "Failed to marshal response", http.StatusInternalServerError)
-			return
-		}
-		w.Write(responseData)
-	})
 
 	httpServer := &http.Server{
 		Addr:         addr,
@@ -210,9 +184,9 @@ func runHTTPServer(gameService service.GameService) {
 		defer wg.Done()
 
 		log.Printf("HTTP server listening on %s", addr)
-		log.Printf("REST API: http://%s/api", addr)
+		log.Printf("GraphQL API: http://%s/graphql", addr)
+		log.Printf("GraphQL playground: http://%s/playground", addr)
 		log.Printf("WebSocket: ws://%s/ws?session=<session_id>", addr)
-		log.Printf("MCP endpoint: http://%s/mcp", addr)
 
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("HTTP server failed: %v", err)
@@ -282,9 +256,9 @@ func runHTTPServer(gameService service.GameService) {
 
 			ngrokURL := tun.URL()
 			log.Printf("🚀 Ngrok tunnel established: %s", ngrokURL)
-			log.Printf("  REST API (ngrok): %s/api", ngrokURL)
+			log.Printf("  GraphQL API (ngrok): %s/graphql", ngrokURL)
+			log.Printf("  GraphQL playground (ngrok): %s/playground", ngrokURL)
 			log.Printf("  WebSocket (ngrok): %s/ws?session=<session_id>", ngrokURL)
-			log.Printf("  MCP endpoint (ngrok): %s/mcp", ngrokURL)
 			log.Printf("  Game UI (ngrok): %s/", ngrokURL)
 
 			// Serve HTTP through ngrok tunnel
@@ -393,79 +367,5 @@ func filesystemSyncRoutine(manager *session.Manager, persistence session.Session
 		if pruned > 0 {
 			log.Printf("Filesystem sync: pruned %d orphaned sessions from memory", pruned)
 		}
-	}
-}
-
-// runStdioMCPWithInternalServer runs an MCP stdio server.
-// It tries to reuse an external API at http://localhost:8080; if unavailable, it
-// starts a minimal internal HTTP API bound to a random loopback port and targets that.
-func runStdioMCPWithInternalServer(gameService service.GameService) {
-	var baseURL string
-	var httpServer *http.Server
-	var listener net.Listener
-
-	// First, try to connect to external API server at localhost:8080
-	externalURL := "http://localhost:8080"
-	log.Printf("Checking for external API server at %s...", externalURL)
-
-	// Test if external server is running
-	testClient := &http.Client{Timeout: 2 * time.Second}
-	resp, err := testClient.Get(externalURL + "/api")
-	if err == nil && resp.StatusCode < 500 {
-		resp.Body.Close()
-		log.Printf("External API server found at %s, using it for MCP", externalURL)
-		baseURL = externalURL
-	} else {
-		// No external server found, start internal one
-		log.Printf("No external API server found, starting internal HTTP server")
-
-		// Start internal HTTP server on a random available port
-		listener, err = net.Listen("tcp", "127.0.0.1:0")
-		if err != nil {
-			log.Fatalf("Failed to get available port: %v", err)
-		}
-
-		// Get the actual port that was assigned
-		internalPort := listener.Addr().(*net.TCPAddr).Port
-		internalAddr := fmt.Sprintf("127.0.0.1:%d", internalPort)
-
-		log.Printf("Starting internal HTTP server on %s for MCP stdio", internalAddr)
-
-		// Create WebSocket hub
-		hub := websocket.NewHub()
-		go hub.Run()
-
-		// Create API server
-		apiServer := api.NewServer(gameService, hub)
-
-		// Start internal HTTP server in background
-		httpServer = &http.Server{
-			Handler: apiServer,
-		}
-
-		go func() {
-			if err := httpServer.Serve(listener); err != nil && err != http.ErrServerClosed {
-				log.Printf("Internal HTTP server error: %v", err)
-			}
-		}()
-
-		// Wait a moment for the server to be ready
-		time.Sleep(100 * time.Millisecond)
-
-		baseURL = fmt.Sprintf("http://%s", internalAddr)
-	}
-
-	// Create MCP client pointing to the selected server
-	mcpClient := mcp.NewClient(baseURL)
-
-	// Run MCP stdio server (blocking)
-	if baseURL == externalURL {
-		log.Println("MCP stdio server ready (using external HTTP server)")
-	} else {
-		log.Println("MCP stdio server ready (using internal HTTP server)")
-	}
-
-	if err := server.ServeStdio(mcpClient.GetMCPServer()); err != nil {
-		log.Fatalf("MCP stdio server error: %v", err)
 	}
 }
