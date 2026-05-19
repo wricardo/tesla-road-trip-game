@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "tesla_road_trip_game",
+  "project_id": "71610ce7-a04f-49ee-938e-44b9982ae6e8"
+}
