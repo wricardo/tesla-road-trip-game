@@ -18,7 +18,7 @@ A multi-session, grid-based game server where players control Tesla vehicles to 
 - **🔄 Multi-Session Support**: Concurrent isolated game sessions with unique IDs
 - **💾 Persistent State**: Session data survives server restarts
 - **⚡ Real-time Updates**: WebSocket broadcasting for live state changes
-- **🔌 RESTful API**: Comprehensive HTTP endpoints with session management
+- **🔌 GraphQL API**: gqlgen-powered API with session management at `/graphql`
 - **🤖 MCP Integration**: AI assistant support via Model Context Protocol
 - **📊 Session Analytics**: Move history and gameplay tracking
 - **🔧 Hot Configuration**: Per-session config selection without server restart
@@ -98,9 +98,9 @@ cp .env.example .env
 # Output will show both local and ngrok URLs:
 # Loaded environment variables from .env file
 # 🚀 Ngrok tunnel established: https://abc123.ngrok-free.app
-#   REST API (ngrok): https://abc123.ngrok-free.app/api
+#   GraphQL API (ngrok): https://abc123.ngrok-free.app/graphql
+#   GraphQL playground (ngrok): https://abc123.ngrok-free.app/playground
 #   WebSocket (ngrok): https://abc123.ngrok-free.app/ws?session=<session_id>
-#   MCP endpoint (ngrok): https://abc123.ngrok-free.app/mcp
 #   Game UI (ngrok): https://abc123.ngrok-free.app/
 ```
 
@@ -168,117 +168,44 @@ Navigate your Tesla to visit all parks (P) while managing battery life and avoid
 - `B` - Building (impassable obstacle)
 - `✓` - Visited park
 
-## 📡 API Reference
+## 📡 GraphQL API Reference
 
-### Base URL
-```
-http://localhost:8080
-```
+GraphQL endpoint: `http://localhost:8080/graphql`  
+Interactive playground: `http://localhost:8080/playground`
 
-### Session Management
+Create a session:
 
-#### Create New Session
-```bash
-POST /api/sessions
-Content-Type: application/json
-
-# Create with default config
-curl -X POST http://localhost:8080/api/sessions
-
-# Create with specific config
-curl -X POST http://localhost:8080/api/sessions \
-  -H "Content-Type: application/json" \
-  -d '{"config_name": "easy"}'
+```graphql
+mutation {
+  createSession(configID: "easy") {
+    id
+    configName
+    gameState { playerPos { x y } battery score message }
+  }
+}
 ```
 
-#### List All Sessions
-```bash
-GET /api/sessions
+Move:
 
-curl http://localhost:8080/api/sessions
+```graphql
+mutation Move($sessionID: ID!) {
+  move(sessionID: $sessionID, direction: RIGHT) {
+    success
+    message
+    gameState { playerPos { x y } battery score victory }
+  }
+}
 ```
 
-#### Get Session Details
-```bash
-GET /api/sessions/{sessionId}
+List configs:
 
-curl http://localhost:8080/api/sessions/a3x7
+```graphql
+query {
+  configs { configId name description gridSize maxBattery }
+}
 ```
 
-### Game Operations
-
-#### Get Game State
-```bash
-# Default session
-GET /api
-
-# Specific session
-GET /api?sessionId={sessionId}
-
-curl http://localhost:8080/api?sessionId=a3x7
-```
-
-#### Make Single Move
-```bash
-POST /api
-# or
-POST /api?sessionId={sessionId}
-
-# Simple move
-curl -X POST http://localhost:8080/api?sessionId=a3x7 \
-  -H "Content-Type: application/json" \
-  -d '{"action": "right"}'
-
-# Move with reset
-curl -X POST http://localhost:8080/api?sessionId=a3x7 \
-  -H "Content-Type: application/json" \
-  -d '{"action": "up", "reset": true}'
-```
-
-#### Make Multiple Moves
-```bash
-POST /api?sessionId={sessionId}
-
-# Bulk moves
-curl -X POST http://localhost:8080/api?sessionId=a3x7 \
-  -H "Content-Type: application/json" \
-  -d '{"actions": ["up", "right", "down"]}'
-
-# Bulk moves with reset
-curl -X POST http://localhost:8080/api?sessionId=a3x7 \
-  -H "Content-Type: application/json" \
-  -d '{"actions": ["left", "down"], "reset": true}'
-```
-
-#### Reset Game
-```bash
-POST /api/sessions/{sessionId}/reset
-
-curl -X POST http://localhost:8080/api/sessions/a3x7/reset
-```
-
-#### Get Move History
-```bash
-GET /api/sessions/{sessionId}/history?page={page}&limit={limit}
-
-curl http://localhost:8080/api/sessions/a3x7/history?page=1&limit=10
-```
-
-### Configuration Management
-
-#### List Available Configurations
-```bash
-GET /api/configs
-
-curl http://localhost:8080/api/configs
-```
-
-#### Get Unified Sessions (All Sessions Summary)
-```bash
-GET /api/sessions/unified
-
-curl http://localhost:8080/api/sessions/unified
-```
+See [docs/graphql.md](docs/graphql.md) for more examples.
 
 ### Real-time Updates
 
@@ -293,24 +220,7 @@ ws://localhost:8080/ws?sessionId={sessionId}
 
 ## 🤖 MCP Integration
 
-The server includes Model Context Protocol (MCP) support for AI assistant integration.
-
-### MCP Server Modes
-
-#### HTTP Mode (Default)
-```bash
-# Start server (MCP endpoint automatically available)
-./statefullgame
-
-# MCP endpoint available at:
-# http://localhost:8080/mcp
-```
-
-#### Stdio Mode
-```bash
-# Run as stdio MCP server with internal HTTP server
-./statefullgame stdio-mcp
-```
+MCP support is currently disabled because the REST API transport was removed. The MCP transport needs to be migrated to GraphQL before `stdio-mcp` or `/mcp` can be re-enabled.
 
 ### Claude Integration
 
@@ -335,9 +245,9 @@ make claude-game-stdin
 - `move_history(session_id, page?, limit?)` - Get move history
 - `list_configs()` - List available configurations
 
-### API Response Enhancements
+### GraphQL Response Enhancements
 
-Move (`POST /api/sessions/{id}/move`) now returns:
+The `move` mutation returns:
 - `step`: compact one-line summary of the move
   - Fields: `dir`, `from{x,y}`, `to{x,y}`, `tile_char`, `tile_type`, `battery_before`, `battery_after`, `success`
 - `attempted_to`: present when move is blocked
@@ -346,7 +256,7 @@ Move (`POST /api/sessions/{id}/move`) now returns:
   - `local_view_3x3`: three short strings centered on player (T in center)
   - `battery_risk`: one of `SAFE|LOW|CAUTION|DANGER|CRITICAL|WARNING`
 
-Bulk Move (`POST /api/sessions/{id}/bulk-move`) adds:
+The `bulkMove` mutation adds:
 - Summary fields: `requested_moves`, `moves_executed`, `stopped_reason`, `stop_reason_code`, `stopped_on_move`, `truncated`, `limit`
 - Start/end snapshot: `start_pos`, `end_pos`, `start_battery`, `end_battery`, `score_delta`
 - `steps`: compact per-step entries for this call only
@@ -475,7 +385,7 @@ make test-coverage
 ./scripts/test.sh -v -c -r  # verbose, coverage, race detection
 
 # Specific package testing
-./scripts/test.sh --package ./api
+./scripts/test.sh --package ./graph
 
 # Performance benchmarks
 ./scripts/test.sh -b

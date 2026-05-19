@@ -16,7 +16,8 @@ import (
 	"github.com/wricardo/tesla-road-trip-game/transport/websocket"
 )
 
-// Server represents the REST API server
+// Server serves WebSocket and static UI routes.
+// Game operations are exposed through GraphQL at /graphql.
 type Server struct {
 	service service.GameService
 	hub     *websocket.Hub
@@ -35,35 +36,12 @@ func NewServer(gameService service.GameService, hub *websocket.Hub) *Server {
 	return s
 }
 
-// setupRoutes configures all API routes
+// setupRoutes configures non-REST routes.
 func (s *Server) setupRoutes() {
-	// API routes with clean REST patterns
-	api := s.router.PathPrefix("/api").Subrouter()
-
-	// Session management
-	api.HandleFunc("/sessions", s.handleCreateSession).Methods("POST")
-	api.HandleFunc("/sessions", s.handleListSessions).Methods("GET")
-	// Unified sessions for multi-session view (must be before {id} pattern)
-	api.HandleFunc("/sessions/unified", s.handleUnifiedSessions).Methods("GET")
-	api.HandleFunc("/sessions/{id}", s.handleGetSession).Methods("GET")
-	api.HandleFunc("/sessions/{id}", s.handleDeleteSession).Methods("DELETE")
-
-	// Game operations
-	api.HandleFunc("/sessions/{id}/state", s.handleGetGameState).Methods("GET")
-	api.HandleFunc("/sessions/{id}/move", s.handleMove).Methods("POST")
-	api.HandleFunc("/sessions/{id}/bulk-move", s.handleBulkMove).Methods("POST")
-	api.HandleFunc("/sessions/{id}/reset", s.handleReset).Methods("POST")
-	api.HandleFunc("/sessions/{id}/history", s.handleGetHistory).Methods("GET")
-
-	// Configuration
-	api.HandleFunc("/configs", s.handleListConfigs).Methods("GET")
-	api.HandleFunc("/configs", s.handleCreateConfig).Methods("POST")
-	api.HandleFunc("/configs/{name}", s.handleGetConfig).Methods("GET")
-
-	// WebSocket
+	// WebSocket remains a transport endpoint for realtime GraphQL-driven state updates.
 	s.router.HandleFunc("/ws", s.handleWebSocket)
 
-	// Static files (if needed)
+	// Static files for the browser UI.
 	s.router.PathPrefix("/").Handler(http.FileServer(http.Dir("./static/")))
 }
 

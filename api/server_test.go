@@ -36,6 +36,7 @@ type MockGameService struct {
 	// Configuration
 	ListConfigsFunc func(ctx context.Context) ([]*service.ConfigInfo, error)
 	LoadConfigFunc  func(ctx context.Context, configName string) (*engine.GameConfig, error)
+	SaveConfigFunc  func(ctx context.Context, configName string, config *engine.GameConfig) error
 }
 
 // Session Management
@@ -140,6 +141,13 @@ func (m *MockGameService) LoadConfig(ctx context.Context, configName string) (*e
 		Name:        configName,
 		Description: "Test config",
 	}, nil
+}
+
+func (m *MockGameService) SaveConfig(ctx context.Context, configName string, config *engine.GameConfig) error {
+	if m.SaveConfigFunc != nil {
+		return m.SaveConfigFunc(ctx, configName, config)
+	}
+	return nil
 }
 
 // Test helpers
