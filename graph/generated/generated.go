@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -40,6 +41,7 @@ type Config struct {
 type ResolverRoot interface {
 	Mutation() MutationResolver
 	Query() QueryResolver
+	Subscription() SubscriptionResolver
 }
 
 type DirectiveRoot struct {
@@ -243,6 +245,11 @@ type ComplexityRoot struct {
 		Victory       func(childComplexity int) int
 	}
 
+	Subscription struct {
+		LobbyUpdated   func(childComplexity int) int
+		SessionUpdated func(childComplexity int, sessionID string) int
+	}
+
 	SurroundingCell struct {
 		Type func(childComplexity int) int
 		X    func(childComplexity int) int
@@ -285,6 +292,10 @@ type QueryResolver interface {
 	History(ctx context.Context, sessionID string, page *int, limit *int, order *model.SortOrder) (*model.HistoryResponse, error)
 	Configs(ctx context.Context) ([]*model.ConfigInfo, error)
 	Config(ctx context.Context, name string) (*model.GameConfig, error)
+}
+type SubscriptionResolver interface {
+	SessionUpdated(ctx context.Context, sessionID string) (<-chan *model.GameState, error)
+	LobbyUpdated(ctx context.Context) (<-chan *model.GameState, error)
 }
 
 type executableSchema struct {
@@ -1346,6 +1357,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.StepInfo.Victory(childComplexity), true
 
+	case "Subscription.lobbyUpdated":
+		if e.complexity.Subscription.LobbyUpdated == nil {
+			break
+		}
+
+		return e.complexity.Subscription.LobbyUpdated(childComplexity), true
+
+	case "Subscription.sessionUpdated":
+		if e.complexity.Subscription.SessionUpdated == nil {
+			break
+		}
+
+		args, err := ec.field_Subscription_sessionUpdated_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Subscription.SessionUpdated(childComplexity, args["sessionID"].(string)), true
+
 	case "SurroundingCell.type":
 		if e.complexity.SurroundingCell.Type == nil {
 			break
@@ -1497,6 +1527,23 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 				Data: buf.Bytes(),
 			}
 		}
+	case ast.Subscription:
+		next := ec._Subscription(ctx, opCtx.Operation.SelectionSet)
+
+		var buf bytes.Buffer
+		return func(ctx context.Context) *graphql.Response {
+			buf.Reset()
+			data := next(ctx)
+
+			if data == nil {
+				return nil
+			}
+			data.MarshalGQL(&buf)
+
+			return &graphql.Response{
+				Data: buf.Bytes(),
+			}
+		}
 
 	default:
 		return graphql.OneShot(graphql.ErrorResponse(ctx, "unsupported GraphQL operation"))
@@ -1545,7 +1592,12 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 }
 
 var sources = []*ast.Source{
-	{Name: "../schema.graphqls", Input: `type Query {
+	{Name: "../schema.graphqls", Input: `type Subscription {
+  sessionUpdated(sessionID: ID!): GameState!
+  lobbyUpdated: GameState!
+}
+
+type Query {
   session(id: ID!): Session!
   sessions(sort: SessionSort = ACCESSED, order: SortOrder = DESC, limit: Int): SessionList!
   unifiedSessions(configName: String): UnifiedSessions!
@@ -2405,6 +2457,34 @@ func (ec *executionContext) field_Query_unifiedSessions_argsConfigName(
 	}
 
 	var zeroVal *string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Subscription_sessionUpdated_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Subscription_sessionUpdated_argsSessionID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["sessionID"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Subscription_sessionUpdated_argsSessionID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["sessionID"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("sessionID"))
+	if tmp, ok := rawArgs["sessionID"]; ok {
+		return ec.unmarshalNID2string(ctx, tmp)
+	}
+
+	var zeroVal string
 	return zeroVal, nil
 }
 
@@ -9586,6 +9666,205 @@ func (ec *executionContext) fieldContext_StepInfo_victory(_ context.Context, fie
 	return fc, nil
 }
 
+func (ec *executionContext) _Subscription_sessionUpdated(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
+	fc, err := ec.fieldContext_Subscription_sessionUpdated(ctx, field)
+	if err != nil {
+		return nil
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = nil
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Subscription().SessionUpdated(rctx, fc.Args["sessionID"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return nil
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return nil
+	}
+	return func(ctx context.Context) graphql.Marshaler {
+		select {
+		case res, ok := <-resTmp.(<-chan *model.GameState):
+			if !ok {
+				return nil
+			}
+			return graphql.WriterFunc(func(w io.Writer) {
+				w.Write([]byte{'{'})
+				graphql.MarshalString(field.Alias).MarshalGQL(w)
+				w.Write([]byte{':'})
+				ec.marshalNGameState2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐGameState(ctx, field.Selections, res).MarshalGQL(w)
+				w.Write([]byte{'}'})
+			})
+		case <-ctx.Done():
+			return nil
+		}
+	}
+}
+
+func (ec *executionContext) fieldContext_Subscription_sessionUpdated(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Subscription",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "grid":
+				return ec.fieldContext_GameState_grid(ctx, field)
+			case "playerPos":
+				return ec.fieldContext_GameState_playerPos(ctx, field)
+			case "battery":
+				return ec.fieldContext_GameState_battery(ctx, field)
+			case "maxBattery":
+				return ec.fieldContext_GameState_maxBattery(ctx, field)
+			case "score":
+				return ec.fieldContext_GameState_score(ctx, field)
+			case "visitedParks":
+				return ec.fieldContext_GameState_visitedParks(ctx, field)
+			case "message":
+				return ec.fieldContext_GameState_message(ctx, field)
+			case "gameOver":
+				return ec.fieldContext_GameState_gameOver(ctx, field)
+			case "victory":
+				return ec.fieldContext_GameState_victory(ctx, field)
+			case "configName":
+				return ec.fieldContext_GameState_configName(ctx, field)
+			case "moveHistory":
+				return ec.fieldContext_GameState_moveHistory(ctx, field)
+			case "totalMoves":
+				return ec.fieldContext_GameState_totalMoves(ctx, field)
+			case "localView":
+				return ec.fieldContext_GameState_localView(ctx, field)
+			case "currentMoves":
+				return ec.fieldContext_GameState_currentMoves(ctx, field)
+			case "currentMovesCount":
+				return ec.fieldContext_GameState_currentMovesCount(ctx, field)
+			case "localView3x3":
+				return ec.fieldContext_GameState_localView3x3(ctx, field)
+			case "batteryRisk":
+				return ec.fieldContext_GameState_batteryRisk(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type GameState", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Subscription_sessionUpdated_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Subscription_lobbyUpdated(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
+	fc, err := ec.fieldContext_Subscription_lobbyUpdated(ctx, field)
+	if err != nil {
+		return nil
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = nil
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Subscription().LobbyUpdated(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return nil
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return nil
+	}
+	return func(ctx context.Context) graphql.Marshaler {
+		select {
+		case res, ok := <-resTmp.(<-chan *model.GameState):
+			if !ok {
+				return nil
+			}
+			return graphql.WriterFunc(func(w io.Writer) {
+				w.Write([]byte{'{'})
+				graphql.MarshalString(field.Alias).MarshalGQL(w)
+				w.Write([]byte{':'})
+				ec.marshalNGameState2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐGameState(ctx, field.Selections, res).MarshalGQL(w)
+				w.Write([]byte{'}'})
+			})
+		case <-ctx.Done():
+			return nil
+		}
+	}
+}
+
+func (ec *executionContext) fieldContext_Subscription_lobbyUpdated(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Subscription",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "grid":
+				return ec.fieldContext_GameState_grid(ctx, field)
+			case "playerPos":
+				return ec.fieldContext_GameState_playerPos(ctx, field)
+			case "battery":
+				return ec.fieldContext_GameState_battery(ctx, field)
+			case "maxBattery":
+				return ec.fieldContext_GameState_maxBattery(ctx, field)
+			case "score":
+				return ec.fieldContext_GameState_score(ctx, field)
+			case "visitedParks":
+				return ec.fieldContext_GameState_visitedParks(ctx, field)
+			case "message":
+				return ec.fieldContext_GameState_message(ctx, field)
+			case "gameOver":
+				return ec.fieldContext_GameState_gameOver(ctx, field)
+			case "victory":
+				return ec.fieldContext_GameState_victory(ctx, field)
+			case "configName":
+				return ec.fieldContext_GameState_configName(ctx, field)
+			case "moveHistory":
+				return ec.fieldContext_GameState_moveHistory(ctx, field)
+			case "totalMoves":
+				return ec.fieldContext_GameState_totalMoves(ctx, field)
+			case "localView":
+				return ec.fieldContext_GameState_localView(ctx, field)
+			case "currentMoves":
+				return ec.fieldContext_GameState_currentMoves(ctx, field)
+			case "currentMovesCount":
+				return ec.fieldContext_GameState_currentMovesCount(ctx, field)
+			case "localView3x3":
+				return ec.fieldContext_GameState_localView3x3(ctx, field)
+			case "batteryRisk":
+				return ec.fieldContext_GameState_batteryRisk(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type GameState", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _SurroundingCell_x(ctx context.Context, field graphql.CollectedField, obj *model.SurroundingCell) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_SurroundingCell_x(ctx, field)
 	if err != nil {
@@ -13889,6 +14168,28 @@ func (ec *executionContext) _StepInfo(ctx context.Context, sel ast.SelectionSet,
 	}
 
 	return out
+}
+
+var subscriptionImplementors = []string{"Subscription"}
+
+func (ec *executionContext) _Subscription(ctx context.Context, sel ast.SelectionSet) func(ctx context.Context) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, subscriptionImplementors)
+	ctx = graphql.WithFieldContext(ctx, &graphql.FieldContext{
+		Object: "Subscription",
+	})
+	if len(fields) != 1 {
+		ec.Errorf(ctx, "must subscribe to exactly one stream")
+		return nil
+	}
+
+	switch fields[0].Name {
+	case "sessionUpdated":
+		return ec._Subscription_sessionUpdated(ctx, fields[0])
+	case "lobbyUpdated":
+		return ec._Subscription_lobbyUpdated(ctx, fields[0])
+	default:
+		panic("unknown field " + strconv.Quote(fields[0].Name))
+	}
 }
 
 var surroundingCellImplementors = []string{"SurroundingCell"}

@@ -9,6 +9,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
@@ -18,9 +19,12 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"text/template"
 	"time"
 
 	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/handler/extension"
+	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/joho/godotenv"
 	"github.com/wricardo/tesla-road-trip-game/api"
@@ -50,7 +54,261 @@ var (
 	ngrokEnabled = flag.Bool("ngrok", false, "Enable ngrok tunnel")
 	ngrokAuth    = flag.String("ngrok-auth", "", "Ngrok auth token (or use NGROK_AUTHTOKEN env var)")
 	ngrokDomain  = flag.String("ngrok-domain", "", "Custom ngrok domain (optional)")
+	publicURL    = flag.String("public-url", "", "Public base URL served in llms.txt (e.g. https://myserver.com). Defaults to http://<host>:<port>")
 )
+
+var llmsTxtTemplate = template.Must(template.New("llms").Parse(`# Tesla Road Trip Game — LLM Guide
+
+Grid-based navigation game. Control a Tesla, collect all parks, manage battery. Win by visiting every park.
+
+GraphQL endpoint: POST {{.BaseURL}}/graphql
+Playground:       GET  {{.BaseURL}}/playground
+
+---
+
+## Quick Start
+
+### 1. List available configs
+
+` + "```" + `graphql
+query {
+  configs {
+    configId
+    name
+    description
+    gridSize
+    maxBattery
+  }
+}
+` + "```" + `
+
+### 2. Create a session
+
+` + "```" + `graphql
+mutation {
+  createSession(configID: "easy") {
+    id
+    configName
+    gameState {
+      battery
+      maxBattery
+      playerPos { x y }
+      grid { type visited id }
+      victory
+      gameOver
+    }
+  }
+}
+` + "```" + `
+
+### 3. Get current game state
+
+` + "```" + `graphql
+query {
+  gameState(sessionID: "abcd") {
+    playerPos { x y }
+    battery
+    maxBattery
+    batteryRisk
+    score
+    victory
+    gameOver
+    message
+    visitedParks { id visited }
+    localView3x3
+    grid { type visited id }
+  }
+}
+` + "```" + `
+
+` + "`" + `localView3x3` + "`" + ` returns a 3-row ASCII snapshot centered on the player — useful for quick spatial awareness without reading the full grid.
+
+` + "`" + `batteryRisk` + "`" + ` is one of: ` + "`" + `"safe"` + "`" + `, ` + "`" + `"moderate"` + "`" + `, ` + "`" + `"high"` + "`" + `, ` + "`" + `"critical"` + "`" + `.
+
+### 4. Move
+
+` + "```" + `graphql
+mutation {
+  move(sessionID: "abcd", direction: RIGHT) {
+    success
+    message
+    gameState {
+      playerPos { x y }
+      battery
+      victory
+      gameOver
+    }
+    attemptedTo { x y tileChar tileType passable }
+  }
+}
+` + "```" + `
+
+Directions: ` + "`" + `UP` + "`" + ` ` + "`" + `DOWN` + "`" + ` ` + "`" + `LEFT` + "`" + ` ` + "`" + `RIGHT` + "`" + `
+
+Optional ` + "`" + `reset: true` + "`" + ` resets the game before executing the move.
+
+### 5. Bulk move (sequence)
+
+` + "```" + `graphql
+mutation {
+  bulkMove(sessionID: "abcd", moves: [UP, UP, RIGHT, RIGHT, DOWN]) {
+    movesExecuted
+    success
+    stoppedReason
+    stopReasonCode
+    startPos { x y }
+    endPos { x y }
+    startBattery
+    endBattery
+    scoreDelta
+    gameOver
+    gameOverCode
+    victory
+    message
+    possibleMoves
+    localView3x3
+    batteryRisk
+    steps {
+      idx dir
+      from { x y } to { x y }
+      tileChar tileType
+      batteryBefore batteryAfter
+      success charged park victory
+    }
+    gameState {
+      playerPos { x y }
+      battery
+      victory
+      gameOver
+      visitedParks { id visited }
+    }
+  }
+}
+` + "```" + `
+
+Bulk moves stop early on: wall collision (if ` + "`" + `wallCrashEndsGame=true` + "`" + `), battery depletion, or victory.
+Check ` + "`" + `stoppedReason` + "`" + ` / ` + "`" + `stopReasonCode` + "`" + ` to understand why execution halted.
+
+### 5a. Execute a long route — reset + chained bulkMoves in one request
+
+GraphQL allows multiple named operations (aliases) in a single mutation. Use this to reset and execute a full route in one round trip:
+
+` + "```" + `graphql
+mutation {
+  reset(sessionID: "abcd") { battery score }
+
+  c1: bulkMove(sessionID: "abcd", moves: [LEFT,LEFT,UP,UP,RIGHT,RIGHT,RIGHT,UP,UP]) {
+    movesExecuted success stoppedReason
+    gameState { playerPos { x y } battery victory gameOver }
+  }
+
+  c2: bulkMove(sessionID: "abcd", moves: [RIGHT,RIGHT,DOWN,DOWN,LEFT,LEFT,LEFT,DOWN]) {
+    movesExecuted success stoppedReason
+    gameState { playerPos { x y } battery victory gameOver }
+  }
+}
+` + "```" + `
+
+Each ` + "`" + `bulkMove` + "`" + ` alias (c1, c2, c3 …) resumes from where the previous left off. Pack ~50 moves per chunk. Check ` + "`" + `stoppedReason` + "`" + ` on each — if ` + "`" + `"wall"` + "`" + ` or ` + "`" + `"battery"` + "`" + `, replan from that chunk's ` + "`" + `gameState` + "`" + `.
+
+### 6. Reset session
+
+` + "```" + `graphql
+mutation {
+  reset(sessionID: "abcd") {
+    playerPos { x y }
+    battery
+    score
+    gameOver
+    victory
+  }
+}
+` + "```" + `
+
+---
+
+## Grid Cell Types
+
+| char | type         | passable | effect                    |
+|------|--------------|----------|---------------------------|
+| R    | road         | yes      | none                      |
+| H    | home         | yes      | charges battery to max    |
+| S    | supercharger | yes      | charges battery to max    |
+| P    | park         | yes      | collect to score / win    |
+| B    | building     | no       | impassable obstacle       |
+| W    | water        | no       | impassable obstacle       |
+
+Grid is returned as ` + "`" + `grid: [[Cell]]` + "`" + ` — row-major, ` + "`" + `grid[y][x]` + "`" + `.
+` + "`" + `Cell.type` + "`" + ` uses the names above. ` + "`" + `Cell.id` + "`" + ` is a coordinate string.
+
+**Warning:** R and B look similar in monospace. Parse character-by-character before assuming a row is blocked.
+
+---
+
+## Winning
+
+Collect every park (P). ` + "`" + `victory: true` + "`" + ` appears in ` + "`" + `gameState` + "`" + ` once all parks are visited.
+Track progress via ` + "`" + `visitedParks` + "`" + ` — compare visited count to total P cells in the grid.
+
+---
+
+## Battery
+
+- Each move costs 1 battery.
+- Stepping on H or S restores battery to ` + "`" + `maxBattery` + "`" + `.
+- Reaching ` + "`" + `battery: 0` + "`" + ` ends the game (` + "`" + `gameOver: true` + "`" + `, ` + "`" + `gameOverCode: "battery"` + "`" + `).
+- Plan routes through charging cells. Check ` + "`" + `batteryRisk` + "`" + ` before long moves.
+
+---
+
+## Session Management
+
+` + "```" + `graphql
+# List all sessions
+query {
+  sessions {
+    count
+    sessions { id configName lastAccessedAt gameState { victory gameOver score } }
+  }
+}
+
+# Delete a session
+mutation {
+  deleteSession(id: "abcd") { message }
+}
+` + "```" + `
+
+---
+
+## Move History
+
+` + "```" + `graphql
+query {
+  history(sessionID: "abcd", page: 1, limit: 20, order: DESC) {
+    totalMoves
+    totalPages
+    hasNext
+    moves {
+      moveNumber action
+      fromPosition { x y }
+      toPosition { x y }
+      battery success timestamp
+    }
+  }
+}
+` + "```" + `
+
+---
+
+## Strategy Tips for LLMs
+
+1. Call ` + "`" + `gameState` + "`" + ` first — read ` + "`" + `localView3x3` + "`" + ` for immediate surroundings, full ` + "`" + `grid` + "`" + ` for planning.
+2. Identify H/S cells near your route before venturing far from the start.
+3. Use ` + "`" + `bulkMove` + "`" + ` for known-safe corridors; use single ` + "`" + `move` + "`" + ` when navigating around obstacles.
+4. After ` + "`" + `bulkMove` + "`" + `, check ` + "`" + `stopReasonCode` + "`" + ` — if ` + "`" + `"wall"` + "`" + ` or ` + "`" + `"battery"` + "`" + `, update your map and replan.
+5. Never assume a row is fully blocked — verify each cell character individually (R≠B≠W).
+6. Recharge proactively. Keep at least 3 battery buffer relative to distance to nearest H/S.
+`))
 
 // getConfigDirDefault returns the default configuration directory.
 // It first honors the CONFIG_DIR environment variable, then falls back to "configs".
@@ -154,8 +412,32 @@ func runHTTPServer(gameService service.GameService) {
 
 	// GraphQL is the public game API.
 	graphqlResolver := graph.NewResolver(gameService, hub)
-	mainRouter.Handle("/graphql", handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: graphqlResolver})))
+	gqlSrv := handler.New(generated.NewExecutableSchema(generated.Config{Resolvers: graphqlResolver}))
+	gqlSrv.Use(extension.Introspection{})
+	gqlSrv.AddTransport(transport.POST{})
+	gqlSrv.AddTransport(transport.GET{})
+	gqlSrv.AddTransport(transport.Options{})
+	gqlSrv.AddTransport(&transport.Websocket{
+		KeepAlivePingInterval: 10 * time.Second,
+		Upgrader: websocket.DefaultUpgrader(),
+	})
+	mainRouter.Handle("/graphql", gqlSrv)
 	mainRouter.Handle("/playground", playground.Handler("GraphQL playground", "/graphql"))
+
+	// /llms.txt — rendered from template so the server URL is always correct.
+	baseURL := *publicURL
+	if baseURL == "" {
+		baseURL = fmt.Sprintf("http://%s", addr)
+	}
+	mainRouter.HandleFunc("/llms.txt", func(w http.ResponseWriter, r *http.Request) {
+		var buf bytes.Buffer
+		if err := llmsTxtTemplate.Execute(&buf, struct{ BaseURL string }{BaseURL: baseURL}); err != nil {
+			http.Error(w, "template error", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Write(buf.Bytes())
+	})
 
 	// Mount static UI and WebSocket routes at root.
 	mainRouter.Handle("/", apiServer)
