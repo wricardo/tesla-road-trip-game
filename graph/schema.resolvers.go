@@ -7,7 +7,7 @@ package graph
 import (
 	"context"
 	"fmt"
-	"sort"
+	goSort "sort"
 
 	"github.com/wricardo/tesla-road-trip-game/game/service"
 	"github.com/wricardo/tesla-road-trip-game/graph/generated"
@@ -107,20 +107,20 @@ func (r *queryResolver) Session(ctx context.Context, id string) (*model.Session,
 }
 
 // Sessions is the resolver for the sessions field.
-func (r *queryResolver) Sessions(ctx context.Context, sortBy *model.SessionSort, order *model.SortOrder, limit *int) (*model.SessionList, error) {
+func (r *queryResolver) Sessions(ctx context.Context, sort *model.SessionSort, order *model.SortOrder, limit *int) (*model.SessionList, error) {
 	sessions, err := r.Service.ListSessions(ctx)
 	if err != nil {
 		return nil, err
 	}
 	sortName := "accessed"
-	if sortBy != nil && *sortBy == model.SessionSortCreated {
+	if sort != nil && *sort == model.SessionSortCreated {
 		sortName = "created"
 	}
 	orderName := "desc"
 	if order != nil && *order == model.SortOrderAsc {
 		orderName = "asc"
 	}
-	sort.Slice(sessions, func(i, j int) bool {
+	goSort.Slice(sessions, func(i, j int) bool {
 		ti, tj := sessions[i].LastAccessedAt, sessions[j].LastAccessedAt
 		if sortName == "created" {
 			ti, tj = sessions[i].CreatedAt, sessions[j].CreatedAt
@@ -219,11 +219,47 @@ func (r *queryResolver) Config(ctx context.Context, name string) (*model.GameCon
 	return toGameConfig(cfg), nil
 }
 
+// SessionUpdated is the resolver for the sessionUpdated field.
+func (r *subscriptionResolver) SessionUpdated(ctx context.Context, sessionID string) (<-chan *model.GameState, error) {
+	if r.Hub == nil {
+		return nil, fmt.Errorf("subscriptions unavailable: no hub")
+	}
+	engineCh := r.Hub.SubscribeSession(ctx, sessionID)
+	out := make(chan *model.GameState, 8)
+	go func() {
+		defer close(out)
+		for state := range engineCh {
+			out <- toGameState(state)
+		}
+	}()
+	return out, nil
+}
+
+// LobbyUpdated is the resolver for the lobbyUpdated field.
+func (r *subscriptionResolver) LobbyUpdated(ctx context.Context) (<-chan *model.GameState, error) {
+	if r.Hub == nil {
+		return nil, fmt.Errorf("subscriptions unavailable: no hub")
+	}
+	engineCh := r.Hub.SubscribeLobby(ctx)
+	out := make(chan *model.GameState, 32)
+	go func() {
+		defer close(out)
+		for state := range engineCh {
+			out <- toGameState(state)
+		}
+	}()
+	return out, nil
+}
+
 // Mutation returns generated.MutationResolver implementation.
 func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResolver{r} }
 
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
+// Subscription returns generated.SubscriptionResolver implementation.
+func (r *Resolver) Subscription() generated.SubscriptionResolver { return &subscriptionResolver{r} }
+
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
+type subscriptionResolver struct{ *Resolver }

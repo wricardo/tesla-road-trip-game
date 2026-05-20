@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --color-tesla-white: #f7f7f7;
+  --color-tesla-gray: #393c41;
+  --color-tesla-light: #e8e8e8;
+  --color-tesla-red: #e82127;
+  --color-tesla-green: #3e6ae1;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-tesla-white);
+  color: var(--color-tesla-gray);
+}

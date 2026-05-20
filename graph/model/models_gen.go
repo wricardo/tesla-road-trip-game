@@ -224,6 +224,9 @@ type StepInfo struct {
 	Victory       bool      `json:"victory"`
 }
 
+type Subscription struct {
+}
+
 type SurroundingCell struct {
 	X    int    `json:"x"`
 	Y    int    `json:"y"`

@@ -1,3 +1,8 @@
+type Subscription {
+  sessionUpdated(sessionID: ID!): GameState!
+  lobbyUpdated: GameState!
+}
+
 type Query {
   session(id: ID!): Session!
   sessions(sort: SessionSort = ACCESSED, order: SortOrder = DESC, limit: Int): SessionList!
