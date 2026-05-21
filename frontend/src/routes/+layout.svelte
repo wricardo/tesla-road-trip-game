@@ -31,12 +31,10 @@
 		</a>
 		<nav class="flex items-center gap-6 text-sm text-gray-500">
 			<a href="/" class="hover:text-[#393c41] transition-colors">Home</a>
-			<a href="/learn" class="hover:text-[#393c41] transition-colors">Learn</a>
-			<a href="/lobby" class="hover:text-[#393c41] transition-colors">Live Sessions</a>
-			<a href="/multi" class="hover:text-[#393c41] transition-colors">Multi</a>
+			<a href="/lobby" class="hover:text-[#393c41] transition-colors">Sessions</a>
+			<a href="/multi" class="hover:text-[#393c41] transition-colors">Multi Session</a>
 			<a href="/admin" class="hover:text-[#393c41] transition-colors">Admin</a>
-			<a href="/playground" class="hover:text-[#393c41] transition-colors" target="_blank" rel="noreferrer">Playground</a>
-			<a href="/llms.txt" class="hover:text-[#393c41] transition-colors" target="_blank" rel="noreferrer">llms.txt</a>
+			<a href="/graphql" class="hover:text-[#393c41] transition-colors" target="_blank" rel="noreferrer">GraphQL</a>
 		</nav>
 	</header>
 
