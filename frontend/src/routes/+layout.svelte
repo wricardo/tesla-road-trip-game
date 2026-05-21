@@ -69,6 +69,7 @@
 				<p class="font-semibold text-[#393c41] mb-2">Tools</p>
 				<div class="flex flex-col gap-1.5">
 					<a href="/playground" target="_blank" rel="noreferrer" class="hover:text-gray-600 transition-colors">GraphQL Playground</a>
+					<a href="https://github.com/wricardo/gqlcli#-quick-start--using-the-cli" target="_blank" rel="noreferrer" class="hover:text-gray-600 transition-colors">gqlcli — GraphQL CLI</a>
 				</div>
 			</div>
 		</div>
