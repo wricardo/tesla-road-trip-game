@@ -132,7 +132,7 @@ func TestClient_createSession(t *testing.T) {
 
 		resp := service.SessionInfo{
 			ID:         "test-session-123",
-			ConfigName: "classic",
+			MapName: "classic",
 			GameState: &engine.GameState{
 				Battery: 50,
 				Score:   0,

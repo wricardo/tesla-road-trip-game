@@ -1,0 +1,243 @@
+type Subscription {
+  sessionUpdated(sessionID: ID!): GameState!
+  lobbyUpdated: GameState!
+}
+
+type Query {
+  session(id: ID!): Session!
+  sessions(sort: SessionSort = ACCESSED, order: SortOrder = DESC, limit: Int): SessionList!
+  unifiedSessions(mapName: String): UnifiedSessions!
+  gameState(sessionID: ID!): GameState!
+  history(sessionID: ID!, page: Int = 1, limit: Int = 50, order: SortOrder = DESC): HistoryResponse!
+  maps: [MapInfo!]!
+  map(name: String!): GameMap!
+}
+
+type Mutation {
+  createSession(mapID: String, mapName: String): Session!
+  deleteSession(id: ID!): DeleteSessionResult!
+  move(sessionID: ID!, direction: Direction!, reset: Boolean = false): MoveResult!
+  bulkMove(sessionID: ID!, moves: [Direction!]!, reset: Boolean = false): BulkMoveResult!
+  reset(sessionID: ID!): GameState!
+  createMap(name: String!, map: GameMapInput!): GameMap!
+}
+
+enum Direction { UP DOWN LEFT RIGHT }
+enum SortOrder { ASC DESC }
+enum SessionSort { CREATED ACCESSED }
+
+type DeleteSessionResult { message: String! }
+
+type SessionList {
+  count: Int!
+  total: Int!
+  sessions: [Session!]!
+  sort: String!
+  order: String!
+}
+
+type UnifiedSessions {
+  mapName: String!
+  count: Int!
+  sessions: [UnifiedSession!]!
+}
+
+type UnifiedSession {
+  sessionId: ID!
+  createdAt: String!
+  lastAccessedAt: String!
+  gameState: GameState!
+  gameMap: GameMap!
+}
+
+type Session {
+  id: ID!
+  mapName: String!
+  createdAt: String!
+  lastAccessedAt: String!
+  gameState: GameState!
+  gameMap: GameMap!
+}
+
+type GameState {
+  grid: [[Cell!]!]!
+  playerPos: Position!
+  battery: Int!
+  maxBattery: Int!
+  score: Int!
+  visitedParks: [VisitedPark!]!
+  message: String!
+  gameOver: Boolean!
+  victory: Boolean!
+  mapName: String!
+  moveHistory: [MoveHistoryEntry!]!
+  totalMoves: Int!
+  localView: [SurroundingCell!]!
+  currentMoves: [MoveHistoryEntry!]!
+  currentMovesCount: Int!
+  localView3x3: [String!]!
+  batteryRisk: String!
+}
+
+type Cell {
+  type: String!
+  visited: Boolean!
+  id: String!
+}
+
+type Position { x: Int!, y: Int! }
+
+type VisitedPark { id: String!, visited: Boolean! }
+
+type SurroundingCell { x: Int!, y: Int!, type: String! }
+
+type MoveHistoryEntry {
+  action: String!
+  fromPosition: Position!
+  toPosition: Position!
+  battery: Int!
+  timestamp: Int!
+  success: Boolean!
+  moveNumber: Int!
+}
+
+type GameMap {
+  name: String!
+  description: String!
+  gridSize: Int!
+  maxBattery: Int!
+  startingBattery: Int!
+  layout: [String!]!
+  legend: [LegendEntry!]!
+  wallCrashEndsGame: Boolean!
+  messages: MapMessages!
+}
+
+type LegendEntry { key: String!, value: String! }
+
+type MapMessages {
+  welcome: String!
+  homeCharge: String!
+  superchargerCharge: String!
+  parkVisited: String!
+  parkAlreadyVisited: String!
+  victory: String!
+  outOfBattery: String!
+  stranded: String!
+  cantMove: String!
+  batteryStatus: String!
+  hitWall: String!
+}
+
+input GameMapInput {
+  name: String!
+  description: String!
+  gridSize: Int!
+  maxBattery: Int!
+  startingBattery: Int!
+  layout: [String!]!
+  legend: [LegendEntryInput!]!
+  wallCrashEndsGame: Boolean!
+  messages: MapMessagesInput!
+}
+
+input LegendEntryInput { key: String!, value: String! }
+
+input MapMessagesInput {
+  welcome: String!
+  homeCharge: String!
+  superchargerCharge: String!
+  parkVisited: String!
+  parkAlreadyVisited: String!
+  victory: String!
+  outOfBattery: String!
+  stranded: String!
+  cantMove: String!
+  batteryStatus: String!
+  hitWall: String!
+}
+
+type MapInfo {
+  filename: String!
+  mapId: String!
+  name: String!
+  description: String!
+  gridSize: Int!
+  maxBattery: Int!
+}
+
+type MoveResult {
+  success: Boolean!
+  gameState: GameState!
+  message: String!
+  events: [GameEvent!]!
+  step: StepInfo
+  attemptedTo: AttemptInfo
+}
+
+type BulkMoveResult {
+  movesExecuted: Int!
+  totalMoves: Int!
+  requestedMoves: Int!
+  success: Boolean!
+  gameState: GameState!
+  events: [GameEvent!]!
+  stoppedReason: String!
+  stopReasonCode: String!
+  stoppedOnMove: Int!
+  truncated: Boolean!
+  limit: Int!
+  startPos: Position!
+  endPos: Position!
+  startBattery: Int!
+  endBattery: Int!
+  scoreDelta: Int!
+  steps: [StepInfo!]!
+  attemptedTo: AttemptInfo
+  gameOver: Boolean!
+  gameOverCode: String!
+  message: String!
+  possibleMoves: [String!]!
+  localView3x3: [String!]!
+  batteryRisk: String!
+}
+
+type GameEvent {
+  type: String!
+  message: String!
+  timestamp: String!
+  position: Position!
+}
+
+type StepInfo {
+  idx: Int!
+  dir: String!
+  from: Position!
+  to: Position!
+  tileChar: String!
+  tileType: String!
+  batteryBefore: Int!
+  batteryAfter: Int!
+  success: Boolean!
+  charged: Boolean!
+  park: Boolean!
+  victory: Boolean!
+}
+
+type AttemptInfo {
+  x: Int!
+  y: Int!
+  tileChar: String!
+  tileType: String!
+  passable: Boolean!
+}
+
+type HistoryResponse {
+  moves: [MoveHistoryEntry!]!
+  totalMoves: Int!
+  page: Int!
+  pageSize: Int!
+  totalPages: Int!
+  hasNext: Boolean!
+  hasPrevious: Boolean!
+}

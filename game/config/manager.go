@@ -98,33 +98,30 @@ func (m *Manager) LoadConfig(name string) (*engine.GameConfig, error) {
 	return &config, nil
 }
 
-// ListConfigs returns information about all available configurations
-func (m *Manager) ListConfigs() ([]*service.ConfigInfo, error) {
+// ListConfigs returns information about all available maps (implements ConfigManager interface)
+func (m *Manager) ListConfigs() ([]*service.MapInfo, error) {
 	entries, err := os.ReadDir(m.configDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config directory: %w", err)
 	}
 
-	var configs []*service.ConfigInfo
+	var maps []*service.MapInfo
 
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
 			continue
 		}
 
-		// Remove .json extension for config name
 		name := strings.TrimSuffix(entry.Name(), ".json")
 
-		// Try to load the config to get details
 		config, err := m.LoadConfig(name)
 		if err != nil {
-			// Skip invalid configs
 			continue
 		}
 
-		configs = append(configs, &service.ConfigInfo{
+		maps = append(maps, &service.MapInfo{
 			Filename:    entry.Name(),
-			ConfigID:    name, // This is the identifier to use for session creation
+			MapID:       name,
 			Name:        config.Name,
 			Description: config.Description,
 			GridSize:    config.GridSize,
@@ -132,7 +129,7 @@ func (m *Manager) ListConfigs() ([]*service.ConfigInfo, error) {
 		})
 	}
 
-	return configs, nil
+	return maps, nil
 }
 
 // GetDefault returns the default configuration

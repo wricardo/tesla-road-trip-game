@@ -109,43 +109,84 @@ func ValidateGameConfig(config *GameConfig) error {
 		return fmt.Errorf("config validation: messages.battery_status must contain %%d for battery values")
 	}
 
-	// Validate winnability - check that all parks are reachable from chargers
-	type Point struct {
-		X, Y int
-	}
-
-	var chargers []Point
-	var parks []Point
-
-	// Find all chargers (S and H) and parks
-	for y, row := range config.Layout {
-		for x, cell := range row {
-			switch cell {
-			case 'S', 'H':
-				chargers = append(chargers, Point{x, y})
-			case 'P':
-				parks = append(parks, Point{x, y})
-			}
-		}
-	}
-
-	// Check if all parks are reachable from at least one charger
-	for _, park := range parks {
-		minDistToCharger := UnreachableDistance
-		for _, charger := range chargers {
-			// Manhattan distance
-			dist := abs(park.X-charger.X) + abs(park.Y-charger.Y)
-			if dist < minDistToCharger {
-				minDistToCharger = dist
-			}
-		}
-		if minDistToCharger > config.MaxBattery {
-			return fmt.Errorf("config validation: park at (%d, %d) is unreachable - nearest charger is %d moves away but max battery is %d",
-				park.X+1, park.Y+1, minDistToCharger, config.MaxBattery)
-		}
+	if err := validateWinnable(config); err != nil {
+		return err
 	}
 
 	return nil
+}
+
+func validateWinnable(config *GameConfig) error {
+	type point struct{ x, y int }
+	type state struct {
+		x, y    int
+		battery int
+		parks   uint64
+	}
+
+	var home *point
+	parks := map[point]int{}
+	for y, row := range config.Layout {
+		for x, cell := range row {
+			switch cell {
+			case 'H':
+				if home == nil {
+					home = &point{x: x, y: y}
+				}
+			case 'P':
+				if len(parks) >= 63 {
+					return fmt.Errorf("config validation: too many parks to validate winnability: %d", len(parks)+1)
+				}
+				parks[point{x: x, y: y}] = len(parks)
+			}
+		}
+	}
+	if home == nil {
+		return fmt.Errorf("config validation: layout must contain at least one home (H) cell")
+	}
+
+	allParks := uint64(1<<len(parks)) - 1
+	start := state{x: home.x, y: home.y, battery: config.StartingBattery}
+	queue := []state{start}
+	seen := map[state]bool{start: true}
+	directions := []point{{x: 0, y: -1}, {x: 0, y: 1}, {x: -1, y: 0}, {x: 1, y: 0}}
+
+	for head := 0; head < len(queue); head++ {
+		current := queue[head]
+		if current.parks == allParks {
+			return nil
+		}
+		if current.battery <= 0 {
+			continue
+		}
+
+		for _, dir := range directions {
+			nx, ny := current.x+dir.x, current.y+dir.y
+			if nx < 0 || ny < 0 || nx >= config.GridSize || ny >= config.GridSize {
+				continue
+			}
+
+			cell := rune(config.Layout[ny][nx])
+			if cell == 'B' || cell == 'W' {
+				continue
+			}
+
+			next := state{x: nx, y: ny, battery: current.battery - 1, parks: current.parks}
+			if cell == 'H' || cell == 'S' {
+				next.battery = config.MaxBattery
+			}
+			if idx, ok := parks[point{x: nx, y: ny}]; ok {
+				next.parks |= 1 << idx
+			}
+			if seen[next] {
+				continue
+			}
+			seen[next] = true
+			queue = append(queue, next)
+		}
+	}
+
+	return fmt.Errorf("config validation: parks are unreachable with max_battery %d and starting_battery %d", config.MaxBattery, config.StartingBattery)
 }
 
 // LoadGameConfig loads a game configuration from a JSON file
@@ -292,7 +333,7 @@ func InitGameStateFromConfig(config *GameConfig) *GameState {
 		Message:           config.Messages.Welcome,
 		GameOver:          false,
 		Victory:           false,
-		ConfigName:        config.Name,
+		MapName:           config.Name,
 		MoveHistory:       []MoveHistoryEntry{},
 		TotalMoves:        0,
 		CurrentMoves:      []MoveHistoryEntry{},

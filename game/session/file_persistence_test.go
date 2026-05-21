@@ -234,7 +234,7 @@ func TestFilePersistenceFileStructure(t *testing.T) {
 
 	// Check it contains expected fields (basic validation)
 	content := string(data)
-	expectedFields := []string{"\"id\"", "\"config_name\"", "\"created_at\"", "\"game_state\""}
+	expectedFields := []string{"\"id\"", "\"map_name\"", "\"created_at\"", "\"game_state\""}
 	for _, field := range expectedFields {
 		if !containsString(content, field) {
 			t.Errorf("Session file should contain field %s", field)

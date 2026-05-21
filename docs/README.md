@@ -7,7 +7,7 @@ Comprehensive documentation for the Tesla Road Trip multi-session game server.
 ### Core Documentation
 
 - **[Architecture](architecture.md)** - System design, components, and data flow
-- **[MCP Integration](mcp-integration.md)** - Model Context Protocol server setup and usage
+- **[GraphQL API](graphql.md)** - Queries, mutations, introspection, and Playground usage
 - **[Configuration Schema](config-schema.md)** - Game configuration format and validation
 
 ### AI Strategy & Development
@@ -43,7 +43,7 @@ See [archive/](archive/) for historical documentation:
 - [Claude Development Guide](../CLAUDE.md) - Development instructions for Claude Code
 
 ### API & Integration
-- [MCP Integration](mcp-integration.md) - AI assistant integration
+- [GraphQL API](graphql.md) - AI assistant integration
 - [Configuration Schema](config-schema.md) - Creating custom game configs
 
 ### Architecture & Design
@@ -62,7 +62,7 @@ docs/
 ├── architecture-refactoring-diagram.md     # Architecture diagrams
 ├── ai-strategy.md                          # AI agent strategies
 ├── config-schema.md                        # Configuration format
-├── mcp-integration.md                      # MCP server guide
+├── graphql.md                              # GraphQL API guide
 ├── epic-architectural-refactoring.md       # Refactoring epic
 ├── stories/                                # Development stories
 │   └── story-1-gameservice-extraction.md

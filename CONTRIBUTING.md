@@ -291,7 +291,7 @@ For significant changes, test:
    ```bash
    # Create multiple sessions and verify isolation
    curl -X POST http://localhost:8080/api/sessions
-   curl -X POST http://localhost:8080/api/sessions -d '{"config_name":"easy"}'
+   curl -X POST http://localhost:8080/api/sessions -d '{"map_name":"easy"}'
    ```
 
 2. **WebSocket functionality**

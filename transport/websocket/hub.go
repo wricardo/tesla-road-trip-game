@@ -1,9 +1,11 @@
 package websocket
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -28,10 +30,13 @@ var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		// Allow all origins in development
-		// TODO: Configure this for production
 		return true
 	},
+}
+
+// DefaultUpgrader returns the package-level upgrader for use by gqlgen transport.
+func DefaultUpgrader() websocket.Upgrader {
+	return upgrader
 }
 
 // Message represents a WebSocket message
@@ -63,13 +68,20 @@ type Hub struct {
 
 	// Unregister requests from clients
 	unregister chan *Client
+
+	// GraphQL subscription channels per session
+	mu             sync.RWMutex
+	sessionSubs    map[string]map[chan *engine.GameState]bool
+	lobbySubs      map[chan *engine.GameState]bool
 }
 
 // NewHub creates a new WebSocket hub
 func NewHub() *Hub {
 	return &Hub{
-		sessions:   make(map[string]map[*Client]bool),
-		broadcast:  make(chan *Message),
+		sessions:    make(map[string]map[*Client]bool),
+		broadcast:   make(chan *Message),
+		sessionSubs: make(map[string]map[chan *engine.GameState]bool),
+		lobbySubs:   make(map[chan *engine.GameState]bool),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 	}
@@ -127,17 +139,78 @@ func (h *Hub) BroadcastToSession(sessionID string, state *engine.GameState) {
 		return
 	}
 
-	// Send to all clients in this session
+	// Send to all WebSocket clients in this session
 	if clients, ok := h.sessions[sessionID]; ok {
 		for client := range clients {
 			select {
 			case client.send <- data:
 			default:
-				// Client's send channel is full, close it
 				h.unregisterClient(client)
 			}
 		}
 	}
+
+	// Fan out to GraphQL subscription channels
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	if subs, ok := h.sessionSubs[sessionID]; ok {
+		for ch := range subs {
+			select {
+			case ch <- state:
+			default:
+			}
+		}
+	}
+	for ch := range h.lobbySubs {
+		select {
+		case ch <- state:
+		default:
+		}
+	}
+}
+
+// SubscribeSession returns a channel that receives GameState on every change for sessionID.
+// Cancel ctx to unsubscribe.
+func (h *Hub) SubscribeSession(ctx context.Context, sessionID string) <-chan *engine.GameState {
+	ch := make(chan *engine.GameState, 8)
+	h.mu.Lock()
+	if h.sessionSubs[sessionID] == nil {
+		h.sessionSubs[sessionID] = make(map[chan *engine.GameState]bool)
+	}
+	h.sessionSubs[sessionID][ch] = true
+	h.mu.Unlock()
+
+	go func() {
+		<-ctx.Done()
+		h.mu.Lock()
+		if subs, ok := h.sessionSubs[sessionID]; ok {
+			delete(subs, ch)
+			if len(subs) == 0 {
+				delete(h.sessionSubs, sessionID)
+			}
+		}
+		h.mu.Unlock()
+		close(ch)
+	}()
+	return ch
+}
+
+// SubscribeLobby returns a channel that receives any GameState change across all sessions.
+// Cancel ctx to unsubscribe.
+func (h *Hub) SubscribeLobby(ctx context.Context) <-chan *engine.GameState {
+	ch := make(chan *engine.GameState, 32)
+	h.mu.Lock()
+	h.lobbySubs[ch] = true
+	h.mu.Unlock()
+
+	go func() {
+		<-ctx.Done()
+		h.mu.Lock()
+		delete(h.lobbySubs, ch)
+		h.mu.Unlock()
+		close(ch)
+	}()
+	return ch
 }
 
 // BroadcastEvent sends a custom event to all clients in a session

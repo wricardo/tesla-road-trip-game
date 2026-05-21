@@ -9,11 +9,11 @@ import (
 // SessionInfo provides information about a game session
 type SessionInfo struct {
 	ID             string             `json:"id"`
-	ConfigName     string             `json:"config_name"`
+	MapName        string             `json:"map_name"`
 	CreatedAt      time.Time          `json:"created_at"`
 	LastAccessedAt time.Time          `json:"last_accessed_at"`
 	GameState      *engine.GameState  `json:"game_state"`
-	GameConfig     *engine.GameConfig `json:"game_config"`
+	GameMap        *engine.GameConfig `json:"game_map"`
 }
 
 // MoveResult contains the result of a move operation
@@ -114,11 +114,11 @@ type HistoryResponse struct {
 	HasPrevious bool                      `json:"has_previous"`
 }
 
-// ConfigInfo provides information about a game configuration
-type ConfigInfo struct {
+// MapInfo provides information about a game map
+type MapInfo struct {
 	Filename    string `json:"filename"`
-	ConfigID    string `json:"config_id"` // The identifier to use for session creation
-	Name        string `json:"name"`      // Display name
+	MapID       string `json:"map_id"` // The identifier to use for session creation
+	Name        string `json:"name"`   // Display name
 	Description string `json:"description"`
 	GridSize    int    `json:"grid_size"`
 	MaxBattery  int    `json:"max_battery"`

@@ -42,10 +42,9 @@ func (fp *FilePersistence) Save(session *service.Session) error {
 		return fmt.Errorf("failed to get config ID: %w", err)
 	}
 
-	// Create persisted data structure
 	data := PersistedSessionData{
 		ID:             session.ID,
-		ConfigName:     configID, // Store config ID, not display name
+		MapName:        configID,
 		CreatedAt:      session.CreatedAt,
 		LastAccessedAt: session.LastAccessedAt,
 		GameState:      session.Engine.GetState(),
@@ -87,10 +86,9 @@ func (fp *FilePersistence) Load(id string) (*service.Session, error) {
 		return nil, fmt.Errorf("failed to unmarshal session data: %w", err)
 	}
 
-	// Load the game configuration
-	gameConfig, err := fp.configManager.LoadConfig(data.ConfigName)
+	gameConfig, err := fp.configManager.LoadConfig(data.MapName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load config '%s': %w", data.ConfigName, err)
+		return nil, fmt.Errorf("failed to load map '%s': %w", data.MapName, err)
 	}
 
 	// Create game engine with configuration
@@ -180,19 +178,19 @@ func (fp *FilePersistence) getFilePath(id string) string {
 	return filepath.Join(fp.sessionsDir, fmt.Sprintf("%s.json", id))
 }
 
-// getConfigIDFromName returns the config ID (filename without extension) from display name
+// getConfigIDFromName returns the map ID (filename without extension) from display name
 func (fp *FilePersistence) getConfigIDFromName(displayName string) (string, error) {
-	configs, err := fp.configManager.ListConfigs()
+	maps, err := fp.configManager.ListConfigs()
 	if err != nil {
-		return "", fmt.Errorf("failed to list configs: %w", err)
+		return "", fmt.Errorf("failed to list maps: %w", err)
 	}
 
-	for _, config := range configs {
-		if config.Name == displayName {
-			return config.ConfigID, nil
+	for _, m := range maps {
+		if m.Name == displayName {
+			return m.MapID, nil
 		}
 	}
 
-	// If not found, assume the displayName is already the config ID
+	// If not found, assume displayName is already the map ID
 	return displayName, nil
 }

@@ -58,7 +58,7 @@ AVAILABLE TOOLS:
 - create_session: Create new game session
 - get_session: Get session details
 - list_sessions: List all active sessions
-- list_configs: List available configurations
+- list_maps: List available maps
 - game_instructions: Get comprehensive game instructions and rules
 - describe_cell: Get detailed info about a specific grid cell (helps verify R vs B vs W)
 
@@ -74,13 +74,13 @@ func (c *Client) registerTools() {
 	// Session management
 	c.mcpServer.AddTool(mcp.Tool{
 		Name:        "create_session",
-		Description: "Create a new game session with optional config selection",
+		Description: "Create a new game session with optional map selection",
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]interface{}{
-				"config_name": map[string]interface{}{
+				"map_name": map[string]interface{}{
 					"type":        "string",
-					"description": "Name of the config to use (optional)",
+					"description": "Name of the map to use (optional)",
 				},
 			},
 		},
@@ -224,13 +224,13 @@ func (c *Client) registerTools() {
 	}, c.handleMoveHistory)
 
 	c.mcpServer.AddTool(mcp.Tool{
-		Name:        "list_configs",
-		Description: "List available game configurations",
+		Name:        "list_maps",
+		Description: "List available game maps",
 		InputSchema: mcp.ToolInputSchema{
 			Type:       "object",
 			Properties: map[string]interface{}{},
 		},
-	}, c.handleListConfigs)
+	}, c.handleListMaps)
 
 	c.mcpServer.AddTool(mcp.Tool{
 		Name:        "game_instructions",
@@ -319,11 +319,11 @@ func (c *Client) apiCall(method, path string, body interface{}, result interface
 
 func (c *Client) handleCreateSession(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	args := request.Params.Arguments.(map[string]interface{})
-	configName, _ := args["config_name"].(string)
+	mapName, _ := args["map_name"].(string)
 
 	body := map[string]string{}
-	if configName != "" {
-		body["config_name"] = configName
+	if mapName != "" {
+		body["map_name"] = mapName
 	}
 
 	var session service.SessionInfo
@@ -332,7 +332,7 @@ func (c *Client) handleCreateSession(ctx context.Context, request mcp.CallToolRe
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	result := fmt.Sprintf("Created session: %s\nConfig: %s\n", session.ID, session.ConfigName)
+	result := fmt.Sprintf("Created session: %s\nMap: %s\n", session.ID, session.MapName)
 	return mcp.NewToolResultText(result), nil
 }
 
@@ -349,8 +349,8 @@ func (c *Client) handleListSessions(ctx context.Context, request mcp.CallToolReq
 
 	result := fmt.Sprintf("Active Sessions (%d):\n\n", response.Count)
 	for _, s := range response.Sessions {
-		result += fmt.Sprintf("- %s (Config: %s, Created: %s)\n",
-			s.ID, s.ConfigName, s.CreatedAt.Format("15:04:05"))
+		result += fmt.Sprintf("- %s (Map: %s, Created: %s)\n",
+			s.ID, s.MapName, s.CreatedAt.Format("15:04:05"))
 	}
 
 	return mcp.NewToolResultText(result), nil
@@ -491,17 +491,17 @@ func (c *Client) handleMoveHistory(ctx context.Context, request mcp.CallToolRequ
 	return mcp.NewToolResultText(result), nil
 }
 
-func (c *Client) handleListConfigs(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	var configs []service.ConfigInfo
-	err := c.apiCall("GET", "/api/configs", nil, &configs)
+func (c *Client) handleListMaps(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	var maps []service.MapInfo
+	err := c.apiCall("GET", "/api/maps", nil, &maps)
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	result := "Available Configurations:\n\n"
-	for _, config := range configs {
+	result := "Available Maps:\n\n"
+	for _, m := range maps {
 		result += fmt.Sprintf("• %s\n  %s\n  Grid: %dx%d, Battery: %d\n\n",
-			config.Name, config.Description, config.GridSize, config.GridSize, config.MaxBattery)
+			m.Name, m.Description, m.GridSize, m.GridSize, m.MaxBattery)
 	}
 
 	return mcp.NewToolResultText(result), nil
@@ -625,9 +625,9 @@ GAME OVER CONDITIONS:
 - Game displays "💀 GAME OVER" when this occurs
 
 CONFIGURATION OPTIONS:
-- Easy configs: Smaller grids, more chargers, simple layouts
-- Medium configs: Balanced challenge with strategic elements
-- Hard configs: Complex mazes requiring careful planning
+- Easy maps: Smaller grids, more chargers, simple layouts
+- Medium maps: Balanced challenge with strategic elements
+- Hard maps: Complex mazes requiring careful planning
 
 SESSION MANAGEMENT:
 - Multiple game sessions can run simultaneously
@@ -796,8 +796,8 @@ func getCharacterReminder(char string) string {
 // Formatting helpers
 
 func formatSessionInfo(session *service.SessionInfo) string {
-	return fmt.Sprintf("Session: %s\nConfig: %s\nCreated: %s\n\n%s",
-		session.ID, session.ConfigName,
+	return fmt.Sprintf("Session: %s\nMap: %s\nCreated: %s\n\n%s",
+		session.ID, session.MapName,
 		session.CreatedAt.Format("2006-01-02 15:04:05"),
 		formatGameState(session.GameState))
 }
@@ -923,13 +923,13 @@ func formatBulkMoveResult(sessionID string, result *service.BulkMoveResult) stri
 
 	// Session header
 	gridSize := 0
-	configName := ""
+	mapName := ""
 	if result.GameState != nil {
 		gridSize = len(result.GameState.Grid)
-		configName = result.GameState.ConfigName
+		mapName = result.GameState.MapName
 	}
-	b.WriteString(fmt.Sprintf("Session: %s • Config: %s • Grid: %dx%d\n",
-		sessionID, configName, gridSize, gridSize))
+	b.WriteString(fmt.Sprintf("Session: %s • Map: %s • Grid: %dx%d\n",
+		sessionID, mapName, gridSize, gridSize))
 
 	// Bulk summary
 	requested := result.RequestedMoves
