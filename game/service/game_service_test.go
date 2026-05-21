@@ -164,10 +164,10 @@ func (m *MockConfigManager) LoadConfig(name string) (*engine.GameConfig, error) 
 	return config, nil
 }
 
-func (m *MockConfigManager) ListConfigs() ([]*service.ConfigInfo, error) {
-	result := make([]*service.ConfigInfo, 0, len(m.configs))
+func (m *MockConfigManager) ListConfigs() ([]*service.MapInfo, error) {
+	result := make([]*service.MapInfo, 0, len(m.configs))
 	for name, config := range m.configs {
-		result = append(result, &service.ConfigInfo{
+		result = append(result, &service.MapInfo{
 			Filename:    name + ".json",
 			Name:        config.Name,
 			Description: config.Description,

@@ -6,20 +6,20 @@ type Subscription {
 type Query {
   session(id: ID!): Session!
   sessions(sort: SessionSort = ACCESSED, order: SortOrder = DESC, limit: Int): SessionList!
-  unifiedSessions(configName: String): UnifiedSessions!
+  unifiedSessions(mapName: String): UnifiedSessions!
   gameState(sessionID: ID!): GameState!
   history(sessionID: ID!, page: Int = 1, limit: Int = 50, order: SortOrder = DESC): HistoryResponse!
-  configs: [ConfigInfo!]!
-  config(name: String!): GameConfig!
+  maps: [MapInfo!]!
+  map(name: String!): GameMap!
 }
 
 type Mutation {
-  createSession(configID: String, configName: String): Session!
+  createSession(mapID: String, mapName: String): Session!
   deleteSession(id: ID!): DeleteSessionResult!
   move(sessionID: ID!, direction: Direction!, reset: Boolean = false): MoveResult!
   bulkMove(sessionID: ID!, moves: [Direction!]!, reset: Boolean = false): BulkMoveResult!
   reset(sessionID: ID!): GameState!
-  createConfig(name: String!, config: GameConfigInput!): GameConfig!
+  createMap(name: String!, map: GameMapInput!): GameMap!
 }
 
 enum Direction { UP DOWN LEFT RIGHT }
@@ -37,7 +37,7 @@ type SessionList {
 }
 
 type UnifiedSessions {
-  configName: String!
+  mapName: String!
   count: Int!
   sessions: [UnifiedSession!]!
 }
@@ -47,16 +47,16 @@ type UnifiedSession {
   createdAt: String!
   lastAccessedAt: String!
   gameState: GameState!
-  gameConfig: GameConfig!
+  gameMap: GameMap!
 }
 
 type Session {
   id: ID!
-  configName: String!
+  mapName: String!
   createdAt: String!
   lastAccessedAt: String!
   gameState: GameState!
-  gameConfig: GameConfig!
+  gameMap: GameMap!
 }
 
 type GameState {
@@ -69,7 +69,7 @@ type GameState {
   message: String!
   gameOver: Boolean!
   victory: Boolean!
-  configName: String!
+  mapName: String!
   moveHistory: [MoveHistoryEntry!]!
   totalMoves: Int!
   localView: [SurroundingCell!]!
@@ -101,7 +101,7 @@ type MoveHistoryEntry {
   moveNumber: Int!
 }
 
-type GameConfig {
+type GameMap {
   name: String!
   description: String!
   gridSize: Int!
@@ -110,12 +110,12 @@ type GameConfig {
   layout: [String!]!
   legend: [LegendEntry!]!
   wallCrashEndsGame: Boolean!
-  messages: ConfigMessages!
+  messages: MapMessages!
 }
 
 type LegendEntry { key: String!, value: String! }
 
-type ConfigMessages {
+type MapMessages {
   welcome: String!
   homeCharge: String!
   superchargerCharge: String!
@@ -129,7 +129,7 @@ type ConfigMessages {
   hitWall: String!
 }
 
-input GameConfigInput {
+input GameMapInput {
   name: String!
   description: String!
   gridSize: Int!
@@ -138,12 +138,12 @@ input GameConfigInput {
   layout: [String!]!
   legend: [LegendEntryInput!]!
   wallCrashEndsGame: Boolean!
-  messages: ConfigMessagesInput!
+  messages: MapMessagesInput!
 }
 
 input LegendEntryInput { key: String!, value: String! }
 
-input ConfigMessagesInput {
+input MapMessagesInput {
   welcome: String!
   homeCharge: String!
   superchargerCharge: String!
@@ -157,9 +157,9 @@ input ConfigMessagesInput {
   hitWall: String!
 }
 
-type ConfigInfo {
+type MapInfo {
   filename: String!
-  configId: String!
+  mapId: String!
   name: String!
   description: String!
   gridSize: Int!

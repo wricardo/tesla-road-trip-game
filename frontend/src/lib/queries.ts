@@ -3,7 +3,7 @@ export const SESSIONS_QUERY = `
     sessions {
       sessions {
         id
-        configName
+        mapName
         gameState {
           battery
           maxBattery
@@ -22,7 +22,7 @@ export const SESSIONS_QUERY = `
 export const LOBBY_SUBSCRIPTION = `
   subscription LobbyUpdated {
     lobbyUpdated {
-      configName
+      mapName
       battery
       maxBattery
       score
@@ -44,17 +44,17 @@ export const SESSION_SUBSCRIPTION = `
       gameOver
       totalMoves
       message
-      configName
+      mapName
       playerPos { x y }
       grid { type visited id }
     }
   }
 `;
 
-export const CONFIGS_QUERY = `
-  query Configs {
-    configs {
-      configId
+export const MAPS_QUERY = `
+  query Maps {
+    maps {
+      mapId
       name
       description
       gridSize
@@ -64,10 +64,10 @@ export const CONFIGS_QUERY = `
 `;
 
 export const CREATE_SESSION_MUTATION = `
-  mutation CreateSession($configName: String) {
-    createSession(configName: $configName) {
+  mutation CreateSession($mapID: String) {
+    createSession(mapID: $mapID) {
       id
-      configName
+      mapName
     }
   }
 `;

@@ -20,8 +20,8 @@
 //   - GET /api/sessions - List all sessions
 //   - GET /api/sessions/{id} - Get specific session
 //
-// Configuration:
-//   - GET /api/configs - List available configurations
+// Maps:
+//   - GET /api/maps - List available maps
 //
 // Save/Load:
 //   - GET /api/saves - List saved games
@@ -47,7 +47,7 @@
 //	handler := api.NewHandler(gameService)
 //	http.HandleFunc("/api", handler.HandleAPI)
 //	http.HandleFunc("/api/sessions", handler.HandleSessions)
-//	http.HandleFunc("/api/configs", handler.HandleConfigs)
+//	http.HandleFunc("/api/maps", handler.HandleMaps)
 //
 // Error Handling:
 //

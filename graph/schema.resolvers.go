@@ -15,12 +15,12 @@ import (
 )
 
 // CreateSession is the resolver for the createSession field.
-func (r *mutationResolver) CreateSession(ctx context.Context, configID *string, configName *string) (*model.Session, error) {
+func (r *mutationResolver) CreateSession(ctx context.Context, mapID *string, mapName *string) (*model.Session, error) {
 	id := ""
-	if configID != nil {
-		id = *configID
-	} else if configName != nil {
-		id = *configName
+	if mapID != nil {
+		id = *mapID
+	} else if mapName != nil {
+		id = *mapName
 	}
 	s, err := r.Service.CreateSession(ctx, id)
 	if err != nil {
@@ -85,16 +85,16 @@ func (r *mutationResolver) Reset(ctx context.Context, sessionID string) (*model.
 	return toGameState(state), nil
 }
 
-// CreateConfig is the resolver for the createConfig field.
-func (r *mutationResolver) CreateConfig(ctx context.Context, name string, config model.GameConfigInput) (*model.GameConfig, error) {
-	cfg := fromGameConfigInput(config)
+// CreateMap is the resolver for the createMap field.
+func (r *mutationResolver) CreateMap(ctx context.Context, name string, mapArg model.GameMapInput) (*model.GameMap, error) {
+	cfg := fromGameMapInput(mapArg)
 	if cfg.Name == "" {
 		cfg.Name = name
 	}
-	if err := r.Service.SaveConfig(ctx, name, cfg); err != nil {
+	if err := r.Service.SaveMap(ctx, name, cfg); err != nil {
 		return nil, err
 	}
-	return toGameConfig(cfg), nil
+	return toGameMap(cfg), nil
 }
 
 // Session is the resolver for the session field.
@@ -142,15 +142,15 @@ func (r *queryResolver) Sessions(ctx context.Context, sort *model.SessionSort, o
 }
 
 // UnifiedSessions is the resolver for the unifiedSessions field.
-func (r *queryResolver) UnifiedSessions(ctx context.Context, configName *string) (*model.UnifiedSessions, error) {
+func (r *queryResolver) UnifiedSessions(ctx context.Context, mapName *string) (*model.UnifiedSessions, error) {
 	sessions, err := r.Service.ListSessions(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if configName != nil && *configName != "" {
+	if mapName != nil && *mapName != "" {
 		filtered := make([]*service.SessionInfo, 0)
 		for _, s := range sessions {
-			if s.ConfigName == *configName {
+			if s.MapName == *mapName {
 				filtered = append(filtered, s)
 			}
 		}
@@ -158,15 +158,15 @@ func (r *queryResolver) UnifiedSessions(ctx context.Context, configName *string)
 	}
 	name := ""
 	if len(sessions) > 0 {
-		name = sessions[0].ConfigName
-	} else if configName != nil {
-		name = *configName
+		name = sessions[0].MapName
+	} else if mapName != nil {
+		name = *mapName
 	}
 	out := make([]*model.UnifiedSession, len(sessions))
 	for i, s := range sessions {
 		out[i] = toUnifiedSession(s)
 	}
-	return &model.UnifiedSessions{ConfigName: name, Count: len(out), Sessions: out}, nil
+	return &model.UnifiedSessions{MapName: name, Count: len(out), Sessions: out}, nil
 }
 
 // GameState is the resolver for the gameState field.
@@ -197,26 +197,26 @@ func (r *queryResolver) History(ctx context.Context, sessionID string, page *int
 	return toHistory(h), nil
 }
 
-// Configs is the resolver for the configs field.
-func (r *queryResolver) Configs(ctx context.Context) ([]*model.ConfigInfo, error) {
-	configs, err := r.Service.ListConfigs(ctx)
+// Maps is the resolver for the maps field.
+func (r *queryResolver) Maps(ctx context.Context) ([]*model.MapInfo, error) {
+	maps, err := r.Service.ListMaps(ctx)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*model.ConfigInfo, len(configs))
-	for i, c := range configs {
-		out[i] = toConfigInfo(c)
+	out := make([]*model.MapInfo, len(maps))
+	for i, m := range maps {
+		out[i] = toMapInfo(m)
 	}
 	return out, nil
 }
 
-// Config is the resolver for the config field.
-func (r *queryResolver) Config(ctx context.Context, name string) (*model.GameConfig, error) {
-	cfg, err := r.Service.LoadConfig(ctx, name)
+// Map is the resolver for the map field.
+func (r *queryResolver) Map(ctx context.Context, name string) (*model.GameMap, error) {
+	cfg, err := r.Service.LoadMap(ctx, name)
 	if err != nil {
 		return nil, err
 	}
-	return toGameConfig(cfg), nil
+	return toGameMap(cfg), nil
 }
 
 // SessionUpdated is the resolver for the sessionUpdated field.
@@ -263,3 +263,40 @@ func (r *Resolver) Subscription() generated.SubscriptionResolver { return &subsc
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
 type subscriptionResolver struct{ *Resolver }
+
+// !!! WARNING !!!
+// The code below was going to be deleted when updating resolvers. It has been copied here so you have
+// one last chance to move it out of harms way if you want. There are two reasons this happens:
+//  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
+//    it when you're done.
+//  - You have helper methods in this file. Move them out to keep these resolver files clean.
+/*
+	func (r *mutationResolver) CreateConfig(ctx context.Context, name string, config model.GameConfigInput) (*model.GameConfig, error) {
+	cfg := fromGameConfigInput(config)
+	if cfg.Name == "" {
+		cfg.Name = name
+	}
+	if err := r.Service.SaveConfig(ctx, name, cfg); err != nil {
+		return nil, err
+	}
+	return toGameConfig(cfg), nil
+}
+func (r *queryResolver) Configs(ctx context.Context) ([]*model.ConfigInfo, error) {
+	configs, err := r.Service.ListConfigs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*model.ConfigInfo, len(configs))
+	for i, c := range configs {
+		out[i] = toConfigInfo(c)
+	}
+	return out, nil
+}
+func (r *queryResolver) Config(ctx context.Context, name string) (*model.GameConfig, error) {
+	cfg, err := r.Service.LoadConfig(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+	return toGameConfig(cfg), nil
+}
+*/

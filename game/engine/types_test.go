@@ -161,7 +161,7 @@ func TestGameStateJSONMarshaling(t *testing.T) {
 		Message:      "Test message",
 		GameOver:     false,
 		Victory:      false,
-		ConfigName:   "test_config",
+		MapName:   "test_config",
 		MoveHistory:  []MoveHistoryEntry{},
 		TotalMoves:   0,
 	}

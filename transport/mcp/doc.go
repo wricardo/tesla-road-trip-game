@@ -14,10 +14,10 @@
 //   - bulk_move: Execute multiple moves in sequence
 //   - reset_game: Reset game to initial state
 //   - move_history: Retrieve move history with pagination
-//   - create_session: Create new game session with config selection
+//   - create_session: Create new game session with map selection
 //   - get_session: Get specific session details
 //   - list_sessions: List all active sessions
-//   - list_configs: List available game configurations
+//   - list_maps: List available game maps
 //
 // Transport Modes:
 //

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -38,11 +40,28 @@ func NewServer(gameService service.GameService, hub *websocket.Hub) *Server {
 
 // setupRoutes configures non-REST routes.
 func (s *Server) setupRoutes() {
-	// WebSocket remains a transport endpoint for realtime GraphQL-driven state updates.
+	// Legacy session list/create routes retained for compatibility with existing tests/tools.
+	// Game operations are exposed through GraphQL.
+	s.router.HandleFunc("/api/sessions", s.handleCreateSession).Methods(http.MethodPost)
+	s.router.HandleFunc("/api/sessions", s.handleListSessions).Methods(http.MethodGet)
+
 	s.router.HandleFunc("/ws", s.handleWebSocket)
 
-	// Static files for the browser UI.
-	s.router.PathPrefix("/").Handler(http.FileServer(http.Dir("./static/")))
+	// Serve built SvelteKit frontend with SPA fallback.
+	// Prefer ./frontend/build (dev), fall back to ./static (production bundle).
+	uiDir := "./frontend/build"
+	if _, err := os.Stat(uiDir); err != nil {
+		uiDir = "./static"
+	}
+	fs := http.FileServer(http.Dir(uiDir))
+	s.router.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := filepath.Join(uiDir, filepath.Clean("/"+r.URL.Path))
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			http.ServeFile(w, r, filepath.Join(uiDir, "index.html"))
+			return
+		}
+		fs.ServeHTTP(w, r)
+	})
 }
 
 // ServeHTTP implements http.Handler
@@ -65,21 +84,20 @@ func respondError(w http.ResponseWriter, status int, message string) {
 
 func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		ConfigID   string `json:"config_id,omitempty"`
-		ConfigName string `json:"config_name,omitempty"` // Deprecated, use config_id
+		MapID   string `json:"map_id,omitempty"`
+		MapName string `json:"map_name,omitempty"`
 	}
 
 	if r.Body != nil {
 		json.NewDecoder(r.Body).Decode(&req)
 	}
 
-	// Support both new and old parameter names, but prefer config_id
-	configID := req.ConfigID
-	if configID == "" && req.ConfigName != "" {
-		configID = req.ConfigName
+	mapID := req.MapID
+	if mapID == "" && req.MapName != "" {
+		mapID = req.MapName
 	}
 
-	session, err := s.service.CreateSession(r.Context(), configID)
+	session, err := s.service.CreateSession(r.Context(), mapID)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -326,26 +344,25 @@ func (s *Server) handleGetHistory(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, history)
 }
 
-// Configuration Handlers
+// Map Handlers
 
-func (s *Server) handleListConfigs(w http.ResponseWriter, r *http.Request) {
-	configs, err := s.service.ListConfigs(r.Context())
+func (s *Server) handleListMaps(w http.ResponseWriter, r *http.Request) {
+	maps, err := s.service.ListMaps(r.Context())
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	respondJSON(w, http.StatusOK, configs)
+	respondJSON(w, http.StatusOK, maps)
 }
 
-func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleGetMap(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	configName := vars["name"]
+	mapName := vars["name"]
 
-	// Remove .json extension if present
-	configName = strings.TrimSuffix(configName, ".json")
+	mapName = strings.TrimSuffix(mapName, ".json")
 
-	config, err := s.service.LoadConfig(r.Context(), configName)
+	config, err := s.service.LoadMap(r.Context(), mapName)
 	if err != nil {
 		respondError(w, http.StatusNotFound, err.Error())
 		return
@@ -354,8 +371,7 @@ func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, config)
 }
 
-func (s *Server) handleCreateConfig(w http.ResponseWriter, r *http.Request) {
-	// Decode directly into engine.GameConfig which has the correct structure
+func (s *Server) handleCreateMap(w http.ResponseWriter, r *http.Request) {
 	var gameConfig engine.GameConfig
 
 	if err := json.NewDecoder(r.Body).Decode(&gameConfig); err != nil {
@@ -363,21 +379,19 @@ func (s *Server) handleCreateConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate required fields
 	if gameConfig.Name == "" {
-		respondError(w, http.StatusBadRequest, "Config name is required")
+		respondError(w, http.StatusBadRequest, "Map name is required")
 		return
 	}
 
-	// Save configuration
-	if err := s.service.SaveConfig(r.Context(), gameConfig.Name, &gameConfig); err != nil {
-		respondError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to save config: %v", err))
+	if err := s.service.SaveMap(r.Context(), gameConfig.Name, &gameConfig); err != nil {
+		respondError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to save map: %v", err))
 		return
 	}
 
 	respondJSON(w, http.StatusCreated, map[string]interface{}{
-		"message":   "Configuration saved successfully",
-		"config_id": gameConfig.Name,
+		"message": "Map saved successfully",
+		"map_id":  gameConfig.Name,
 	})
 }
 
@@ -402,13 +416,12 @@ func (s *Server) handleUnifiedSessions(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-	} else if configName := query.Get("configName"); configName != "" {
-		// Get all sessions with a specific config
+	} else if mapName := query.Get("mapName"); mapName != "" {
 		allSessions, err := s.service.ListSessions(r.Context())
 		if err == nil {
 			sessions = make([]*service.SessionInfo, 0)
 			for _, session := range allSessions {
-				if session.ConfigName == configName {
+				if session.MapName == mapName {
 					sessions = append(sessions, session)
 				}
 			}
@@ -423,17 +436,14 @@ func (s *Server) handleUnifiedSessions(w http.ResponseWriter, r *http.Request) {
 		sessions = allSessions
 	}
 
-	// Prepare unified response
-	configName := ""
+	mapName := ""
 	totalParks := 0
 
 	if len(sessions) > 0 {
-		// Use the config from the first session
-		configName = sessions[0].ConfigName
+		mapName = sessions[0].MapName
 
-		// Count total parks from the first session's config
-		if sessions[0].GameConfig != nil && sessions[0].GameConfig.Layout != nil {
-			for _, row := range sessions[0].GameConfig.Layout {
+		if sessions[0].GameMap != nil && sessions[0].GameMap.Layout != nil {
+			for _, row := range sessions[0].GameMap.Layout {
 				for _, cell := range row {
 					if cell == 'P' {
 						totalParks++
@@ -443,9 +453,8 @@ func (s *Server) handleUnifiedSessions(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Format response
 	response := map[string]interface{}{
-		"config_name": configName,
+		"map_name":    mapName,
 		"total_parks": totalParks,
 		"sessions":    make([]map[string]interface{}, 0, len(sessions)),
 	}
@@ -453,7 +462,7 @@ func (s *Server) handleUnifiedSessions(w http.ResponseWriter, r *http.Request) {
 	for _, session := range sessions {
 		sessionData := map[string]interface{}{
 			"session_id":    session.ID,
-			"config_name":   session.ConfigName,
+			"map_name":      session.MapName,
 			"game_state":    session.GameState,
 			"created_at":    session.CreatedAt,
 			"last_accessed": session.LastAccessedAt,
@@ -480,7 +489,13 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Upgrade to WebSocket
+	// Upgrade to WebSocket. httptest.ResponseRecorder does not implement
+	// http.Hijacker; return an explicit 500 so unit tests can assert that the
+	// request reached the upgrade path without requiring a real network socket.
+	if _, ok := w.(http.Hijacker); !ok {
+		http.Error(w, "websocket upgrade unavailable", http.StatusInternalServerError)
+		return
+	}
 	s.hub.ServeWS(w, r, sessionID)
 }
 

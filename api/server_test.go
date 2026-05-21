@@ -34,9 +34,9 @@ type MockGameService struct {
 	GetMoveHistoryFunc func(ctx context.Context, sessionID string, opts service.HistoryOptions) (*service.HistoryResponse, error)
 
 	// Configuration
-	ListConfigsFunc func(ctx context.Context) ([]*service.ConfigInfo, error)
-	LoadConfigFunc  func(ctx context.Context, configName string) (*engine.GameConfig, error)
-	SaveConfigFunc  func(ctx context.Context, configName string, config *engine.GameConfig) error
+	ListMapsFunc func(ctx context.Context) ([]*service.MapInfo, error)
+	LoadMapFunc  func(ctx context.Context, configName string) (*engine.GameConfig, error)
+	SaveMapFunc  func(ctx context.Context, configName string, config *engine.GameConfig) error
 }
 
 // Session Management
@@ -46,7 +46,7 @@ func (m *MockGameService) CreateSession(ctx context.Context, configName string) 
 	}
 	return &service.SessionInfo{
 		ID:         "test-session",
-		ConfigName: configName,
+		MapName: configName,
 		CreatedAt:  time.Now(),
 	}, nil
 }
@@ -57,7 +57,7 @@ func (m *MockGameService) GetSession(ctx context.Context, sessionID string) (*se
 	}
 	return &service.SessionInfo{
 		ID:         sessionID,
-		ConfigName: "test-config",
+		MapName: "test-config",
 		CreatedAt:  time.Now(),
 	}, nil
 }
@@ -126,16 +126,16 @@ func (m *MockGameService) GetMoveHistory(ctx context.Context, sessionID string, 
 }
 
 // Configuration
-func (m *MockGameService) ListConfigs(ctx context.Context) ([]*service.ConfigInfo, error) {
-	if m.ListConfigsFunc != nil {
-		return m.ListConfigsFunc(ctx)
+func (m *MockGameService) ListMaps(ctx context.Context) ([]*service.MapInfo, error) {
+	if m.ListMapsFunc != nil {
+		return m.ListMapsFunc(ctx)
 	}
-	return []*service.ConfigInfo{}, nil
+	return []*service.MapInfo{}, nil
 }
 
-func (m *MockGameService) LoadConfig(ctx context.Context, configName string) (*engine.GameConfig, error) {
-	if m.LoadConfigFunc != nil {
-		return m.LoadConfigFunc(ctx, configName)
+func (m *MockGameService) LoadMap(ctx context.Context, configName string) (*engine.GameConfig, error) {
+	if m.LoadMapFunc != nil {
+		return m.LoadMapFunc(ctx, configName)
 	}
 	return &engine.GameConfig{
 		Name:        configName,
@@ -143,9 +143,9 @@ func (m *MockGameService) LoadConfig(ctx context.Context, configName string) (*e
 	}, nil
 }
 
-func (m *MockGameService) SaveConfig(ctx context.Context, configName string, config *engine.GameConfig) error {
-	if m.SaveConfigFunc != nil {
-		return m.SaveConfigFunc(ctx, configName, config)
+func (m *MockGameService) SaveMap(ctx context.Context, configName string, config *engine.GameConfig) error {
+	if m.SaveMapFunc != nil {
+		return m.SaveMapFunc(ctx, configName, config)
 	}
 	return nil
 }
@@ -190,7 +190,7 @@ func TestCreateSession(t *testing.T) {
 				m.CreateSessionFunc = func(ctx context.Context, configName string) (*service.SessionInfo, error) {
 					return &service.SessionInfo{
 						ID:             "sess-123",
-						ConfigName:     "default",
+						MapName:     "default",
 						CreatedAt:      time.Now(),
 						LastAccessedAt: time.Now(),
 					}, nil
@@ -207,7 +207,7 @@ func TestCreateSession(t *testing.T) {
 		},
 		{
 			name:        "Create session with specific config",
-			requestBody: map[string]string{"config_name": "easy"},
+			requestBody: map[string]string{"map_name": "easy"},
 			setupMock: func(m *MockGameService) {
 				m.CreateSessionFunc = func(ctx context.Context, configName string) (*service.SessionInfo, error) {
 					if configName != "easy" {
@@ -215,7 +215,7 @@ func TestCreateSession(t *testing.T) {
 					}
 					return &service.SessionInfo{
 						ID:         "sess-456",
-						ConfigName: configName,
+						MapName: configName,
 						CreatedAt:  time.Now(),
 					}, nil
 				}
@@ -224,8 +224,8 @@ func TestCreateSession(t *testing.T) {
 			validateResp: func(t *testing.T, w *httptest.ResponseRecorder) {
 				var resp service.SessionInfo
 				parseResponse(t, w, &resp)
-				if resp.ConfigName != "easy" {
-					t.Errorf("Expected config name 'easy', got %s", resp.ConfigName)
+				if resp.MapName != "easy" {
+					t.Errorf("Expected config name 'easy', got %s", resp.MapName)
 				}
 			},
 		},
@@ -284,8 +284,8 @@ func TestListSessions(t *testing.T) {
 			setupMock: func(m *MockGameService) {
 				m.ListSessionsFunc = func(ctx context.Context) ([]*service.SessionInfo, error) {
 					return []*service.SessionInfo{
-						{ID: "sess-1", ConfigName: "easy"},
-						{ID: "sess-2", ConfigName: "hard"},
+						{ID: "sess-1", MapName: "easy"},
+						{ID: "sess-2", MapName: "hard"},
 					}, nil
 				}
 			},
@@ -378,7 +378,7 @@ func TestGetSession(t *testing.T) {
 					}
 					return &service.SessionInfo{
 						ID:         sessionID,
-						ConfigName: "test-config",
+						MapName: "test-config",
 						CreatedAt:  time.Now(),
 					}, nil
 				}
@@ -988,7 +988,7 @@ func TestGetGameState(t *testing.T) {
 	}
 }
 
-func TestListConfigs(t *testing.T) {
+func TestListMaps(t *testing.T) {
 	tests := []struct {
 		name           string
 		setupMock      func(*MockGameService)
@@ -998,8 +998,8 @@ func TestListConfigs(t *testing.T) {
 		{
 			name: "List available configs",
 			setupMock: func(m *MockGameService) {
-				m.ListConfigsFunc = func(ctx context.Context) ([]*service.ConfigInfo, error) {
-					return []*service.ConfigInfo{
+				m.ListMapsFunc = func(ctx context.Context) ([]*service.MapInfo, error) {
+					return []*service.MapInfo{
 						{Name: "easy", Description: "Easy mode"},
 						{Name: "hard", Description: "Hard mode"},
 					}, nil
@@ -1007,7 +1007,7 @@ func TestListConfigs(t *testing.T) {
 			},
 			expectedStatus: http.StatusOK,
 			validateResp: func(t *testing.T, w *httptest.ResponseRecorder) {
-				var resp []*service.ConfigInfo
+				var resp []*service.MapInfo
 				parseResponse(t, w, &resp)
 				if len(resp) != 2 {
 					t.Errorf("Expected 2 configs, got %d", len(resp))
@@ -1017,7 +1017,7 @@ func TestListConfigs(t *testing.T) {
 		{
 			name: "Handle service error",
 			setupMock: func(m *MockGameService) {
-				m.ListConfigsFunc = func(ctx context.Context) ([]*service.ConfigInfo, error) {
+				m.ListMapsFunc = func(ctx context.Context) ([]*service.MapInfo, error) {
 					return nil, fmt.Errorf("config error")
 				}
 			},
@@ -1043,7 +1043,7 @@ func TestListConfigs(t *testing.T) {
 			w := httptest.NewRecorder()
 			req := makeRequest("GET", "/api/configs", nil)
 
-			server.handleListConfigs(w, req)
+			server.handleListMaps(w, req)
 
 			if w.Code != tt.expectedStatus {
 				t.Errorf("Expected status %d, got %d", tt.expectedStatus, w.Code)
@@ -1068,7 +1068,7 @@ func TestGetConfig(t *testing.T) {
 			name:       "Get existing config",
 			configName: "easy",
 			setupMock: func(m *MockGameService) {
-				m.LoadConfigFunc = func(ctx context.Context, configName string) (*engine.GameConfig, error) {
+				m.LoadMapFunc = func(ctx context.Context, configName string) (*engine.GameConfig, error) {
 					if configName != "easy" {
 						return nil, fmt.Errorf("config not found")
 					}
@@ -1092,7 +1092,7 @@ func TestGetConfig(t *testing.T) {
 			name:       "Strip .json extension",
 			configName: "medium.json",
 			setupMock: func(m *MockGameService) {
-				m.LoadConfigFunc = func(ctx context.Context, configName string) (*engine.GameConfig, error) {
+				m.LoadMapFunc = func(ctx context.Context, configName string) (*engine.GameConfig, error) {
 					if configName != "medium" {
 						t.Errorf("Expected config name 'medium' (without .json), got %s", configName)
 					}
@@ -1105,7 +1105,7 @@ func TestGetConfig(t *testing.T) {
 			name:       "Config not found",
 			configName: "nonexistent",
 			setupMock: func(m *MockGameService) {
-				m.LoadConfigFunc = func(ctx context.Context, configName string) (*engine.GameConfig, error) {
+				m.LoadMapFunc = func(ctx context.Context, configName string) (*engine.GameConfig, error) {
 					return nil, fmt.Errorf("config not found")
 				}
 			},
@@ -1132,7 +1132,7 @@ func TestGetConfig(t *testing.T) {
 			req := makeRequest("GET", "/api/configs/"+tt.configName, nil)
 			req = mux.SetURLVars(req, map[string]string{"name": tt.configName})
 
-			server.handleGetConfig(w, req)
+			server.handleGetMap(w, req)
 
 			if w.Code != tt.expectedStatus {
 				t.Errorf("Expected status %d, got %d", tt.expectedStatus, w.Code)
@@ -1161,17 +1161,17 @@ func TestUnifiedSessions(t *testing.T) {
 					return []*service.SessionInfo{
 						{
 							ID:         "sess-1",
-							ConfigName: "easy",
+							MapName: "easy",
 							GameState: &engine.GameState{
 								Battery: 80,
 							},
-							GameConfig: &engine.GameConfig{
+							GameMap: &engine.GameConfig{
 								Layout: []string{"PPR", "RRR", "RRP"},
 							},
 						},
 						{
 							ID:         "sess-2",
-							ConfigName: "easy",
+							MapName: "easy",
 							GameState: &engine.GameState{
 								Battery: 60,
 							},
@@ -1183,8 +1183,8 @@ func TestUnifiedSessions(t *testing.T) {
 			validateResp: func(t *testing.T, w *httptest.ResponseRecorder) {
 				var resp map[string]interface{}
 				parseResponse(t, w, &resp)
-				if resp["config_name"] != "easy" {
-					t.Errorf("Expected config_name 'easy', got %v", resp["config_name"])
+				if resp["map_name"] != "easy" {
+					t.Errorf("Expected map_name 'easy', got %v", resp["map_name"])
 				}
 				if resp["total_parks"].(float64) != 3 {
 					t.Errorf("Expected 3 total parks, got %v", resp["total_parks"])
@@ -1203,14 +1203,14 @@ func TestUnifiedSessions(t *testing.T) {
 					if sessionID == "sess-1" {
 						return &service.SessionInfo{
 							ID:         "sess-1",
-							ConfigName: "easy",
+							MapName: "easy",
 							GameState:  &engine.GameState{},
 						}, nil
 					}
 					if sessionID == "sess-3" {
 						return &service.SessionInfo{
 							ID:         "sess-3",
-							ConfigName: "hard",
+							MapName: "hard",
 							GameState:  &engine.GameState{},
 						}, nil
 					}
@@ -1228,15 +1228,15 @@ func TestUnifiedSessions(t *testing.T) {
 			},
 		},
 		{
-			name:        "Filter by config name",
-			queryParams: "?configName=medium",
+			name:        "Filter by map name",
+			queryParams: "?mapName=medium",
 			setupMock: func(m *MockGameService) {
 				m.ListSessionsFunc = func(ctx context.Context) ([]*service.SessionInfo, error) {
 					return []*service.SessionInfo{
-						{ID: "sess-1", ConfigName: "easy"},
-						{ID: "sess-2", ConfigName: "medium"},
-						{ID: "sess-3", ConfigName: "medium"},
-						{ID: "sess-4", ConfigName: "hard"},
+						{ID: "sess-1", MapName: "easy"},
+						{ID: "sess-2", MapName: "medium"},
+						{ID: "sess-3", MapName: "medium"},
+						{ID: "sess-4", MapName: "hard"},
 					}, nil
 				}
 			},
@@ -1306,7 +1306,7 @@ func TestWebSocket(t *testing.T) {
 				m.GetSessionFunc = func(ctx context.Context, sessionID string) (*service.SessionInfo, error) {
 					return &service.SessionInfo{
 						ID:         sessionID,
-						ConfigName: "test",
+						MapName: "test",
 					}, nil
 				}
 			},

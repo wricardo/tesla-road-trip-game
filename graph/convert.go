@@ -18,14 +18,14 @@ func toSession(s *service.SessionInfo) *model.Session {
 	if s == nil {
 		return nil
 	}
-	return &model.Session{ID: s.ID, ConfigName: s.ConfigName, CreatedAt: timeString(s.CreatedAt), LastAccessedAt: timeString(s.LastAccessedAt), GameState: toGameState(s.GameState), GameConfig: toGameConfig(s.GameConfig)}
+	return &model.Session{ID: s.ID, MapName: s.MapName, CreatedAt: timeString(s.CreatedAt), LastAccessedAt: timeString(s.LastAccessedAt), GameState: toGameState(s.GameState), GameMap: toGameMap(s.GameMap)}
 }
 
 func toUnifiedSession(s *service.SessionInfo) *model.UnifiedSession {
 	if s == nil {
 		return nil
 	}
-	return &model.UnifiedSession{SessionID: s.ID, CreatedAt: timeString(s.CreatedAt), LastAccessedAt: timeString(s.LastAccessedAt), GameState: toGameState(s.GameState), GameConfig: toGameConfig(s.GameConfig)}
+	return &model.UnifiedSession{SessionID: s.ID, CreatedAt: timeString(s.CreatedAt), LastAccessedAt: timeString(s.LastAccessedAt), GameState: toGameState(s.GameState), GameMap: toGameMap(s.GameMap)}
 }
 
 func toGameState(gs *engine.GameState) *model.GameState {
@@ -52,7 +52,7 @@ func toGameState(gs *engine.GameState) *model.GameState {
 	for i, c := range gs.LocalView {
 		local[i] = &model.SurroundingCell{X: c.X, Y: c.Y, Type: string(c.Type)}
 	}
-	return &model.GameState{Grid: grid, PlayerPos: toPosition(gs.PlayerPos), Battery: gs.Battery, MaxBattery: gs.MaxBattery, Score: gs.Score, VisitedParks: visited, Message: gs.Message, GameOver: gs.GameOver, Victory: gs.Victory, ConfigName: gs.ConfigName, MoveHistory: toMoveHistory(gs.MoveHistory), TotalMoves: gs.TotalMoves, LocalView: local, CurrentMoves: toMoveHistory(gs.CurrentMoves), CurrentMovesCount: gs.CurrentMovesCount, LocalView3x3: gs.LocalView3x3, BatteryRisk: gs.BatteryRisk}
+	return &model.GameState{Grid: grid, PlayerPos: toPosition(gs.PlayerPos), Battery: gs.Battery, MaxBattery: gs.MaxBattery, Score: gs.Score, VisitedParks: visited, Message: gs.Message, GameOver: gs.GameOver, Victory: gs.Victory, MapName: gs.MapName, MoveHistory: toMoveHistory(gs.MoveHistory), TotalMoves: gs.TotalMoves, LocalView: local, CurrentMoves: toMoveHistory(gs.CurrentMoves), CurrentMovesCount: gs.CurrentMovesCount, LocalView3x3: gs.LocalView3x3, BatteryRisk: gs.BatteryRisk}
 }
 
 func toMoveHistory(entries []engine.MoveHistoryEntry) []*model.MoveHistoryEntry {
@@ -63,7 +63,7 @@ func toMoveHistory(entries []engine.MoveHistoryEntry) []*model.MoveHistoryEntry 
 	return out
 }
 
-func toGameConfig(c *engine.GameConfig) *model.GameConfig {
+func toGameMap(c *engine.GameConfig) *model.GameMap {
 	if c == nil {
 		return nil
 	}
@@ -77,10 +77,10 @@ func toGameConfig(c *engine.GameConfig) *model.GameConfig {
 		legend = append(legend, &model.LegendEntry{Key: k, Value: c.Legend[k]})
 	}
 	m := c.Messages
-	return &model.GameConfig{Name: c.Name, Description: c.Description, GridSize: c.GridSize, MaxBattery: c.MaxBattery, StartingBattery: c.StartingBattery, Layout: c.Layout, Legend: legend, WallCrashEndsGame: c.WallCrashEndsGame, Messages: &model.ConfigMessages{Welcome: m.Welcome, HomeCharge: m.HomeCharge, SuperchargerCharge: m.SuperchargerCharge, ParkVisited: m.ParkVisited, ParkAlreadyVisited: m.ParkAlreadyVisited, Victory: m.Victory, OutOfBattery: m.OutOfBattery, Stranded: m.Stranded, CantMove: m.CantMove, BatteryStatus: m.BatteryStatus, HitWall: m.HitWall}}
+	return &model.GameMap{Name: c.Name, Description: c.Description, GridSize: c.GridSize, MaxBattery: c.MaxBattery, StartingBattery: c.StartingBattery, Layout: c.Layout, Legend: legend, WallCrashEndsGame: c.WallCrashEndsGame, Messages: &model.MapMessages{Welcome: m.Welcome, HomeCharge: m.HomeCharge, SuperchargerCharge: m.SuperchargerCharge, ParkVisited: m.ParkVisited, ParkAlreadyVisited: m.ParkAlreadyVisited, Victory: m.Victory, OutOfBattery: m.OutOfBattery, Stranded: m.Stranded, CantMove: m.CantMove, BatteryStatus: m.BatteryStatus, HitWall: m.HitWall}}
 }
 
-func fromGameConfigInput(in model.GameConfigInput) *engine.GameConfig {
+func fromGameMapInput(in model.GameMapInput) *engine.GameConfig {
 	legend := make(map[string]string, len(in.Legend))
 	for _, e := range in.Legend {
 		if e != nil {
@@ -104,11 +104,11 @@ func fromGameConfigInput(in model.GameConfigInput) *engine.GameConfig {
 	return c
 }
 
-func toConfigInfo(c *service.ConfigInfo) *model.ConfigInfo {
+func toMapInfo(c *service.MapInfo) *model.MapInfo {
 	if c == nil {
 		return nil
 	}
-	return &model.ConfigInfo{Filename: c.Filename, ConfigID: c.ConfigID, Name: c.Name, Description: c.Description, GridSize: c.GridSize, MaxBattery: c.MaxBattery}
+	return &model.MapInfo{Filename: c.Filename, MapID: c.MapID, Name: c.Name, Description: c.Description, GridSize: c.GridSize, MaxBattery: c.MaxBattery}
 }
 func toAttempt(a *service.AttemptInfo) *model.AttemptInfo {
 	if a == nil {

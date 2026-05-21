@@ -33,12 +33,12 @@ type GameState struct {
 	Victory      bool            `json:"victory"`
 	Message      string          `json:"message"`
 	VisitedParks map[string]bool `json:"visited_parks"`
-	ConfigName   string          `json:"config_name"`
+	MapName   string          `json:"map_name"`
 }
 
 type SessionResponse struct {
 	ID         string     `json:"id"`
-	ConfigName string     `json:"config_name"`
+	MapName string     `json:"map_name"`
 	GameState  *GameState `json:"game_state"`
 }
 
@@ -68,7 +68,7 @@ func (c *Client) CreateSession(configName string) (*GameState, error) {
 	var err error
 
 	if configName != "" {
-		reqBody, err = json.Marshal(map[string]string{"config_name": configName})
+		reqBody, err = json.Marshal(map[string]string{"map_name": configName})
 		if err != nil {
 			return nil, fmt.Errorf("marshal request: %w", err)
 		}
