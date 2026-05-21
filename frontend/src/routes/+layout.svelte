@@ -21,16 +21,18 @@
 
 <div class="min-h-screen flex flex-col bg-[#f7f7f7]">
 	<header class="border-b border-[#e8e8e8] bg-white px-6 py-4 flex items-center justify-between">
-		<div class="flex items-center gap-3">
+		<a href="/" class="flex items-center gap-3 no-underline">
 			<span class="text-xl font-light tracking-widest text-[#393c41]">TESLA</span>
 			<span class="text-xs text-gray-400 font-light">Road Trip</span>
 			<span class="ml-2 inline-flex items-center gap-1 text-xs bg-red-50 text-red-500 border border-red-200 rounded-full px-2 py-0.5">
 				<span class="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse"></span>
 				LIVE
 			</span>
-		</div>
+		</a>
 		<nav class="flex items-center gap-6 text-sm text-gray-500">
-			<a href="/" class="hover:text-[#393c41] transition-colors">Lobby</a>
+			<a href="/" class="hover:text-[#393c41] transition-colors">Home</a>
+			<a href="/learn" class="hover:text-[#393c41] transition-colors">Learn</a>
+			<a href="/lobby" class="hover:text-[#393c41] transition-colors">Live Sessions</a>
 			<a href="/multi" class="hover:text-[#393c41] transition-colors">Multi</a>
 			<a href="/admin" class="hover:text-[#393c41] transition-colors">Admin</a>
 			<a href="/playground" class="hover:text-[#393c41] transition-colors" target="_blank" rel="noreferrer">Playground</a>
@@ -42,8 +44,35 @@
 		{@render children()}
 	</main>
 
-	<footer class="border-t border-[#e8e8e8] px-6 py-4 text-xs text-gray-400 flex gap-6">
-		<a href="/llms.txt" target="_blank" rel="noreferrer" class="hover:text-gray-600">/llms.txt</a>
-		<a href="/playground" target="_blank" rel="noreferrer" class="hover:text-gray-600">GraphQL Playground</a>
+	<footer class="border-t border-[#e8e8e8] bg-white px-6 py-8 mt-auto">
+		<div class="max-w-7xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-6 text-xs text-gray-400">
+			<div>
+				<p class="font-semibold text-[#393c41] mb-2">Tesla Road Trip</p>
+				<p class="leading-relaxed">Teach AI agents to navigate, plan routes, and manage resources through an interactive educational game.</p>
+			</div>
+			<div>
+				<p class="font-semibold text-[#393c41] mb-2">Play</p>
+				<div class="flex flex-col gap-1.5">
+					<a href="/" class="hover:text-gray-600 transition-colors">Home / Create session</a>
+					<a href="/lobby" class="hover:text-gray-600 transition-colors">Live sessions</a>
+					<a href="/multi" class="hover:text-gray-600 transition-colors">Multi-watch</a>
+					<a href="/admin" class="hover:text-gray-600 transition-colors">Admin</a>
+				</div>
+			</div>
+			<div>
+				<p class="font-semibold text-[#393c41] mb-2">Docs</p>
+				<div class="flex flex-col gap-1.5">
+					<a href="/learn" class="hover:text-gray-600 transition-colors">Learn</a>
+					<a href="/llms.txt" target="_blank" rel="noreferrer" class="hover:text-gray-600 transition-colors">/llms.txt</a>
+					<a href="/graphql" target="_blank" rel="noreferrer" class="hover:text-gray-600 transition-colors">GraphQL endpoint</a>
+				</div>
+			</div>
+			<div>
+				<p class="font-semibold text-[#393c41] mb-2">Tools</p>
+				<div class="flex flex-col gap-1.5">
+					<a href="/playground" target="_blank" rel="noreferrer" class="hover:text-gray-600 transition-colors">GraphQL Playground</a>
+				</div>
+			</div>
+		</div>
 	</footer>
 </div>
