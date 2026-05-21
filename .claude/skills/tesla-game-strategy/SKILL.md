@@ -116,7 +116,7 @@ When routes fail:
 - Both support optional `reset: true` parameter to restart before moving
 
 ### Session Management
-- `create_session(config_name?)`: Start new game with optional difficulty
+- `create_session(map_name?)`: Start new game with optional difficulty
 - `reset_game(session_id)`: Return to initial state, preserving session
 
 ### Documentation

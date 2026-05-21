@@ -68,12 +68,12 @@ Playground:       GET  {{.BaseURL}}/playground
 
 ## Quick Start
 
-### 1. List available configs
+### 1. List available maps
 
 ` + "```" + `graphql
 query {
-  configs {
-    configId
+  maps {
+    mapId
     name
     description
     gridSize
@@ -86,9 +86,9 @@ query {
 
 ` + "```" + `graphql
 mutation {
-  createSession(configID: "easy") {
+  createSession(mapID: "easy") {
     id
-    configName
+    mapName
     gameState {
       battery
       maxBattery
@@ -268,7 +268,7 @@ Track progress via ` + "`" + `visitedParks` + "`" + ` — compare visited count 
 query {
   sessions {
     count
-    sessions { id configName lastAccessedAt gameState { victory gameOver score } }
+    sessions { id mapName lastAccessedAt gameState { victory gameOver score } }
   }
 }
 

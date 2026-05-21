@@ -50,69 +50,8 @@ type Cell struct {
 	ID      string `json:"id"`
 }
 
-type ConfigInfo struct {
-	Filename    string `json:"filename"`
-	ConfigID    string `json:"configId"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	GridSize    int    `json:"gridSize"`
-	MaxBattery  int    `json:"maxBattery"`
-}
-
-type ConfigMessages struct {
-	Welcome            string `json:"welcome"`
-	HomeCharge         string `json:"homeCharge"`
-	SuperchargerCharge string `json:"superchargerCharge"`
-	ParkVisited        string `json:"parkVisited"`
-	ParkAlreadyVisited string `json:"parkAlreadyVisited"`
-	Victory            string `json:"victory"`
-	OutOfBattery       string `json:"outOfBattery"`
-	Stranded           string `json:"stranded"`
-	CantMove           string `json:"cantMove"`
-	BatteryStatus      string `json:"batteryStatus"`
-	HitWall            string `json:"hitWall"`
-}
-
-type ConfigMessagesInput struct {
-	Welcome            string `json:"welcome"`
-	HomeCharge         string `json:"homeCharge"`
-	SuperchargerCharge string `json:"superchargerCharge"`
-	ParkVisited        string `json:"parkVisited"`
-	ParkAlreadyVisited string `json:"parkAlreadyVisited"`
-	Victory            string `json:"victory"`
-	OutOfBattery       string `json:"outOfBattery"`
-	Stranded           string `json:"stranded"`
-	CantMove           string `json:"cantMove"`
-	BatteryStatus      string `json:"batteryStatus"`
-	HitWall            string `json:"hitWall"`
-}
-
 type DeleteSessionResult struct {
 	Message string `json:"message"`
-}
-
-type GameConfig struct {
-	Name              string          `json:"name"`
-	Description       string          `json:"description"`
-	GridSize          int             `json:"gridSize"`
-	MaxBattery        int             `json:"maxBattery"`
-	StartingBattery   int             `json:"startingBattery"`
-	Layout            []string        `json:"layout"`
-	Legend            []*LegendEntry  `json:"legend"`
-	WallCrashEndsGame bool            `json:"wallCrashEndsGame"`
-	Messages          *ConfigMessages `json:"messages"`
-}
-
-type GameConfigInput struct {
-	Name              string               `json:"name"`
-	Description       string               `json:"description"`
-	GridSize          int                  `json:"gridSize"`
-	MaxBattery        int                  `json:"maxBattery"`
-	StartingBattery   int                  `json:"startingBattery"`
-	Layout            []string             `json:"layout"`
-	Legend            []*LegendEntryInput  `json:"legend"`
-	WallCrashEndsGame bool                 `json:"wallCrashEndsGame"`
-	Messages          *ConfigMessagesInput `json:"messages"`
 }
 
 type GameEvent struct {
@@ -120,6 +59,30 @@ type GameEvent struct {
 	Message   string    `json:"message"`
 	Timestamp string    `json:"timestamp"`
 	Position  *Position `json:"position"`
+}
+
+type GameMap struct {
+	Name              string         `json:"name"`
+	Description       string         `json:"description"`
+	GridSize          int            `json:"gridSize"`
+	MaxBattery        int            `json:"maxBattery"`
+	StartingBattery   int            `json:"startingBattery"`
+	Layout            []string       `json:"layout"`
+	Legend            []*LegendEntry `json:"legend"`
+	WallCrashEndsGame bool           `json:"wallCrashEndsGame"`
+	Messages          *MapMessages   `json:"messages"`
+}
+
+type GameMapInput struct {
+	Name              string              `json:"name"`
+	Description       string              `json:"description"`
+	GridSize          int                 `json:"gridSize"`
+	MaxBattery        int                 `json:"maxBattery"`
+	StartingBattery   int                 `json:"startingBattery"`
+	Layout            []string            `json:"layout"`
+	Legend            []*LegendEntryInput `json:"legend"`
+	WallCrashEndsGame bool                `json:"wallCrashEndsGame"`
+	Messages          *MapMessagesInput   `json:"messages"`
 }
 
 type GameState struct {
@@ -132,7 +95,7 @@ type GameState struct {
 	Message           string              `json:"message"`
 	GameOver          bool                `json:"gameOver"`
 	Victory           bool                `json:"victory"`
-	ConfigName        string              `json:"configName"`
+	MapName           string              `json:"mapName"`
 	MoveHistory       []*MoveHistoryEntry `json:"moveHistory"`
 	TotalMoves        int                 `json:"totalMoves"`
 	LocalView         []*SurroundingCell  `json:"localView"`
@@ -160,6 +123,43 @@ type LegendEntry struct {
 type LegendEntryInput struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
+}
+
+type MapInfo struct {
+	Filename    string `json:"filename"`
+	MapID       string `json:"mapId"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	GridSize    int    `json:"gridSize"`
+	MaxBattery  int    `json:"maxBattery"`
+}
+
+type MapMessages struct {
+	Welcome            string `json:"welcome"`
+	HomeCharge         string `json:"homeCharge"`
+	SuperchargerCharge string `json:"superchargerCharge"`
+	ParkVisited        string `json:"parkVisited"`
+	ParkAlreadyVisited string `json:"parkAlreadyVisited"`
+	Victory            string `json:"victory"`
+	OutOfBattery       string `json:"outOfBattery"`
+	Stranded           string `json:"stranded"`
+	CantMove           string `json:"cantMove"`
+	BatteryStatus      string `json:"batteryStatus"`
+	HitWall            string `json:"hitWall"`
+}
+
+type MapMessagesInput struct {
+	Welcome            string `json:"welcome"`
+	HomeCharge         string `json:"homeCharge"`
+	SuperchargerCharge string `json:"superchargerCharge"`
+	ParkVisited        string `json:"parkVisited"`
+	ParkAlreadyVisited string `json:"parkAlreadyVisited"`
+	Victory            string `json:"victory"`
+	OutOfBattery       string `json:"outOfBattery"`
+	Stranded           string `json:"stranded"`
+	CantMove           string `json:"cantMove"`
+	BatteryStatus      string `json:"batteryStatus"`
+	HitWall            string `json:"hitWall"`
 }
 
 type MoveHistoryEntry struct {
@@ -193,12 +193,12 @@ type Query struct {
 }
 
 type Session struct {
-	ID             string      `json:"id"`
-	ConfigName     string      `json:"configName"`
-	CreatedAt      string      `json:"createdAt"`
-	LastAccessedAt string      `json:"lastAccessedAt"`
-	GameState      *GameState  `json:"gameState"`
-	GameConfig     *GameConfig `json:"gameConfig"`
+	ID             string     `json:"id"`
+	MapName        string     `json:"mapName"`
+	CreatedAt      string     `json:"createdAt"`
+	LastAccessedAt string     `json:"lastAccessedAt"`
+	GameState      *GameState `json:"gameState"`
+	GameMap        *GameMap   `json:"gameMap"`
 }
 
 type SessionList struct {
@@ -234,17 +234,17 @@ type SurroundingCell struct {
 }
 
 type UnifiedSession struct {
-	SessionID      string      `json:"sessionId"`
-	CreatedAt      string      `json:"createdAt"`
-	LastAccessedAt string      `json:"lastAccessedAt"`
-	GameState      *GameState  `json:"gameState"`
-	GameConfig     *GameConfig `json:"gameConfig"`
+	SessionID      string     `json:"sessionId"`
+	CreatedAt      string     `json:"createdAt"`
+	LastAccessedAt string     `json:"lastAccessedAt"`
+	GameState      *GameState `json:"gameState"`
+	GameMap        *GameMap   `json:"gameMap"`
 }
 
 type UnifiedSessions struct {
-	ConfigName string            `json:"configName"`
-	Count      int               `json:"count"`
-	Sessions   []*UnifiedSession `json:"sessions"`
+	MapName  string            `json:"mapName"`
+	Count    int               `json:"count"`
+	Sessions []*UnifiedSession `json:"sessions"`
 }
 
 type VisitedPark struct {

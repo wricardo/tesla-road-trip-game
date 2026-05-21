@@ -2,11 +2,15 @@
 	// TODO: optional globalMoves live ticker via subscription (ticket ji8.2)
 	const curlSnippet = `curl -X POST /graphql \\
   -H 'Content-Type: application/json' \\
-  -d '{"query":"mutation{createSession(configName:\\"classic\\"){id}}"}'`;
+  -d '{"query":"mutation{createSession(mapID:\\"classic\\"){id}}"}'`;
 
-	const gqlcliSnippet = `gqlcli mutation 'mutation Move($id:String!,$dir:String!){
-  move(sessionId:$id,direction:$dir){battery score message}
-}' --var id=<sessionId> --var dir=right`;
+	const moveSnippet = `mutation {
+  move(sessionID: "<sessionId>", direction: RIGHT) {
+    success
+    message
+    gameState { battery score playerPos { x y } }
+  }
+}`;
 </script>
 
 <div class="max-w-3xl mx-auto px-6 py-12">
@@ -38,7 +42,7 @@
 			{#each [
 				['1','Read state','Query gameState — position, battery, grid, parks'],
 				['2','Plan','Find nearest park, check battery vs. distance to charger'],
-				['3','Move','POST direction via GraphQL mutation or MCP tool'],
+				['3','Move','Send a GraphQL mutation with direction UP, DOWN, LEFT, or RIGHT'],
 				['4','Repeat','Loop until victory or crash'],
 			] as [n, title, desc]}
 				<div class="flex items-start gap-4 bg-white rounded-xl border border-[#e8e8e8] p-4">
@@ -67,12 +71,8 @@
 				<code class="block bg-gray-50 rounded-lg p-3 text-xs font-mono text-gray-700 whitespace-pre">{curlSnippet}</code>
 			</div>
 			<div>
-				<p class="text-xs uppercase tracking-widest text-gray-400 mb-2">Move (gqlcli)</p>
-				<code class="block bg-gray-50 rounded-lg p-3 text-xs font-mono text-gray-700 whitespace-pre">{gqlcliSnippet}</code>
-			</div>
-			<div>
-				<p class="text-xs uppercase tracking-widest text-gray-400 mb-2">MCP stdio (Claude Code)</p>
-				<code class="block bg-gray-50 rounded-lg p-3 text-xs font-mono text-gray-700">./statefullgame stdio-mcp</code>
+				<p class="text-xs uppercase tracking-widest text-gray-400 mb-2">Move mutation</p>
+				<code class="block bg-gray-50 rounded-lg p-3 text-xs font-mono text-gray-700 whitespace-pre">{moveSnippet}</code>
 			</div>
 		</div>
 

@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { getContextClient, queryStore, gql } from '@urql/svelte';
 	import { goto } from '$app/navigation';
-	import { CONFIGS_QUERY, CREATE_SESSION_MUTATION } from '$lib/queries';
+	import { MAPS_QUERY, CREATE_SESSION_MUTATION } from '$lib/queries';
 
 	const client = getContextClient();
-	const configsResult = queryStore({ client, query: gql(CONFIGS_QUERY) });
-	const configs = $derived($configsResult?.data?.configs ?? []);
+	const mapsResult = queryStore({ client, query: gql(MAPS_QUERY) });
+	const maps = $derived($mapsResult?.data?.maps ?? []);
 
 	let showCreate = $state(false);
-	let selectedConfig = $state('');
+	let selectedMap = $state('');
 	let createError = $state('');
 	let creating = $state(false);
 
@@ -16,7 +16,7 @@
 		if (creating) return;
 		creating = true;
 		createError = '';
-		const result = await client.mutation(gql(CREATE_SESSION_MUTATION), { configName: selectedConfig || null }).toPromise();
+		const result = await client.mutation(gql(CREATE_SESSION_MUTATION), { mapID: selectedMap || null }).toPromise();
 		creating = false;
 		if (result.error) { createError = result.error.message; return; }
 		const id = result.data?.createSession?.id;
@@ -67,12 +67,12 @@
 				<p class="text-sm text-gray-400 mb-5">Create a session, open the tools, or let an AI drive.</p>
 
 				<div class="mb-4">
-					<label for="cfg" class="block text-xs font-semibold text-[#393c41] mb-1.5">Map configuration</label>
-					<select id="cfg" bind:value={selectedConfig}
+					<label for="cfg" class="block text-xs font-semibold text-[#393c41] mb-1.5">Map</label>
+					<select id="cfg" bind:value={selectedMap}
 						class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-gray-400">
 						<option value="">Default</option>
-						{#each configs as c}
-							<option value={c.configId}>{c.name}</option>
+						{#each maps as m}
+							<option value={m.mapId}>{m.name}</option>
 						{/each}
 					</select>
 				</div>

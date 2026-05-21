@@ -17,21 +17,21 @@ type gameServiceImpl struct {
 	mu       sync.RWMutex
 }
 
-// getConfigID returns the config_id for a given config name, used for consistent API responses
-func (s *gameServiceImpl) getConfigID(configName string) string {
-	availableConfigs, err := s.configs.ListConfigs()
+// getMapID returns the map_id for a given map name, used for consistent API responses
+func (s *gameServiceImpl) getMapID(mapName string) string {
+	availableMaps, err := s.configs.ListConfigs()
 	if err == nil {
-		for _, cfg := range availableConfigs {
-			if cfg.Name == configName {
-				return cfg.ConfigID
+		for _, m := range availableMaps {
+			if m.Name == mapName {
+				return m.MapID
 			}
 		}
 	}
 	// Fallback: return as-is or "default"
-	if configName == "" {
+	if mapName == "" {
 		return "default"
 	}
-	return configName
+	return mapName
 }
 
 // NewGameService creates a new game service instance
@@ -43,29 +43,29 @@ func NewGameService(sessions SessionManager, configs ConfigManager) GameService 
 }
 
 // CreateSession creates a new game session
-func (s *gameServiceImpl) CreateSession(ctx context.Context, configName string) (*SessionInfo, error) {
+func (s *gameServiceImpl) CreateSession(ctx context.Context, mapName string) (*SessionInfo, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	// Load configuration
 	var config *engine.GameConfig
 	var err error
-	if configName != "" {
-		config, err = s.configs.LoadConfig(configName)
+	if mapName != "" {
+		config, err = s.configs.LoadConfig(mapName)
 		if err != nil {
 			// Provide helpful error message with available options
 			if strings.Contains(err.Error(), "configuration not found") {
-				availableConfigs, listErr := s.configs.ListConfigs()
-				if listErr == nil && len(availableConfigs) > 0 {
-					var configIDs []string
-					for _, cfg := range availableConfigs {
-						configIDs = append(configIDs, cfg.ConfigID)
+				availableMaps, listErr := s.configs.ListConfigs()
+				if listErr == nil && len(availableMaps) > 0 {
+					var mapIDs []string
+					for _, m := range availableMaps {
+						mapIDs = append(mapIDs, m.MapID)
 					}
-					return nil, fmt.Errorf("config '%s' not found. Available configs: %v", configName, configIDs)
+					return nil, fmt.Errorf("map '%s' not found. Available maps: %v", mapName, mapIDs)
 				}
-				return nil, fmt.Errorf("config '%s' not found. Use /api/configs to list available configurations", configName)
+				return nil, fmt.Errorf("map '%s' not found. Use /api/maps to list available maps", mapName)
 			}
-			return nil, fmt.Errorf("failed to load config %s: %w", configName, err)
+			return nil, fmt.Errorf("failed to load map %s: %w", mapName, err)
 		}
 	} else {
 		config = s.configs.GetDefault()
@@ -77,20 +77,20 @@ func (s *gameServiceImpl) CreateSession(ctx context.Context, configName string) 
 		return nil, fmt.Errorf("failed to create session: %w", err)
 	}
 
-	// Determine the config identifier to return - prefer the input configName if provided,
-	// otherwise look up the config_id by display name
-	configID := configName
-	if configID == "" {
-		configID = s.getConfigID(config.Name)
+	// Determine the map identifier to return - prefer the input mapName if provided,
+	// otherwise look up the map_id by display name
+	mapID := mapName
+	if mapID == "" {
+		mapID = s.getMapID(config.Name)
 	}
 
 	return &SessionInfo{
 		ID:             session.ID,
-		ConfigName:     configID, // Return the config_id, not the display name
+		MapName:        mapID,
 		CreatedAt:      session.CreatedAt,
 		LastAccessedAt: session.LastAccessedAt,
 		GameState:      session.Engine.GetState(),
-		GameConfig:     session.Config,
+		GameMap:        session.Config,
 	}, nil
 }
 
@@ -108,11 +108,11 @@ func (s *gameServiceImpl) GetSession(ctx context.Context, sessionID string) (*Se
 
 	return &SessionInfo{
 		ID:             session.ID,
-		ConfigName:     s.getConfigID(session.Config.Name), // Return config_id consistently
+		MapName:        s.getMapID(session.Config.Name),
 		CreatedAt:      session.CreatedAt,
 		LastAccessedAt: session.LastAccessedAt,
 		GameState:      session.Engine.GetState(),
-		GameConfig:     session.Config,
+		GameMap:        session.Config,
 	}, nil
 }
 
@@ -127,11 +127,11 @@ func (s *gameServiceImpl) ListSessions(ctx context.Context) ([]*SessionInfo, err
 	for _, sess := range sessions {
 		result = append(result, &SessionInfo{
 			ID:             sess.ID,
-			ConfigName:     s.getConfigID(sess.Config.Name), // Return config_id consistently
+			MapName:        s.getMapID(sess.Config.Name),
 			CreatedAt:      sess.CreatedAt,
 			LastAccessedAt: sess.LastAccessedAt,
 			GameState:      sess.Engine.GetState(),
-			GameConfig:     sess.Config,
+			GameMap:        sess.Config,
 		})
 	}
 
@@ -597,19 +597,19 @@ func (s *gameServiceImpl) GetMoveHistory(ctx context.Context, sessionID string, 
 	}, nil
 }
 
-// ListConfigs returns available game configurations
-func (s *gameServiceImpl) ListConfigs(ctx context.Context) ([]*ConfigInfo, error) {
+// ListMaps returns available game maps
+func (s *gameServiceImpl) ListMaps(ctx context.Context) ([]*MapInfo, error) {
 	return s.configs.ListConfigs()
 }
 
-// LoadConfig loads a specific game configuration
-func (s *gameServiceImpl) LoadConfig(ctx context.Context, configName string) (*engine.GameConfig, error) {
-	return s.configs.LoadConfig(configName)
+// LoadMap loads a specific game map configuration
+func (s *gameServiceImpl) LoadMap(ctx context.Context, mapName string) (*engine.GameConfig, error) {
+	return s.configs.LoadConfig(mapName)
 }
 
-// SaveConfig saves a game configuration to disk
-func (s *gameServiceImpl) SaveConfig(ctx context.Context, configName string, config *engine.GameConfig) error {
-	return s.configs.SaveConfig(configName, config)
+// SaveMap saves a game map configuration to disk
+func (s *gameServiceImpl) SaveMap(ctx context.Context, mapName string, config *engine.GameConfig) error {
+	return s.configs.SaveConfig(mapName, config)
 }
 
 // extractMoveEvents generates events from a move

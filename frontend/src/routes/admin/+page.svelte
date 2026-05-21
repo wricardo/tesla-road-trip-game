@@ -9,20 +9,15 @@
 		}
 	`;
 
-	const DELETE_ALL = `
-		mutation DeleteAll($ids: [ID!]!) {
-			${Array.from({length: 50}, (_, i) => `d${i}: deleteSession(id: $ids[${i}]) { message }`).join('\n')}
-		}
-	`;
-
 	const client = getContextClient();
 	const sessionsResult = queryStore({ client, query: gql(SESSIONS_QUERY) });
 
-	type Session = { id: string; configName: string };
+	type Session = { id: string; mapName: string };
 	let sessions = $state<Session[]>([]);
 	let deleting = $state<Set<string>>(new Set());
 	let nukingAll = $state(false);
 	let confirmNuke = $state(false);
+	let errorMessage = $state('');
 
 	onMount(() => {
 		const u = sessionsResult.subscribe((r) => {
@@ -33,9 +28,11 @@
 	});
 
 	async function deleteSession(id: string) {
+		errorMessage = '';
 		deleting.add(id);
 		deleting = new Set(deleting);
-		await client.mutation(gql(DELETE_SESSION), { id }).toPromise();
+		const result = await client.mutation(gql(DELETE_SESSION), { id }).toPromise();
+		if (result.error) errorMessage = result.error.message;
 		deleting.delete(id);
 		deleting = new Set(deleting);
 		sessionsResult.reexecute?.({ requestPolicy: 'network-only' });
@@ -45,13 +42,18 @@
 		if (!confirmNuke) { confirmNuke = true; return; }
 		nukingAll = true;
 		confirmNuke = false;
+		errorMessage = '';
 		const ids = sessions.map(s => s.id);
-		// delete in batches of 10 aliases
-		for (let i = 0; i < ids.length; i += 10) {
-			const batch = ids.slice(i, i + 10);
-			const aliases = batch.map((id, j) => `d${j}: deleteSession(id: "${id}") { message }`).join('\n');
-			await client.query(gql(`mutation { ${aliases} }`), {}).toPromise();
+
+		for (const id of ids) {
+			const result = await client.mutation(gql(DELETE_SESSION), { id }).toPromise();
+			if (result.error) {
+				errorMessage = `Failed deleting ${id}: ${result.error.message}`;
+				break;
+			}
+			sessions = sessions.filter(s => s.id !== id);
 		}
+
 		nukingAll = false;
 		sessionsResult.reexecute?.({ requestPolicy: 'network-only' });
 	}
@@ -69,7 +71,7 @@
 		</div>
 		<button
 			onclick={nukeAll}
-			disabled={nukingAll}
+			disabled={nukingAll || sessions.length === 0}
 			class="px-5 py-2 rounded-full text-sm font-medium transition-colors disabled:opacity-50
 				{confirmNuke ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}"
 		>
@@ -83,6 +85,10 @@
 		</button>
 	</div>
 
+	{#if errorMessage}
+		<div class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{errorMessage}</div>
+	{/if}
+
 	{#if sessions.length === 0}
 		<div class="text-center py-20 text-gray-400">
 			<p class="text-lg font-light">No sessions</p>
@@ -93,7 +99,7 @@
 				<div class="flex items-center justify-between px-5 py-3">
 					<div class="flex items-center gap-3">
 						<span class="font-mono text-sm text-[#393c41]">{s.id}</span>
-						<span class="text-xs text-gray-400 bg-gray-50 rounded-full px-2 py-0.5">{s.configName}</span>
+						<span class="text-xs text-gray-400 bg-gray-50 rounded-full px-2 py-0.5">{s.mapName}</span>
 					</div>
 					<div class="flex items-center gap-3">
 						<a href="/watch/{s.id}" class="text-xs text-gray-400 hover:text-gray-600 transition-colors">Watch</a>

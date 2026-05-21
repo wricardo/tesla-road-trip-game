@@ -333,7 +333,7 @@ func InitGameStateFromConfig(config *GameConfig) *GameState {
 		Message:           config.Messages.Welcome,
 		GameOver:          false,
 		Victory:           false,
-		ConfigName:        config.Name,
+		MapName:           config.Name,
 		MoveHistory:       []MoveHistoryEntry{},
 		TotalMoves:        0,
 		CurrentMoves:      []MoveHistoryEntry{},

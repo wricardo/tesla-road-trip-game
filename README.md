@@ -19,7 +19,7 @@ A multi-session, grid-based game server where players control Tesla vehicles to 
 - **💾 Persistent State**: Session data survives server restarts
 - **⚡ Real-time Updates**: WebSocket broadcasting for live state changes
 - **🔌 GraphQL API**: gqlgen-powered API with session management at `/graphql`
-- **🤖 MCP Integration**: AI assistant support via Model Context Protocol
+- **🤖 AI-Friendly GraphQL**: Introspection-enabled API, Playground, and copyable LLM prompts
 - **📊 Session Analytics**: Move history and gameplay tracking
 - **🔧 Hot Configuration**: Per-session config selection without server restart
 
@@ -124,7 +124,7 @@ This is useful for:
 - Testing webhooks and callbacks
 - Sharing your game with others for testing
 - Integrating with external services
-- MCP server access from remote AI assistants
+- GraphQL access from remote AI assistants
 
 ### Development Workflow
 
@@ -171,15 +171,25 @@ Navigate your Tesla to visit all parks (P) while managing battery life and avoid
 ## 📡 GraphQL API Reference
 
 GraphQL endpoint: `http://localhost:8080/graphql`  
-Interactive playground: `http://localhost:8080/playground`
+Interactive playground: `http://localhost:8080/playground`  
+Subscription WebSocket endpoint: `ws://localhost:8080/graphql`  
+LLM quick guide: `http://localhost:8080/llms.txt`
+
+List maps:
+
+```graphql
+query {
+  maps { mapId name description gridSize maxBattery }
+}
+```
 
 Create a session:
 
 ```graphql
 mutation {
-  createSession(configID: "easy") {
+  createSession(mapID: "easy") {
     id
-    configName
+    mapName
     gameState { playerPos { x y } battery score message }
   }
 }
@@ -192,80 +202,58 @@ mutation Move($sessionID: ID!) {
   move(sessionID: $sessionID, direction: RIGHT) {
     success
     message
-    gameState { playerPos { x y } battery score victory }
+    gameState { playerPos { x y } battery score victory gameOver }
   }
 }
 ```
 
-List configs:
+Subscribe to session updates:
 
 ```graphql
-query {
-  configs { configId name description gridSize maxBattery }
+subscription Watch($sessionID: ID!) {
+  sessionUpdated(sessionID: $sessionID) {
+    playerPos { x y }
+    battery
+    score
+    victory
+    gameOver
+  }
 }
 ```
 
-See [docs/graphql.md](docs/graphql.md) for more examples.
+See [docs/graphql.md](docs/graphql.md) for the full API reference, examples, result types, and map input schema.
 
 ### Real-time Updates
 
-#### WebSocket Connection
-```bash
-# Global updates
-ws://localhost:8080/ws
+Use GraphQL subscriptions on `ws://localhost:8080/graphql` for new clients. The server also keeps a legacy UI WebSocket route at `/ws?session=<session_id>`.
 
-# Session-specific updates
-ws://localhost:8080/ws?sessionId={sessionId}
-```
+## 🤖 AI / Agent Integration
 
-## 🤖 MCP Integration
+Use the GraphQL API for AI and agent integrations. GraphQL introspection is enabled, and `/playground` provides an interactive schema explorer.
 
-MCP support is currently disabled because the REST API transport was removed. The MCP transport needs to be migrated to GraphQL before `stdio-mcp` or `/mcp` can be re-enabled.
-
-### Claude Integration
-
-#### Using MCP with Claude Code
-```bash
-# HTTP mode
-make claude-game
-
-# Stdio mode
-make claude-game-stdin
-```
-
-### Available MCP Tools
-
-- `create_session(config_name?)` - Create new game session
-- `list_sessions()` - List all active sessions
-- `get_session(session_id)` - Get session details
-- `game_state(session_id)` - Get current game state
-- `move(session_id, direction, reset?)` - Make single move
-- `bulk_move(session_id, moves, reset?)` - Make multiple moves
-- `reset_game(session_id)` - Reset game to initial state
-- `move_history(session_id, page?, limit?)` - Get move history
-- `list_configs()` - List available configurations
+> Note: Legacy MCP/stdio transports are disabled because the REST API transport was removed. Use `/graphql` for game operations.
 
 ### GraphQL Response Enhancements
 
 The `move` mutation returns:
-- `step`: compact one-line summary of the move
-  - Fields: `dir`, `from{x,y}`, `to{x,y}`, `tile_char`, `tile_type`, `battery_before`, `battery_after`, `success`
-- `attempted_to`: present when move is blocked
-  - Fields: `x`, `y`, `tile_char`, `tile_type`, `passable`
-- `game_state` includes:
-  - `local_view_3x3`: three short strings centered on player (T in center)
-  - `battery_risk`: one of `SAFE|LOW|CAUTION|DANGER|CRITICAL|WARNING`
+- `step`: compact summary of the move
+  - Fields: `dir`, `from { x y }`, `to { x y }`, `tileChar`, `tileType`, `batteryBefore`, `batteryAfter`, `success`
+- `attemptedTo`: present when move metadata is available for the attempted target
+  - Fields: `x`, `y`, `tileChar`, `tileType`, `passable`
+- `gameState` includes:
+  - `localView3x3`: three short strings centered on player (T in center)
+  - `batteryRisk`: human-readable battery risk label
 
 The `bulkMove` mutation adds:
-- Summary fields: `requested_moves`, `moves_executed`, `stopped_reason`, `stop_reason_code`, `stopped_on_move`, `truncated`, `limit`
-- Start/end snapshot: `start_pos`, `end_pos`, `start_battery`, `end_battery`, `score_delta`
+- Summary fields: `requestedMoves`, `movesExecuted`, `stoppedReason`, `stopReasonCode`, `stoppedOnMove`, `truncated`, `limit`
+- Start/end snapshot: `startPos`, `endPos`, `startBattery`, `endBattery`, `scoreDelta`
 - `steps`: compact per-step entries for this call only
-- `attempted_to`: failed target when blocked
-- Decision aids: `possible_moves`, `local_view_3x3`, `battery_risk`
+- `attemptedTo`: failed/attempted target metadata when available
+- Decision aids: `possibleMoves`, `localView3x3`, `batteryRisk`
 
 Notes:
-- `total_moves` remains for backward compatibility but mirrors `requested_moves` in bulk responses.
-- Text formatters in MCP now show a brief session header, recent steps (this call), stopped diagnostics, possible moves, and local 3x3.
+- `totalMoves` is the GraphQL field name for cumulative session moves.
+- Bulk responses expose both `requestedMoves` and `movesExecuted` so agents can detect truncation or blocked routes.
 
 ## 🎮 Game Configurations
 
@@ -348,7 +336,6 @@ cd validate && go run .
 | `game/engine` | 79.5% | ✅ |
 | `game/service` | 73.2% | ✅ |
 | `game/session` | 88.7% | ✅ |
-| `transport/mcp` | 33.9% | ✅ |
 | `transport/websocket` | 70.7% | ✅ |
 | `validate` | 72.1% | ✅ |
 
@@ -363,7 +350,7 @@ cd validate && go run .
 #### Integration Tests
 - **Multi-session scenarios** with concurrent access
 - **WebSocket communication** and broadcasting
-- **MCP tool integration** and response formatting
+- **GraphQL operation coverage** and response formatting
 - **End-to-end workflows** from creation to completion
 
 #### Advanced Tests
@@ -447,7 +434,6 @@ statefullgame/
 ├── scripts/             # Development and deployment scripts
 ├── static/              # Web assets and templates
 ├── transport/
-│   ├── mcp/            # Model Context Protocol integration
 │   └── websocket/      # Real-time WebSocket communication
 └── validate/           # Configuration validation tool
 ```
@@ -498,7 +484,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 - Built with [Gorilla WebSocket](https://github.com/gorilla/websocket)
-- MCP integration via [mcp-go](https://github.com/mark3labs/mcp-go)
+- GraphQL API powered by [gqlgen](https://gqlgen.com/)
 - Inspired by classic grid-based strategy games
 - Tesla theme chosen for electric vehicle awareness
 
@@ -509,7 +495,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Documentation**: [Project Docs](docs/)
   - [Architecture](docs/architecture.md) - System design and components
   - [AI Strategy Guide](docs/ai-strategy.md) - Techniques for AI agents
-  - [MCP Integration](docs/mcp-integration.md) - AI assistant setup
+  - [GraphQL API](docs/graphql.md) - Queries, mutations, and Playground
   - [Configuration Schema](docs/config-schema.md) - Custom game configs
 
 ---

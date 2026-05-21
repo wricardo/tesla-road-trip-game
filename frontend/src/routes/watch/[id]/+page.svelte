@@ -7,7 +7,7 @@
 	const GAME_STATE_QUERY = `
 		query GameState($sessionID: ID!) {
 			gameState(sessionID: $sessionID) {
-				battery maxBattery score victory gameOver totalMoves message configName
+				battery maxBattery score victory gameOver totalMoves message mapName
 				playerPos { x y }
 				grid { type visited id }
 				currentMoves { fromPosition { x y } toPosition { x y } success }
@@ -18,7 +18,7 @@
 	const SESSION_SUBSCRIPTION = `
 		subscription SessionUpdated($sessionID: ID!) {
 			sessionUpdated(sessionID: $sessionID) {
-				battery maxBattery score victory gameOver totalMoves message configName
+				battery maxBattery score victory gameOver totalMoves message mapName
 				playerPos { x y }
 				grid { type visited id }
 				currentMoves { fromPosition { x y } toPosition { x y } success }
@@ -50,7 +50,7 @@
 		gameOver: boolean;
 		totalMoves: number;
 		message: string;
-		configName: string;
+		mapName: string;
 		playerPos: Position;
 		grid: Array<Array<{ type: string; visited: boolean; id: string }>>;
 		currentMoves: MoveHistoryEntry[];
@@ -58,8 +58,13 @@
 
 	let liveState = $state<GameState | null>(null);
 	let messages = $state<string[]>([]);
+	let animatedPos = $state<Position | null>(null);
+	let animatedTrailKeys = $state<Set<string>>(new Set());
+	let isAnimatingMoves = $state(false);
+	let lastAnimationSignature = '';
 
 	const gameState = $derived<GameState | null>(liveState ?? $initialQuery.data?.gameState ?? null);
+	const displayPlayerPos = $derived(animatedPos ?? gameState?.playerPos ?? null);
 
 	// Direct graphql-ws subscription — bypasses urql store compatibility issues
 	$effect(() => {
@@ -95,6 +100,7 @@
 
 Session ID: ${sessionId}
 GraphQL endpoint: ${typeof window !== 'undefined' ? window.location.origin : ''}/graphql
+GraphQL introspection is enabled, so you can inspect the schema before planning queries or mutations.
 
 Goal: collect all parks (🌳). Charging tiles (🏠🏠 home, ⚡ supercharger) restore battery to max. Buildings (🏢) and water (💧) are impassable. Each move costs 1 battery.
 
@@ -125,9 +131,58 @@ Grid is grid[y][x]. Directions: UP DOWN LEFT RIGHT.`);
 		home: '🏠', park: '🌳', supercharger: '⚡', water: '💧', building: '🏢'
 	};
 
+	$effect(() => {
+		const moves = gameState?.currentMoves?.filter((move) => move.success) ?? [];
+		if (!gameState || moves.length === 0) {
+			animatedPos = null;
+			animatedTrailKeys = new Set();
+			isAnimatingMoves = false;
+			lastAnimationSignature = '';
+			return;
+		}
+
+		const signature = moves
+			.map((move) => `${move.fromPosition.x},${move.fromPosition.y}>${move.toPosition.x},${move.toPosition.y}`)
+			.join('|');
+		if (signature === lastAnimationSignature) return;
+		lastAnimationSignature = signature;
+
+		let cancelled = false;
+		let index = 0;
+		let trail = new Set<string>();
+		isAnimatingMoves = true;
+		animatedPos = moves[0].fromPosition;
+		trail.add(`${moves[0].fromPosition.x},${moves[0].fromPosition.y}`);
+		animatedTrailKeys = new Set(trail);
+
+		const step = () => {
+			if (cancelled) return;
+			const move = moves[index];
+			if (!move) {
+				animatedPos = gameState.playerPos;
+				isAnimatingMoves = false;
+				return;
+			}
+
+			trail.add(`${move.fromPosition.x},${move.fromPosition.y}`);
+			trail.add(`${move.toPosition.x},${move.toPosition.y}`);
+			animatedTrailKeys = new Set(trail);
+			animatedPos = move.toPosition;
+			index += 1;
+			setTimeout(step, 140);
+		};
+
+		const timer = setTimeout(step, 180);
+		return () => {
+			cancelled = true;
+			clearTimeout(timer);
+		};
+	});
+
 	const trailKeys = $derived.by(() => {
 		const keys = new Set<string>();
 		if (!gameState) return keys;
+		if (isAnimatingMoves) return animatedTrailKeys;
 
 		for (const move of gameState.currentMoves ?? []) {
 			if (!move.success) continue;
@@ -139,8 +194,8 @@ Grid is grid[y][x]. Directions: UP DOWN LEFT RIGHT.`);
 	});
 
 	function cellVisible(x: number, y: number): boolean {
-		if (!caveEnabled || !gameState) return true;
-		return Math.max(Math.abs(x - gameState.playerPos.x), Math.abs(y - gameState.playerPos.y)) <= caveRadius;
+		if (!caveEnabled || !displayPlayerPos) return true;
+		return Math.max(Math.abs(x - displayPlayerPos.x), Math.abs(y - displayPlayerPos.y)) <= caveRadius;
 	}
 </script>
 
@@ -148,162 +203,175 @@ Grid is grid[y][x]. Directions: UP DOWN LEFT RIGHT.`);
 	<title>{sessionId} — Tesla Road Trip</title>
 </svelte:head>
 
-<div class="max-w-[1800px] mx-auto px-4 py-8 flex flex-col lg:flex-row gap-6 xl:gap-8">
-	<!-- left: grid -->
-	<div class="flex-1 min-w-0">
-		<div class="bg-white rounded-2xl border border-[#e8e8e8] p-4 sm:p-6 shadow-sm overflow-auto flex items-center justify-center min-h-[55vh]">
-			{#if gameState?.grid}
-				<table class="game-board border-collapse" style={`--grid-size: ${gameState.grid.length}`}>
-					<tbody>
-					{#each gameState.grid as row, y}
-						<tr>
-							{#each row as cell, x}
-								{@const visible = cellVisible(x, y)}
-								{@const isPlayer = x === gameState.playerPos.x && y === gameState.playerPos.y}
-								{@const isTrail = visible && trailKeys.has(`${x},${y}`)}
-								<td class="game-cell text-center border transition-colors
-									{!visible ? 'bg-gray-900 border-gray-900' : cell.type === 'building' || cell.type === 'water' ? 'bg-gray-100 border-gray-50' : isTrail && !isPlayer ? 'bg-sky-50 border-sky-100' : 'bg-white border-gray-50'}
-									{cell.visited && !isPlayer ? 'opacity-60' : ''}">
-									{#if isPlayer}
-										{gameState.gameOver ? '💥' : '🚗'}
-									{:else if visible && cell.type !== 'road'}
-										{cellEmoji[cell.type] ?? ''}
-									{:else if isTrail}
-										<span class="text-sky-400 leading-none">•</span>
-									{/if}
-								</td>
-							{/each}
-						</tr>
-					{/each}
-					</tbody>
-				</table>
-			{:else if $initialQuery.fetching}
-				<div class="flex items-center justify-center h-64 text-gray-400">
-					<div class="text-center">
-						<span class="text-4xl block mb-3">🚗</span>
-						<p class="text-sm font-light">Loading <code class="font-mono">{sessionId}</code>…</p>
+<div class="max-w-[1900px] mx-auto px-3 sm:px-4 py-4 lg:py-6">
+	<div class="grid grid-cols-1 lg:grid-cols-[minmax(0,3fr)_minmax(24rem,2fr)] gap-4 xl:gap-6 items-start">
+		<!-- left: compact session controls + board -->
+		<section class="min-w-0 bg-white rounded-2xl border border-[#e8e8e8] shadow-sm overflow-hidden">
+			<div class="p-3 sm:p-4 border-b border-gray-100">
+				<div class="flex flex-wrap items-start justify-between gap-3">
+					<div class="min-w-0">
+						<div class="flex flex-wrap items-center gap-2 text-xs uppercase tracking-widest text-gray-400">
+							<span>Session</span>
+							{#if gameState}
+								<span>·</span>
+								<span class="normal-case tracking-normal font-mono">{gameState.mapName}</span>
+							{/if}
+						</div>
+						<button
+							onclick={() => navigator.clipboard.writeText(sessionId)}
+							class="mt-1 font-mono text-lg leading-none text-gray-800 hover:text-blue-600 transition-colors"
+							title="Copy session ID"
+						>{sessionId}</button>
 					</div>
+
+					{#if gameState}
+						<div class="flex-1 min-w-[16rem] max-w-xl">
+							<div class="flex justify-between text-xs text-gray-400 mb-1">
+								<span>Battery</span><span>{gameState.battery}/{gameState.maxBattery}</span>
+							</div>
+							<div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+								<div
+									class="h-full rounded-full transition-all duration-300 {gameState.battery / gameState.maxBattery > 0.5 ? 'bg-green-400' : gameState.battery / gameState.maxBattery > 0.25 ? 'bg-orange-400' : 'bg-red-400'}"
+									style="width: {Math.max(0, (gameState.battery / gameState.maxBattery) * 100)}%"
+								></div>
+							</div>
+						</div>
+
+						<div class="grid grid-cols-3 gap-2 text-center">
+							<div class="bg-gray-50 rounded-xl px-4 py-2">
+								<div class="text-xl font-light leading-tight">{gameState.score}</div>
+								<div class="text-[11px] text-gray-400">Parks</div>
+							</div>
+							<div class="bg-gray-50 rounded-xl px-4 py-2">
+								<div class="text-xl font-light leading-tight">{gameState.totalMoves}</div>
+								<div class="text-[11px] text-gray-400">Moves</div>
+							</div>
+							<div class="bg-gray-50 rounded-xl px-4 py-2">
+								<div class="text-lg leading-tight {gameState.victory ? 'text-green-500' : gameState.gameOver ? 'text-red-500' : 'text-gray-300'}">
+									{gameState.victory ? '🏆' : gameState.gameOver ? '💥' : '🟢'}
+								</div>
+								<div class="text-[11px] text-gray-400">{gameState.victory ? 'Won' : gameState.gameOver ? 'Crashed' : 'Active'}</div>
+							</div>
+						</div>
+					{:else}
+						<p class="text-sm text-gray-400 font-light">Loading…</p>
+					{/if}
 				</div>
-			{:else if $initialQuery.error}
-				<div class="flex items-center justify-center h-64 text-red-400">
-					<p class="text-sm">Session not found: {$initialQuery.error.message}</p>
-				</div>
-			{:else}
-				<div class="flex items-center justify-center h-64 text-gray-400">
-					<div class="text-center">
-						<span class="text-4xl block mb-3">🚗</span>
-						<p class="text-sm font-light">Waiting for moves on <code class="font-mono">{sessionId}</code>…</p>
-						<p class="text-xs mt-2">Point an AI at this session to see it play</p>
+
+				{#if gameState}
+					<div class="mt-3 grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(16rem,20rem)] gap-3 items-start">
+						<div class="rounded-xl bg-gray-50/70 px-3 py-2">
+							<span class="text-[11px] uppercase tracking-widest text-gray-400 block mb-1">Events</span>
+							<div class="space-y-1 max-h-14 overflow-y-auto">
+								{#each messages as msg}
+									<p class="text-xs text-gray-600 font-light leading-snug">{msg}</p>
+								{:else}
+									<p class="text-xs text-gray-400 italic">Waiting for moves…</p>
+								{/each}
+							</div>
+						</div>
+						<div>
+							<CaveMode bind:enabled={caveEnabled} bind:radius={caveRadius} />
+							<p class="text-xs text-gray-400 mt-1">Viewer-only fog — does not affect the AI</p>
+						</div>
 					</div>
+				{/if}
+			</div>
+
+			<div class="p-3 sm:p-4 overflow-auto flex items-center justify-center board-pane">
+				{#if gameState?.grid}
+					<table class="game-board border-collapse" style={`--grid-size: ${gameState.grid.length}`}>
+						<tbody>
+						{#each gameState.grid as row, y}
+							<tr>
+								{#each row as cell, x}
+									{@const visible = cellVisible(x, y)}
+									{@const isPlayer = displayPlayerPos && x === displayPlayerPos.x && y === displayPlayerPos.y}
+									{@const isTrail = visible && trailKeys.has(`${x},${y}`)}
+									<td class="game-cell text-center border transition-colors
+										{!visible ? 'bg-gray-900 border-gray-900' : cell.type === 'building' || cell.type === 'water' ? 'bg-gray-100 border-gray-50' : isTrail && !isPlayer ? 'bg-sky-50 border-sky-100' : 'bg-white border-gray-50'}
+										{visible && cell.visited && !isPlayer ? 'opacity-60' : ''}">
+										{#if isPlayer}
+											{gameState.victory ? '🚗' : gameState.gameOver ? '💥' : '🚗'}
+										{:else if visible && cell.type !== 'road'}
+											{cellEmoji[cell.type] ?? ''}
+										{:else if isTrail}
+											<span class="text-sky-400 leading-none">•</span>
+										{/if}
+									</td>
+								{/each}
+							</tr>
+						{/each}
+						</tbody>
+					</table>
+				{:else if $initialQuery.fetching}
+					<div class="flex items-center justify-center h-64 text-gray-400">
+						<div class="text-center">
+							<span class="text-4xl block mb-3">🚗</span>
+							<p class="text-sm font-light">Loading <code class="font-mono">{sessionId}</code>…</p>
+						</div>
+					</div>
+				{:else if $initialQuery.error}
+					<div class="flex items-center justify-center h-64 text-red-400">
+						<p class="text-sm">Session not found: {$initialQuery.error.message}</p>
+					</div>
+				{:else}
+					<div class="flex items-center justify-center h-64 text-gray-400">
+						<div class="text-center">
+							<span class="text-4xl block mb-3">🚗</span>
+							<p class="text-sm font-light">Waiting for moves on <code class="font-mono">{sessionId}</code>…</p>
+							<p class="text-xs mt-2">Point an AI at this session to see it play</p>
+						</div>
+					</div>
+				{/if}
+			</div>
+
+			<div class="flex items-center justify-between gap-x-4 text-xs text-gray-400 px-4 pb-3">
+				<span><span class="text-sky-400">•</span> movement trail{isAnimatingMoves ? ' · animating route…' : ''}</span>
+				<a href="/" class="hover:text-gray-600 transition-colors">← Back to lobby</a>
+			</div>
+		</section>
+
+		<!-- right: LLM prompt -->
+		<aside class="min-w-0 bg-white rounded-2xl border border-[#e8e8e8] p-4 shadow-sm lg:sticky lg:top-4">
+			<div class="flex items-center justify-between gap-3 mb-3">
+				<div>
+					<span class="text-xs uppercase tracking-widest text-gray-400">Prompt for LLM</span>
+					<p class="text-xs text-gray-400 mt-1">Copy this into an AI chat to control session <code class="font-mono">{sessionId}</code>.</p>
 				</div>
-			{/if}
-		</div>
-
-		<div class="flex items-center gap-x-4 text-xs text-gray-400 mt-2 px-1">
-			<span><span class="text-sky-400">•</span> movement trail</span>
-		</div>
-
-		<!-- LLM prompt block -->
-		<div class="bg-white rounded-2xl border border-[#e8e8e8] p-4 shadow-sm mt-4">
-			<div class="flex items-center justify-between mb-2">
-				<span class="text-xs uppercase tracking-widest text-gray-400">Prompt for LLM</span>
 				<button
 					onclick={copyPrompt}
-					class="text-xs px-3 py-1 rounded-full border transition-colors {promptCopied ? 'bg-green-50 border-green-200 text-green-600' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}"
+					class="text-sm px-4 py-2 rounded-full border transition-colors shrink-0 {promptCopied ? 'bg-green-50 border-green-200 text-green-600' : 'border-blue-300 text-blue-700 hover:bg-blue-50'}"
 				>{promptCopied ? 'Copied!' : 'Copy'}</button>
 			</div>
 			<textarea
 				readonly
 				value={llmPrompt}
-				class="w-full text-xs font-mono text-gray-600 bg-gray-50 rounded-lg p-2 resize-none h-28 focus:outline-none leading-relaxed"
+				class="w-full text-sm font-mono text-gray-700 bg-gray-50 rounded-xl p-4 resize-none prompt-pane focus:outline-none leading-relaxed border border-gray-100"
 				onclick={(e) => (e.target as HTMLTextAreaElement).select()}
 			></textarea>
-		</div>
-	</div>
-
-	<!-- right: stats panel -->
-	<div class="w-full lg:w-80 flex flex-col gap-4 shrink-0">
-		<div class="bg-white rounded-2xl border border-[#e8e8e8] p-5 shadow-sm">
-			<div class="flex items-center justify-between mb-5">
-				<div class="flex items-center gap-2">
-					<span class="text-xs uppercase tracking-widest text-gray-400">Session</span>
-					{#if gameState}
-						<span class="text-xs text-gray-400">·</span>
-						<span class="text-xs text-gray-400 font-mono">{gameState.configName}</span>
-					{/if}
-				</div>
-				<button
-					onclick={() => navigator.clipboard.writeText(sessionId)}
-					class="font-mono text-sm bg-gray-50 px-2 py-0.5 rounded hover:bg-gray-100 transition-colors"
-					title="Copy session ID"
-				>{sessionId}</button>
-			</div>
-
-			{#if gameState}
-				<div class="mb-5">
-					<div class="flex justify-between text-xs text-gray-400 mb-1">
-						<span>Battery</span><span>{gameState.battery}/{gameState.maxBattery}</span>
-					</div>
-					<div class="h-2 bg-gray-100 rounded-full overflow-hidden">
-						<div
-							class="h-full rounded-full transition-all duration-300 {gameState.battery / gameState.maxBattery > 0.5 ? 'bg-green-400' : gameState.battery / gameState.maxBattery > 0.25 ? 'bg-orange-400' : 'bg-red-400'}"
-							style="width: {Math.max(0, (gameState.battery / gameState.maxBattery) * 100)}%"
-						></div>
-					</div>
-				</div>
-
-				<div class="grid grid-cols-3 gap-3 mb-5">
-					<div class="bg-gray-50 rounded-xl p-3 text-center">
-						<div class="text-2xl font-light">{gameState.score}</div>
-						<div class="text-xs text-gray-400 mt-0.5">Parks</div>
-					</div>
-					<div class="bg-gray-50 rounded-xl p-3 text-center">
-						<div class="text-2xl font-light">{gameState.totalMoves}</div>
-						<div class="text-xs text-gray-400 mt-0.5">Moves</div>
-					</div>
-					<div class="bg-gray-50 rounded-xl p-3 text-center">
-						<div class="text-xl {gameState.victory ? 'text-green-500' : gameState.gameOver ? 'text-red-500' : 'text-gray-300'}">
-							{gameState.victory ? '🏆' : gameState.gameOver ? '💥' : '🟢'}
-						</div>
-						<div class="text-xs text-gray-400 mt-0.5">
-							{gameState.victory ? 'Won' : gameState.gameOver ? 'Crashed' : 'Active'}
-						</div>
-					</div>
-				</div>
-
-				<div class="border-t border-gray-100 pt-4">
-					<span class="text-xs uppercase tracking-widest text-gray-400 block mb-2">Events</span>
-					<div class="space-y-1.5 max-h-36 overflow-y-auto">
-						{#each messages as msg}
-							<p class="text-xs text-gray-600 font-light leading-snug">{msg}</p>
-						{:else}
-							<p class="text-xs text-gray-400 italic">Waiting for moves…</p>
-						{/each}
-					</div>
-				</div>
-
-				<div class="border-t border-gray-100 pt-4 mt-3">
-					<CaveMode bind:enabled={caveEnabled} bind:radius={caveRadius} />
-					<p class="text-xs text-gray-400 mt-1">Viewer-only fog — does not affect the AI</p>
-				</div>
-			{:else}
-				<p class="text-sm text-gray-400 font-light text-center py-8">Loading…</p>
-			{/if}
-		</div>
-
-		<a href="/" class="text-xs text-center text-gray-400 hover:text-gray-600 transition-colors mt-1">← Back to lobby</a>
+		</aside>
 	</div>
 </div>
 
 <style>
+	.board-pane {
+		min-height: calc(100vh - 18rem);
+	}
+
+	.prompt-pane {
+		height: calc(100vh - 9rem);
+		min-height: 34rem;
+	}
+
 	.game-board {
 		--cell-size: clamp(
-			2rem,
+			1.75rem,
 			min(
-				calc((100vw - 30rem - 8rem) / var(--grid-size)),
-				calc((100vh - 16rem) / var(--grid-size))
+				calc((60vw - 5rem) / var(--grid-size)),
+				calc((100vh - 20rem) / var(--grid-size))
 			),
-			4.5rem
+			4.1rem
 		);
 	}
 

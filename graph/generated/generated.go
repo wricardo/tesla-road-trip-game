@@ -89,34 +89,18 @@ type ComplexityRoot struct {
 		Visited func(childComplexity int) int
 	}
 
-	ConfigInfo struct {
-		ConfigID    func(childComplexity int) int
-		Description func(childComplexity int) int
-		Filename    func(childComplexity int) int
-		GridSize    func(childComplexity int) int
-		MaxBattery  func(childComplexity int) int
-		Name        func(childComplexity int) int
-	}
-
-	ConfigMessages struct {
-		BatteryStatus      func(childComplexity int) int
-		CantMove           func(childComplexity int) int
-		HitWall            func(childComplexity int) int
-		HomeCharge         func(childComplexity int) int
-		OutOfBattery       func(childComplexity int) int
-		ParkAlreadyVisited func(childComplexity int) int
-		ParkVisited        func(childComplexity int) int
-		Stranded           func(childComplexity int) int
-		SuperchargerCharge func(childComplexity int) int
-		Victory            func(childComplexity int) int
-		Welcome            func(childComplexity int) int
-	}
-
 	DeleteSessionResult struct {
 		Message func(childComplexity int) int
 	}
 
-	GameConfig struct {
+	GameEvent struct {
+		Message   func(childComplexity int) int
+		Position  func(childComplexity int) int
+		Timestamp func(childComplexity int) int
+		Type      func(childComplexity int) int
+	}
+
+	GameMap struct {
 		Description       func(childComplexity int) int
 		GridSize          func(childComplexity int) int
 		Layout            func(childComplexity int) int
@@ -128,23 +112,16 @@ type ComplexityRoot struct {
 		WallCrashEndsGame func(childComplexity int) int
 	}
 
-	GameEvent struct {
-		Message   func(childComplexity int) int
-		Position  func(childComplexity int) int
-		Timestamp func(childComplexity int) int
-		Type      func(childComplexity int) int
-	}
-
 	GameState struct {
 		Battery           func(childComplexity int) int
 		BatteryRisk       func(childComplexity int) int
-		ConfigName        func(childComplexity int) int
 		CurrentMoves      func(childComplexity int) int
 		CurrentMovesCount func(childComplexity int) int
 		GameOver          func(childComplexity int) int
 		Grid              func(childComplexity int) int
 		LocalView         func(childComplexity int) int
 		LocalView3x3      func(childComplexity int) int
+		MapName           func(childComplexity int) int
 		MaxBattery        func(childComplexity int) int
 		Message           func(childComplexity int) int
 		MoveHistory       func(childComplexity int) int
@@ -170,6 +147,29 @@ type ComplexityRoot struct {
 		Value func(childComplexity int) int
 	}
 
+	MapInfo struct {
+		Description func(childComplexity int) int
+		Filename    func(childComplexity int) int
+		GridSize    func(childComplexity int) int
+		MapID       func(childComplexity int) int
+		MaxBattery  func(childComplexity int) int
+		Name        func(childComplexity int) int
+	}
+
+	MapMessages struct {
+		BatteryStatus      func(childComplexity int) int
+		CantMove           func(childComplexity int) int
+		HitWall            func(childComplexity int) int
+		HomeCharge         func(childComplexity int) int
+		OutOfBattery       func(childComplexity int) int
+		ParkAlreadyVisited func(childComplexity int) int
+		ParkVisited        func(childComplexity int) int
+		Stranded           func(childComplexity int) int
+		SuperchargerCharge func(childComplexity int) int
+		Victory            func(childComplexity int) int
+		Welcome            func(childComplexity int) int
+	}
+
 	MoveHistoryEntry struct {
 		Action       func(childComplexity int) int
 		Battery      func(childComplexity int) int
@@ -191,8 +191,8 @@ type ComplexityRoot struct {
 
 	Mutation struct {
 		BulkMove      func(childComplexity int, sessionID string, moves []model.Direction, reset *bool) int
-		CreateConfig  func(childComplexity int, name string, config model.GameConfigInput) int
-		CreateSession func(childComplexity int, configID *string, configName *string) int
+		CreateMap     func(childComplexity int, name string, mapArg model.GameMapInput) int
+		CreateSession func(childComplexity int, mapID *string, mapName *string) int
 		DeleteSession func(childComplexity int, id string) int
 		Move          func(childComplexity int, sessionID string, direction model.Direction, reset *bool) int
 		Reset         func(childComplexity int, sessionID string) int
@@ -204,22 +204,22 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		Config          func(childComplexity int, name string) int
-		Configs         func(childComplexity int) int
 		GameState       func(childComplexity int, sessionID string) int
 		History         func(childComplexity int, sessionID string, page *int, limit *int, order *model.SortOrder) int
+		Map             func(childComplexity int, name string) int
+		Maps            func(childComplexity int) int
 		Session         func(childComplexity int, id string) int
 		Sessions        func(childComplexity int, sort *model.SessionSort, order *model.SortOrder, limit *int) int
-		UnifiedSessions func(childComplexity int, configName *string) int
+		UnifiedSessions func(childComplexity int, mapName *string) int
 	}
 
 	Session struct {
-		ConfigName     func(childComplexity int) int
 		CreatedAt      func(childComplexity int) int
-		GameConfig     func(childComplexity int) int
+		GameMap        func(childComplexity int) int
 		GameState      func(childComplexity int) int
 		ID             func(childComplexity int) int
 		LastAccessedAt func(childComplexity int) int
+		MapName        func(childComplexity int) int
 	}
 
 	SessionList struct {
@@ -258,16 +258,16 @@ type ComplexityRoot struct {
 
 	UnifiedSession struct {
 		CreatedAt      func(childComplexity int) int
-		GameConfig     func(childComplexity int) int
+		GameMap        func(childComplexity int) int
 		GameState      func(childComplexity int) int
 		LastAccessedAt func(childComplexity int) int
 		SessionID      func(childComplexity int) int
 	}
 
 	UnifiedSessions struct {
-		ConfigName func(childComplexity int) int
-		Count      func(childComplexity int) int
-		Sessions   func(childComplexity int) int
+		Count    func(childComplexity int) int
+		MapName  func(childComplexity int) int
+		Sessions func(childComplexity int) int
 	}
 
 	VisitedPark struct {
@@ -277,21 +277,21 @@ type ComplexityRoot struct {
 }
 
 type MutationResolver interface {
-	CreateSession(ctx context.Context, configID *string, configName *string) (*model.Session, error)
+	CreateSession(ctx context.Context, mapID *string, mapName *string) (*model.Session, error)
 	DeleteSession(ctx context.Context, id string) (*model.DeleteSessionResult, error)
 	Move(ctx context.Context, sessionID string, direction model.Direction, reset *bool) (*model.MoveResult, error)
 	BulkMove(ctx context.Context, sessionID string, moves []model.Direction, reset *bool) (*model.BulkMoveResult, error)
 	Reset(ctx context.Context, sessionID string) (*model.GameState, error)
-	CreateConfig(ctx context.Context, name string, config model.GameConfigInput) (*model.GameConfig, error)
+	CreateMap(ctx context.Context, name string, mapArg model.GameMapInput) (*model.GameMap, error)
 }
 type QueryResolver interface {
 	Session(ctx context.Context, id string) (*model.Session, error)
 	Sessions(ctx context.Context, sort *model.SessionSort, order *model.SortOrder, limit *int) (*model.SessionList, error)
-	UnifiedSessions(ctx context.Context, configName *string) (*model.UnifiedSessions, error)
+	UnifiedSessions(ctx context.Context, mapName *string) (*model.UnifiedSessions, error)
 	GameState(ctx context.Context, sessionID string) (*model.GameState, error)
 	History(ctx context.Context, sessionID string, page *int, limit *int, order *model.SortOrder) (*model.HistoryResponse, error)
-	Configs(ctx context.Context) ([]*model.ConfigInfo, error)
-	Config(ctx context.Context, name string) (*model.GameConfig, error)
+	Maps(ctx context.Context) ([]*model.MapInfo, error)
+	Map(ctx context.Context, name string) (*model.GameMap, error)
 }
 type SubscriptionResolver interface {
 	SessionUpdated(ctx context.Context, sessionID string) (<-chan *model.GameState, error)
@@ -541,194 +541,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Cell.Visited(childComplexity), true
 
-	case "ConfigInfo.configId":
-		if e.complexity.ConfigInfo.ConfigID == nil {
-			break
-		}
-
-		return e.complexity.ConfigInfo.ConfigID(childComplexity), true
-
-	case "ConfigInfo.description":
-		if e.complexity.ConfigInfo.Description == nil {
-			break
-		}
-
-		return e.complexity.ConfigInfo.Description(childComplexity), true
-
-	case "ConfigInfo.filename":
-		if e.complexity.ConfigInfo.Filename == nil {
-			break
-		}
-
-		return e.complexity.ConfigInfo.Filename(childComplexity), true
-
-	case "ConfigInfo.gridSize":
-		if e.complexity.ConfigInfo.GridSize == nil {
-			break
-		}
-
-		return e.complexity.ConfigInfo.GridSize(childComplexity), true
-
-	case "ConfigInfo.maxBattery":
-		if e.complexity.ConfigInfo.MaxBattery == nil {
-			break
-		}
-
-		return e.complexity.ConfigInfo.MaxBattery(childComplexity), true
-
-	case "ConfigInfo.name":
-		if e.complexity.ConfigInfo.Name == nil {
-			break
-		}
-
-		return e.complexity.ConfigInfo.Name(childComplexity), true
-
-	case "ConfigMessages.batteryStatus":
-		if e.complexity.ConfigMessages.BatteryStatus == nil {
-			break
-		}
-
-		return e.complexity.ConfigMessages.BatteryStatus(childComplexity), true
-
-	case "ConfigMessages.cantMove":
-		if e.complexity.ConfigMessages.CantMove == nil {
-			break
-		}
-
-		return e.complexity.ConfigMessages.CantMove(childComplexity), true
-
-	case "ConfigMessages.hitWall":
-		if e.complexity.ConfigMessages.HitWall == nil {
-			break
-		}
-
-		return e.complexity.ConfigMessages.HitWall(childComplexity), true
-
-	case "ConfigMessages.homeCharge":
-		if e.complexity.ConfigMessages.HomeCharge == nil {
-			break
-		}
-
-		return e.complexity.ConfigMessages.HomeCharge(childComplexity), true
-
-	case "ConfigMessages.outOfBattery":
-		if e.complexity.ConfigMessages.OutOfBattery == nil {
-			break
-		}
-
-		return e.complexity.ConfigMessages.OutOfBattery(childComplexity), true
-
-	case "ConfigMessages.parkAlreadyVisited":
-		if e.complexity.ConfigMessages.ParkAlreadyVisited == nil {
-			break
-		}
-
-		return e.complexity.ConfigMessages.ParkAlreadyVisited(childComplexity), true
-
-	case "ConfigMessages.parkVisited":
-		if e.complexity.ConfigMessages.ParkVisited == nil {
-			break
-		}
-
-		return e.complexity.ConfigMessages.ParkVisited(childComplexity), true
-
-	case "ConfigMessages.stranded":
-		if e.complexity.ConfigMessages.Stranded == nil {
-			break
-		}
-
-		return e.complexity.ConfigMessages.Stranded(childComplexity), true
-
-	case "ConfigMessages.superchargerCharge":
-		if e.complexity.ConfigMessages.SuperchargerCharge == nil {
-			break
-		}
-
-		return e.complexity.ConfigMessages.SuperchargerCharge(childComplexity), true
-
-	case "ConfigMessages.victory":
-		if e.complexity.ConfigMessages.Victory == nil {
-			break
-		}
-
-		return e.complexity.ConfigMessages.Victory(childComplexity), true
-
-	case "ConfigMessages.welcome":
-		if e.complexity.ConfigMessages.Welcome == nil {
-			break
-		}
-
-		return e.complexity.ConfigMessages.Welcome(childComplexity), true
-
 	case "DeleteSessionResult.message":
 		if e.complexity.DeleteSessionResult.Message == nil {
 			break
 		}
 
 		return e.complexity.DeleteSessionResult.Message(childComplexity), true
-
-	case "GameConfig.description":
-		if e.complexity.GameConfig.Description == nil {
-			break
-		}
-
-		return e.complexity.GameConfig.Description(childComplexity), true
-
-	case "GameConfig.gridSize":
-		if e.complexity.GameConfig.GridSize == nil {
-			break
-		}
-
-		return e.complexity.GameConfig.GridSize(childComplexity), true
-
-	case "GameConfig.layout":
-		if e.complexity.GameConfig.Layout == nil {
-			break
-		}
-
-		return e.complexity.GameConfig.Layout(childComplexity), true
-
-	case "GameConfig.legend":
-		if e.complexity.GameConfig.Legend == nil {
-			break
-		}
-
-		return e.complexity.GameConfig.Legend(childComplexity), true
-
-	case "GameConfig.maxBattery":
-		if e.complexity.GameConfig.MaxBattery == nil {
-			break
-		}
-
-		return e.complexity.GameConfig.MaxBattery(childComplexity), true
-
-	case "GameConfig.messages":
-		if e.complexity.GameConfig.Messages == nil {
-			break
-		}
-
-		return e.complexity.GameConfig.Messages(childComplexity), true
-
-	case "GameConfig.name":
-		if e.complexity.GameConfig.Name == nil {
-			break
-		}
-
-		return e.complexity.GameConfig.Name(childComplexity), true
-
-	case "GameConfig.startingBattery":
-		if e.complexity.GameConfig.StartingBattery == nil {
-			break
-		}
-
-		return e.complexity.GameConfig.StartingBattery(childComplexity), true
-
-	case "GameConfig.wallCrashEndsGame":
-		if e.complexity.GameConfig.WallCrashEndsGame == nil {
-			break
-		}
-
-		return e.complexity.GameConfig.WallCrashEndsGame(childComplexity), true
 
 	case "GameEvent.message":
 		if e.complexity.GameEvent.Message == nil {
@@ -758,6 +576,69 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.GameEvent.Type(childComplexity), true
 
+	case "GameMap.description":
+		if e.complexity.GameMap.Description == nil {
+			break
+		}
+
+		return e.complexity.GameMap.Description(childComplexity), true
+
+	case "GameMap.gridSize":
+		if e.complexity.GameMap.GridSize == nil {
+			break
+		}
+
+		return e.complexity.GameMap.GridSize(childComplexity), true
+
+	case "GameMap.layout":
+		if e.complexity.GameMap.Layout == nil {
+			break
+		}
+
+		return e.complexity.GameMap.Layout(childComplexity), true
+
+	case "GameMap.legend":
+		if e.complexity.GameMap.Legend == nil {
+			break
+		}
+
+		return e.complexity.GameMap.Legend(childComplexity), true
+
+	case "GameMap.maxBattery":
+		if e.complexity.GameMap.MaxBattery == nil {
+			break
+		}
+
+		return e.complexity.GameMap.MaxBattery(childComplexity), true
+
+	case "GameMap.messages":
+		if e.complexity.GameMap.Messages == nil {
+			break
+		}
+
+		return e.complexity.GameMap.Messages(childComplexity), true
+
+	case "GameMap.name":
+		if e.complexity.GameMap.Name == nil {
+			break
+		}
+
+		return e.complexity.GameMap.Name(childComplexity), true
+
+	case "GameMap.startingBattery":
+		if e.complexity.GameMap.StartingBattery == nil {
+			break
+		}
+
+		return e.complexity.GameMap.StartingBattery(childComplexity), true
+
+	case "GameMap.wallCrashEndsGame":
+		if e.complexity.GameMap.WallCrashEndsGame == nil {
+			break
+		}
+
+		return e.complexity.GameMap.WallCrashEndsGame(childComplexity), true
+
 	case "GameState.battery":
 		if e.complexity.GameState.Battery == nil {
 			break
@@ -771,13 +652,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.GameState.BatteryRisk(childComplexity), true
-
-	case "GameState.configName":
-		if e.complexity.GameState.ConfigName == nil {
-			break
-		}
-
-		return e.complexity.GameState.ConfigName(childComplexity), true
 
 	case "GameState.currentMoves":
 		if e.complexity.GameState.CurrentMoves == nil {
@@ -820,6 +694,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.GameState.LocalView3x3(childComplexity), true
+
+	case "GameState.mapName":
+		if e.complexity.GameState.MapName == nil {
+			break
+		}
+
+		return e.complexity.GameState.MapName(childComplexity), true
 
 	case "GameState.maxBattery":
 		if e.complexity.GameState.MaxBattery == nil {
@@ -940,6 +821,125 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.LegendEntry.Value(childComplexity), true
 
+	case "MapInfo.description":
+		if e.complexity.MapInfo.Description == nil {
+			break
+		}
+
+		return e.complexity.MapInfo.Description(childComplexity), true
+
+	case "MapInfo.filename":
+		if e.complexity.MapInfo.Filename == nil {
+			break
+		}
+
+		return e.complexity.MapInfo.Filename(childComplexity), true
+
+	case "MapInfo.gridSize":
+		if e.complexity.MapInfo.GridSize == nil {
+			break
+		}
+
+		return e.complexity.MapInfo.GridSize(childComplexity), true
+
+	case "MapInfo.mapId":
+		if e.complexity.MapInfo.MapID == nil {
+			break
+		}
+
+		return e.complexity.MapInfo.MapID(childComplexity), true
+
+	case "MapInfo.maxBattery":
+		if e.complexity.MapInfo.MaxBattery == nil {
+			break
+		}
+
+		return e.complexity.MapInfo.MaxBattery(childComplexity), true
+
+	case "MapInfo.name":
+		if e.complexity.MapInfo.Name == nil {
+			break
+		}
+
+		return e.complexity.MapInfo.Name(childComplexity), true
+
+	case "MapMessages.batteryStatus":
+		if e.complexity.MapMessages.BatteryStatus == nil {
+			break
+		}
+
+		return e.complexity.MapMessages.BatteryStatus(childComplexity), true
+
+	case "MapMessages.cantMove":
+		if e.complexity.MapMessages.CantMove == nil {
+			break
+		}
+
+		return e.complexity.MapMessages.CantMove(childComplexity), true
+
+	case "MapMessages.hitWall":
+		if e.complexity.MapMessages.HitWall == nil {
+			break
+		}
+
+		return e.complexity.MapMessages.HitWall(childComplexity), true
+
+	case "MapMessages.homeCharge":
+		if e.complexity.MapMessages.HomeCharge == nil {
+			break
+		}
+
+		return e.complexity.MapMessages.HomeCharge(childComplexity), true
+
+	case "MapMessages.outOfBattery":
+		if e.complexity.MapMessages.OutOfBattery == nil {
+			break
+		}
+
+		return e.complexity.MapMessages.OutOfBattery(childComplexity), true
+
+	case "MapMessages.parkAlreadyVisited":
+		if e.complexity.MapMessages.ParkAlreadyVisited == nil {
+			break
+		}
+
+		return e.complexity.MapMessages.ParkAlreadyVisited(childComplexity), true
+
+	case "MapMessages.parkVisited":
+		if e.complexity.MapMessages.ParkVisited == nil {
+			break
+		}
+
+		return e.complexity.MapMessages.ParkVisited(childComplexity), true
+
+	case "MapMessages.stranded":
+		if e.complexity.MapMessages.Stranded == nil {
+			break
+		}
+
+		return e.complexity.MapMessages.Stranded(childComplexity), true
+
+	case "MapMessages.superchargerCharge":
+		if e.complexity.MapMessages.SuperchargerCharge == nil {
+			break
+		}
+
+		return e.complexity.MapMessages.SuperchargerCharge(childComplexity), true
+
+	case "MapMessages.victory":
+		if e.complexity.MapMessages.Victory == nil {
+			break
+		}
+
+		return e.complexity.MapMessages.Victory(childComplexity), true
+
+	case "MapMessages.welcome":
+		if e.complexity.MapMessages.Welcome == nil {
+			break
+		}
+
+		return e.complexity.MapMessages.Welcome(childComplexity), true
+
 	case "MoveHistoryEntry.action":
 		if e.complexity.MoveHistoryEntry.Action == nil {
 			break
@@ -1043,17 +1043,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Mutation.BulkMove(childComplexity, args["sessionID"].(string), args["moves"].([]model.Direction), args["reset"].(*bool)), true
 
-	case "Mutation.createConfig":
-		if e.complexity.Mutation.CreateConfig == nil {
+	case "Mutation.createMap":
+		if e.complexity.Mutation.CreateMap == nil {
 			break
 		}
 
-		args, err := ec.field_Mutation_createConfig_args(ctx, rawArgs)
+		args, err := ec.field_Mutation_createMap_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Mutation.CreateConfig(childComplexity, args["name"].(string), args["config"].(model.GameConfigInput)), true
+		return e.complexity.Mutation.CreateMap(childComplexity, args["name"].(string), args["map"].(model.GameMapInput)), true
 
 	case "Mutation.createSession":
 		if e.complexity.Mutation.CreateSession == nil {
@@ -1065,7 +1065,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Mutation.CreateSession(childComplexity, args["configID"].(*string), args["configName"].(*string)), true
+		return e.complexity.Mutation.CreateSession(childComplexity, args["mapID"].(*string), args["mapName"].(*string)), true
 
 	case "Mutation.deleteSession":
 		if e.complexity.Mutation.DeleteSession == nil {
@@ -1117,25 +1117,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Position.Y(childComplexity), true
 
-	case "Query.config":
-		if e.complexity.Query.Config == nil {
-			break
-		}
-
-		args, err := ec.field_Query_config_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Query.Config(childComplexity, args["name"].(string)), true
-
-	case "Query.configs":
-		if e.complexity.Query.Configs == nil {
-			break
-		}
-
-		return e.complexity.Query.Configs(childComplexity), true
-
 	case "Query.gameState":
 		if e.complexity.Query.GameState == nil {
 			break
@@ -1159,6 +1140,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.History(childComplexity, args["sessionID"].(string), args["page"].(*int), args["limit"].(*int), args["order"].(*model.SortOrder)), true
+
+	case "Query.map":
+		if e.complexity.Query.Map == nil {
+			break
+		}
+
+		args, err := ec.field_Query_map_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.Map(childComplexity, args["name"].(string)), true
+
+	case "Query.maps":
+		if e.complexity.Query.Maps == nil {
+			break
+		}
+
+		return e.complexity.Query.Maps(childComplexity), true
 
 	case "Query.session":
 		if e.complexity.Query.Session == nil {
@@ -1194,14 +1194,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Query.UnifiedSessions(childComplexity, args["configName"].(*string)), true
-
-	case "Session.configName":
-		if e.complexity.Session.ConfigName == nil {
-			break
-		}
-
-		return e.complexity.Session.ConfigName(childComplexity), true
+		return e.complexity.Query.UnifiedSessions(childComplexity, args["mapName"].(*string)), true
 
 	case "Session.createdAt":
 		if e.complexity.Session.CreatedAt == nil {
@@ -1210,12 +1203,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Session.CreatedAt(childComplexity), true
 
-	case "Session.gameConfig":
-		if e.complexity.Session.GameConfig == nil {
+	case "Session.gameMap":
+		if e.complexity.Session.GameMap == nil {
 			break
 		}
 
-		return e.complexity.Session.GameConfig(childComplexity), true
+		return e.complexity.Session.GameMap(childComplexity), true
 
 	case "Session.gameState":
 		if e.complexity.Session.GameState == nil {
@@ -1237,6 +1230,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Session.LastAccessedAt(childComplexity), true
+
+	case "Session.mapName":
+		if e.complexity.Session.MapName == nil {
+			break
+		}
+
+		return e.complexity.Session.MapName(childComplexity), true
 
 	case "SessionList.count":
 		if e.complexity.SessionList.Count == nil {
@@ -1404,12 +1404,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.UnifiedSession.CreatedAt(childComplexity), true
 
-	case "UnifiedSession.gameConfig":
-		if e.complexity.UnifiedSession.GameConfig == nil {
+	case "UnifiedSession.gameMap":
+		if e.complexity.UnifiedSession.GameMap == nil {
 			break
 		}
 
-		return e.complexity.UnifiedSession.GameConfig(childComplexity), true
+		return e.complexity.UnifiedSession.GameMap(childComplexity), true
 
 	case "UnifiedSession.gameState":
 		if e.complexity.UnifiedSession.GameState == nil {
@@ -1432,19 +1432,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.UnifiedSession.SessionID(childComplexity), true
 
-	case "UnifiedSessions.configName":
-		if e.complexity.UnifiedSessions.ConfigName == nil {
-			break
-		}
-
-		return e.complexity.UnifiedSessions.ConfigName(childComplexity), true
-
 	case "UnifiedSessions.count":
 		if e.complexity.UnifiedSessions.Count == nil {
 			break
 		}
 
 		return e.complexity.UnifiedSessions.Count(childComplexity), true
+
+	case "UnifiedSessions.mapName":
+		if e.complexity.UnifiedSessions.MapName == nil {
+			break
+		}
+
+		return e.complexity.UnifiedSessions.MapName(childComplexity), true
 
 	case "UnifiedSessions.sessions":
 		if e.complexity.UnifiedSessions.Sessions == nil {
@@ -1475,9 +1475,9 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	opCtx := graphql.GetOperationContext(ctx)
 	ec := executionContext{opCtx, e, 0, 0, make(chan graphql.DeferredResult)}
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
-		ec.unmarshalInputConfigMessagesInput,
-		ec.unmarshalInputGameConfigInput,
+		ec.unmarshalInputGameMapInput,
 		ec.unmarshalInputLegendEntryInput,
+		ec.unmarshalInputMapMessagesInput,
 	)
 	first := true
 
@@ -1600,20 +1600,20 @@ var sources = []*ast.Source{
 type Query {
   session(id: ID!): Session!
   sessions(sort: SessionSort = ACCESSED, order: SortOrder = DESC, limit: Int): SessionList!
-  unifiedSessions(configName: String): UnifiedSessions!
+  unifiedSessions(mapName: String): UnifiedSessions!
   gameState(sessionID: ID!): GameState!
   history(sessionID: ID!, page: Int = 1, limit: Int = 50, order: SortOrder = DESC): HistoryResponse!
-  configs: [ConfigInfo!]!
-  config(name: String!): GameConfig!
+  maps: [MapInfo!]!
+  map(name: String!): GameMap!
 }
 
 type Mutation {
-  createSession(configID: String, configName: String): Session!
+  createSession(mapID: String, mapName: String): Session!
   deleteSession(id: ID!): DeleteSessionResult!
   move(sessionID: ID!, direction: Direction!, reset: Boolean = false): MoveResult!
   bulkMove(sessionID: ID!, moves: [Direction!]!, reset: Boolean = false): BulkMoveResult!
   reset(sessionID: ID!): GameState!
-  createConfig(name: String!, config: GameConfigInput!): GameConfig!
+  createMap(name: String!, map: GameMapInput!): GameMap!
 }
 
 enum Direction { UP DOWN LEFT RIGHT }
@@ -1631,7 +1631,7 @@ type SessionList {
 }
 
 type UnifiedSessions {
-  configName: String!
+  mapName: String!
   count: Int!
   sessions: [UnifiedSession!]!
 }
@@ -1641,16 +1641,16 @@ type UnifiedSession {
   createdAt: String!
   lastAccessedAt: String!
   gameState: GameState!
-  gameConfig: GameConfig!
+  gameMap: GameMap!
 }
 
 type Session {
   id: ID!
-  configName: String!
+  mapName: String!
   createdAt: String!
   lastAccessedAt: String!
   gameState: GameState!
-  gameConfig: GameConfig!
+  gameMap: GameMap!
 }
 
 type GameState {
@@ -1663,7 +1663,7 @@ type GameState {
   message: String!
   gameOver: Boolean!
   victory: Boolean!
-  configName: String!
+  mapName: String!
   moveHistory: [MoveHistoryEntry!]!
   totalMoves: Int!
   localView: [SurroundingCell!]!
@@ -1695,7 +1695,7 @@ type MoveHistoryEntry {
   moveNumber: Int!
 }
 
-type GameConfig {
+type GameMap {
   name: String!
   description: String!
   gridSize: Int!
@@ -1704,12 +1704,12 @@ type GameConfig {
   layout: [String!]!
   legend: [LegendEntry!]!
   wallCrashEndsGame: Boolean!
-  messages: ConfigMessages!
+  messages: MapMessages!
 }
 
 type LegendEntry { key: String!, value: String! }
 
-type ConfigMessages {
+type MapMessages {
   welcome: String!
   homeCharge: String!
   superchargerCharge: String!
@@ -1723,7 +1723,7 @@ type ConfigMessages {
   hitWall: String!
 }
 
-input GameConfigInput {
+input GameMapInput {
   name: String!
   description: String!
   gridSize: Int!
@@ -1732,12 +1732,12 @@ input GameConfigInput {
   layout: [String!]!
   legend: [LegendEntryInput!]!
   wallCrashEndsGame: Boolean!
-  messages: ConfigMessagesInput!
+  messages: MapMessagesInput!
 }
 
 input LegendEntryInput { key: String!, value: String! }
 
-input ConfigMessagesInput {
+input MapMessagesInput {
   welcome: String!
   homeCharge: String!
   superchargerCharge: String!
@@ -1751,9 +1751,9 @@ input ConfigMessagesInput {
   hitWall: String!
 }
 
-type ConfigInfo {
+type MapInfo {
   filename: String!
-  configId: String!
+  mapId: String!
   name: String!
   description: String!
   gridSize: Int!
@@ -1917,22 +1917,22 @@ func (ec *executionContext) field_Mutation_bulkMove_argsReset(
 	return zeroVal, nil
 }
 
-func (ec *executionContext) field_Mutation_createConfig_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Mutation_createMap_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := ec.field_Mutation_createConfig_argsName(ctx, rawArgs)
+	arg0, err := ec.field_Mutation_createMap_argsName(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
 	args["name"] = arg0
-	arg1, err := ec.field_Mutation_createConfig_argsConfig(ctx, rawArgs)
+	arg1, err := ec.field_Mutation_createMap_argsMap(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
-	args["config"] = arg1
+	args["map"] = arg1
 	return args, nil
 }
-func (ec *executionContext) field_Mutation_createConfig_argsName(
+func (ec *executionContext) field_Mutation_createMap_argsName(
 	ctx context.Context,
 	rawArgs map[string]any,
 ) (string, error) {
@@ -1950,50 +1950,50 @@ func (ec *executionContext) field_Mutation_createConfig_argsName(
 	return zeroVal, nil
 }
 
-func (ec *executionContext) field_Mutation_createConfig_argsConfig(
+func (ec *executionContext) field_Mutation_createMap_argsMap(
 	ctx context.Context,
 	rawArgs map[string]any,
-) (model.GameConfigInput, error) {
-	if _, ok := rawArgs["config"]; !ok {
-		var zeroVal model.GameConfigInput
+) (model.GameMapInput, error) {
+	if _, ok := rawArgs["map"]; !ok {
+		var zeroVal model.GameMapInput
 		return zeroVal, nil
 	}
 
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("config"))
-	if tmp, ok := rawArgs["config"]; ok {
-		return ec.unmarshalNGameConfigInput2githubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐGameConfigInput(ctx, tmp)
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("map"))
+	if tmp, ok := rawArgs["map"]; ok {
+		return ec.unmarshalNGameMapInput2githubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐGameMapInput(ctx, tmp)
 	}
 
-	var zeroVal model.GameConfigInput
+	var zeroVal model.GameMapInput
 	return zeroVal, nil
 }
 
 func (ec *executionContext) field_Mutation_createSession_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := ec.field_Mutation_createSession_argsConfigID(ctx, rawArgs)
+	arg0, err := ec.field_Mutation_createSession_argsMapID(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
-	args["configID"] = arg0
-	arg1, err := ec.field_Mutation_createSession_argsConfigName(ctx, rawArgs)
+	args["mapID"] = arg0
+	arg1, err := ec.field_Mutation_createSession_argsMapName(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
-	args["configName"] = arg1
+	args["mapName"] = arg1
 	return args, nil
 }
-func (ec *executionContext) field_Mutation_createSession_argsConfigID(
+func (ec *executionContext) field_Mutation_createSession_argsMapID(
 	ctx context.Context,
 	rawArgs map[string]any,
 ) (*string, error) {
-	if _, ok := rawArgs["configID"]; !ok {
+	if _, ok := rawArgs["mapID"]; !ok {
 		var zeroVal *string
 		return zeroVal, nil
 	}
 
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("configID"))
-	if tmp, ok := rawArgs["configID"]; ok {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("mapID"))
+	if tmp, ok := rawArgs["mapID"]; ok {
 		return ec.unmarshalOString2ᚖstring(ctx, tmp)
 	}
 
@@ -2001,17 +2001,17 @@ func (ec *executionContext) field_Mutation_createSession_argsConfigID(
 	return zeroVal, nil
 }
 
-func (ec *executionContext) field_Mutation_createSession_argsConfigName(
+func (ec *executionContext) field_Mutation_createSession_argsMapName(
 	ctx context.Context,
 	rawArgs map[string]any,
 ) (*string, error) {
-	if _, ok := rawArgs["configName"]; !ok {
+	if _, ok := rawArgs["mapName"]; !ok {
 		var zeroVal *string
 		return zeroVal, nil
 	}
 
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("configName"))
-	if tmp, ok := rawArgs["configName"]; ok {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("mapName"))
+	if tmp, ok := rawArgs["mapName"]; ok {
 		return ec.unmarshalOString2ᚖstring(ctx, tmp)
 	}
 
@@ -2177,34 +2177,6 @@ func (ec *executionContext) field_Query___type_argsName(
 	return zeroVal, nil
 }
 
-func (ec *executionContext) field_Query_config_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := ec.field_Query_config_argsName(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["name"] = arg0
-	return args, nil
-}
-func (ec *executionContext) field_Query_config_argsName(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	if _, ok := rawArgs["name"]; !ok {
-		var zeroVal string
-		return zeroVal, nil
-	}
-
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
-	if tmp, ok := rawArgs["name"]; ok {
-		return ec.unmarshalNString2string(ctx, tmp)
-	}
-
-	var zeroVal string
-	return zeroVal, nil
-}
-
 func (ec *executionContext) field_Query_gameState_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -2330,6 +2302,34 @@ func (ec *executionContext) field_Query_history_argsOrder(
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Query_map_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_map_argsName(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["name"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_map_argsName(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["name"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+	if tmp, ok := rawArgs["name"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Query_session_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -2435,24 +2435,24 @@ func (ec *executionContext) field_Query_sessions_argsLimit(
 func (ec *executionContext) field_Query_unifiedSessions_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := ec.field_Query_unifiedSessions_argsConfigName(ctx, rawArgs)
+	arg0, err := ec.field_Query_unifiedSessions_argsMapName(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
-	args["configName"] = arg0
+	args["mapName"] = arg0
 	return args, nil
 }
-func (ec *executionContext) field_Query_unifiedSessions_argsConfigName(
+func (ec *executionContext) field_Query_unifiedSessions_argsMapName(
 	ctx context.Context,
 	rawArgs map[string]any,
 ) (*string, error) {
-	if _, ok := rawArgs["configName"]; !ok {
+	if _, ok := rawArgs["mapName"]; !ok {
 		var zeroVal *string
 		return zeroVal, nil
 	}
 
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("configName"))
-	if tmp, ok := rawArgs["configName"]; ok {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("mapName"))
+	if tmp, ok := rawArgs["mapName"]; ok {
 		return ec.unmarshalOString2ᚖstring(ctx, tmp)
 	}
 
@@ -3061,8 +3061,8 @@ func (ec *executionContext) fieldContext_BulkMoveResult_gameState(_ context.Cont
 				return ec.fieldContext_GameState_gameOver(ctx, field)
 			case "victory":
 				return ec.fieldContext_GameState_victory(ctx, field)
-			case "configName":
-				return ec.fieldContext_GameState_configName(ctx, field)
+			case "mapName":
+				return ec.fieldContext_GameState_mapName(ctx, field)
 			case "moveHistory":
 				return ec.fieldContext_GameState_moveHistory(ctx, field)
 			case "totalMoves":
@@ -4109,754 +4109,6 @@ func (ec *executionContext) fieldContext_Cell_id(_ context.Context, field graphq
 	return fc, nil
 }
 
-func (ec *executionContext) _ConfigInfo_filename(ctx context.Context, field graphql.CollectedField, obj *model.ConfigInfo) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_ConfigInfo_filename(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Filename, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_ConfigInfo_filename(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ConfigInfo",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _ConfigInfo_configId(ctx context.Context, field graphql.CollectedField, obj *model.ConfigInfo) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_ConfigInfo_configId(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.ConfigID, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_ConfigInfo_configId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ConfigInfo",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _ConfigInfo_name(ctx context.Context, field graphql.CollectedField, obj *model.ConfigInfo) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_ConfigInfo_name(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Name, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_ConfigInfo_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ConfigInfo",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _ConfigInfo_description(ctx context.Context, field graphql.CollectedField, obj *model.ConfigInfo) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_ConfigInfo_description(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Description, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_ConfigInfo_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ConfigInfo",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _ConfigInfo_gridSize(ctx context.Context, field graphql.CollectedField, obj *model.ConfigInfo) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_ConfigInfo_gridSize(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.GridSize, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(int)
-	fc.Result = res
-	return ec.marshalNInt2int(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_ConfigInfo_gridSize(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ConfigInfo",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _ConfigInfo_maxBattery(ctx context.Context, field graphql.CollectedField, obj *model.ConfigInfo) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_ConfigInfo_maxBattery(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.MaxBattery, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(int)
-	fc.Result = res
-	return ec.marshalNInt2int(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_ConfigInfo_maxBattery(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ConfigInfo",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _ConfigMessages_welcome(ctx context.Context, field graphql.CollectedField, obj *model.ConfigMessages) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_ConfigMessages_welcome(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Welcome, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_ConfigMessages_welcome(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ConfigMessages",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _ConfigMessages_homeCharge(ctx context.Context, field graphql.CollectedField, obj *model.ConfigMessages) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_ConfigMessages_homeCharge(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.HomeCharge, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_ConfigMessages_homeCharge(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ConfigMessages",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _ConfigMessages_superchargerCharge(ctx context.Context, field graphql.CollectedField, obj *model.ConfigMessages) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_ConfigMessages_superchargerCharge(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.SuperchargerCharge, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_ConfigMessages_superchargerCharge(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ConfigMessages",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _ConfigMessages_parkVisited(ctx context.Context, field graphql.CollectedField, obj *model.ConfigMessages) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_ConfigMessages_parkVisited(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.ParkVisited, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_ConfigMessages_parkVisited(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ConfigMessages",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _ConfigMessages_parkAlreadyVisited(ctx context.Context, field graphql.CollectedField, obj *model.ConfigMessages) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_ConfigMessages_parkAlreadyVisited(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.ParkAlreadyVisited, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_ConfigMessages_parkAlreadyVisited(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ConfigMessages",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _ConfigMessages_victory(ctx context.Context, field graphql.CollectedField, obj *model.ConfigMessages) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_ConfigMessages_victory(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Victory, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_ConfigMessages_victory(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ConfigMessages",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _ConfigMessages_outOfBattery(ctx context.Context, field graphql.CollectedField, obj *model.ConfigMessages) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_ConfigMessages_outOfBattery(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.OutOfBattery, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_ConfigMessages_outOfBattery(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ConfigMessages",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _ConfigMessages_stranded(ctx context.Context, field graphql.CollectedField, obj *model.ConfigMessages) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_ConfigMessages_stranded(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Stranded, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_ConfigMessages_stranded(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ConfigMessages",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _ConfigMessages_cantMove(ctx context.Context, field graphql.CollectedField, obj *model.ConfigMessages) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_ConfigMessages_cantMove(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.CantMove, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_ConfigMessages_cantMove(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ConfigMessages",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _ConfigMessages_batteryStatus(ctx context.Context, field graphql.CollectedField, obj *model.ConfigMessages) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_ConfigMessages_batteryStatus(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.BatteryStatus, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_ConfigMessages_batteryStatus(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ConfigMessages",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _ConfigMessages_hitWall(ctx context.Context, field graphql.CollectedField, obj *model.ConfigMessages) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_ConfigMessages_hitWall(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.HitWall, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_ConfigMessages_hitWall(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ConfigMessages",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _DeleteSessionResult_message(ctx context.Context, field graphql.CollectedField, obj *model.DeleteSessionResult) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_DeleteSessionResult_message(ctx, field)
 	if err != nil {
@@ -4896,432 +4148,6 @@ func (ec *executionContext) fieldContext_DeleteSessionResult_message(_ context.C
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _GameConfig_name(ctx context.Context, field graphql.CollectedField, obj *model.GameConfig) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_GameConfig_name(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Name, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_GameConfig_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "GameConfig",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _GameConfig_description(ctx context.Context, field graphql.CollectedField, obj *model.GameConfig) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_GameConfig_description(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Description, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_GameConfig_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "GameConfig",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _GameConfig_gridSize(ctx context.Context, field graphql.CollectedField, obj *model.GameConfig) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_GameConfig_gridSize(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.GridSize, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(int)
-	fc.Result = res
-	return ec.marshalNInt2int(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_GameConfig_gridSize(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "GameConfig",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _GameConfig_maxBattery(ctx context.Context, field graphql.CollectedField, obj *model.GameConfig) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_GameConfig_maxBattery(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.MaxBattery, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(int)
-	fc.Result = res
-	return ec.marshalNInt2int(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_GameConfig_maxBattery(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "GameConfig",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _GameConfig_startingBattery(ctx context.Context, field graphql.CollectedField, obj *model.GameConfig) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_GameConfig_startingBattery(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.StartingBattery, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(int)
-	fc.Result = res
-	return ec.marshalNInt2int(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_GameConfig_startingBattery(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "GameConfig",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _GameConfig_layout(ctx context.Context, field graphql.CollectedField, obj *model.GameConfig) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_GameConfig_layout(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Layout, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.([]string)
-	fc.Result = res
-	return ec.marshalNString2ᚕstringᚄ(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_GameConfig_layout(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "GameConfig",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _GameConfig_legend(ctx context.Context, field graphql.CollectedField, obj *model.GameConfig) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_GameConfig_legend(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Legend, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.([]*model.LegendEntry)
-	fc.Result = res
-	return ec.marshalNLegendEntry2ᚕᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐLegendEntryᚄ(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_GameConfig_legend(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "GameConfig",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "key":
-				return ec.fieldContext_LegendEntry_key(ctx, field)
-			case "value":
-				return ec.fieldContext_LegendEntry_value(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type LegendEntry", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _GameConfig_wallCrashEndsGame(ctx context.Context, field graphql.CollectedField, obj *model.GameConfig) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_GameConfig_wallCrashEndsGame(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.WallCrashEndsGame, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(bool)
-	fc.Result = res
-	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_GameConfig_wallCrashEndsGame(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "GameConfig",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _GameConfig_messages(ctx context.Context, field graphql.CollectedField, obj *model.GameConfig) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_GameConfig_messages(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Messages, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(*model.ConfigMessages)
-	fc.Result = res
-	return ec.marshalNConfigMessages2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐConfigMessages(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_GameConfig_messages(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "GameConfig",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "welcome":
-				return ec.fieldContext_ConfigMessages_welcome(ctx, field)
-			case "homeCharge":
-				return ec.fieldContext_ConfigMessages_homeCharge(ctx, field)
-			case "superchargerCharge":
-				return ec.fieldContext_ConfigMessages_superchargerCharge(ctx, field)
-			case "parkVisited":
-				return ec.fieldContext_ConfigMessages_parkVisited(ctx, field)
-			case "parkAlreadyVisited":
-				return ec.fieldContext_ConfigMessages_parkAlreadyVisited(ctx, field)
-			case "victory":
-				return ec.fieldContext_ConfigMessages_victory(ctx, field)
-			case "outOfBattery":
-				return ec.fieldContext_ConfigMessages_outOfBattery(ctx, field)
-			case "stranded":
-				return ec.fieldContext_ConfigMessages_stranded(ctx, field)
-			case "cantMove":
-				return ec.fieldContext_ConfigMessages_cantMove(ctx, field)
-			case "batteryStatus":
-				return ec.fieldContext_ConfigMessages_batteryStatus(ctx, field)
-			case "hitWall":
-				return ec.fieldContext_ConfigMessages_hitWall(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type ConfigMessages", field.Name)
 		},
 	}
 	return fc, nil
@@ -5504,6 +4330,432 @@ func (ec *executionContext) fieldContext_GameEvent_position(_ context.Context, f
 				return ec.fieldContext_Position_y(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Position", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameMap_name(ctx context.Context, field graphql.CollectedField, obj *model.GameMap) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_GameMap_name(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Name, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_GameMap_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameMap",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameMap_description(ctx context.Context, field graphql.CollectedField, obj *model.GameMap) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_GameMap_description(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Description, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_GameMap_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameMap",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameMap_gridSize(ctx context.Context, field graphql.CollectedField, obj *model.GameMap) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_GameMap_gridSize(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.GridSize, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_GameMap_gridSize(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameMap",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameMap_maxBattery(ctx context.Context, field graphql.CollectedField, obj *model.GameMap) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_GameMap_maxBattery(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.MaxBattery, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_GameMap_maxBattery(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameMap",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameMap_startingBattery(ctx context.Context, field graphql.CollectedField, obj *model.GameMap) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_GameMap_startingBattery(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.StartingBattery, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_GameMap_startingBattery(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameMap",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameMap_layout(ctx context.Context, field graphql.CollectedField, obj *model.GameMap) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_GameMap_layout(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Layout, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]string)
+	fc.Result = res
+	return ec.marshalNString2ᚕstringᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_GameMap_layout(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameMap",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameMap_legend(ctx context.Context, field graphql.CollectedField, obj *model.GameMap) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_GameMap_legend(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Legend, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.LegendEntry)
+	fc.Result = res
+	return ec.marshalNLegendEntry2ᚕᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐLegendEntryᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_GameMap_legend(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameMap",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "key":
+				return ec.fieldContext_LegendEntry_key(ctx, field)
+			case "value":
+				return ec.fieldContext_LegendEntry_value(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type LegendEntry", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameMap_wallCrashEndsGame(ctx context.Context, field graphql.CollectedField, obj *model.GameMap) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_GameMap_wallCrashEndsGame(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.WallCrashEndsGame, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_GameMap_wallCrashEndsGame(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameMap",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameMap_messages(ctx context.Context, field graphql.CollectedField, obj *model.GameMap) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_GameMap_messages(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Messages, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.MapMessages)
+	fc.Result = res
+	return ec.marshalNMapMessages2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐMapMessages(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_GameMap_messages(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameMap",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "welcome":
+				return ec.fieldContext_MapMessages_welcome(ctx, field)
+			case "homeCharge":
+				return ec.fieldContext_MapMessages_homeCharge(ctx, field)
+			case "superchargerCharge":
+				return ec.fieldContext_MapMessages_superchargerCharge(ctx, field)
+			case "parkVisited":
+				return ec.fieldContext_MapMessages_parkVisited(ctx, field)
+			case "parkAlreadyVisited":
+				return ec.fieldContext_MapMessages_parkAlreadyVisited(ctx, field)
+			case "victory":
+				return ec.fieldContext_MapMessages_victory(ctx, field)
+			case "outOfBattery":
+				return ec.fieldContext_MapMessages_outOfBattery(ctx, field)
+			case "stranded":
+				return ec.fieldContext_MapMessages_stranded(ctx, field)
+			case "cantMove":
+				return ec.fieldContext_MapMessages_cantMove(ctx, field)
+			case "batteryStatus":
+				return ec.fieldContext_MapMessages_batteryStatus(ctx, field)
+			case "hitWall":
+				return ec.fieldContext_MapMessages_hitWall(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type MapMessages", field.Name)
 		},
 	}
 	return fc, nil
@@ -5925,8 +5177,8 @@ func (ec *executionContext) fieldContext_GameState_victory(_ context.Context, fi
 	return fc, nil
 }
 
-func (ec *executionContext) _GameState_configName(ctx context.Context, field graphql.CollectedField, obj *model.GameState) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_GameState_configName(ctx, field)
+func (ec *executionContext) _GameState_mapName(ctx context.Context, field graphql.CollectedField, obj *model.GameState) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_GameState_mapName(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -5939,7 +5191,7 @@ func (ec *executionContext) _GameState_configName(ctx context.Context, field gra
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.ConfigName, nil
+		return obj.MapName, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -5956,7 +5208,7 @@ func (ec *executionContext) _GameState_configName(ctx context.Context, field gra
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_GameState_configName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_GameState_mapName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "GameState",
 		Field:      field,
@@ -6729,6 +5981,754 @@ func (ec *executionContext) fieldContext_LegendEntry_value(_ context.Context, fi
 	return fc, nil
 }
 
+func (ec *executionContext) _MapInfo_filename(ctx context.Context, field graphql.CollectedField, obj *model.MapInfo) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MapInfo_filename(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Filename, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MapInfo_filename(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MapInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MapInfo_mapId(ctx context.Context, field graphql.CollectedField, obj *model.MapInfo) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MapInfo_mapId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.MapID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MapInfo_mapId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MapInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MapInfo_name(ctx context.Context, field graphql.CollectedField, obj *model.MapInfo) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MapInfo_name(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Name, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MapInfo_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MapInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MapInfo_description(ctx context.Context, field graphql.CollectedField, obj *model.MapInfo) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MapInfo_description(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Description, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MapInfo_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MapInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MapInfo_gridSize(ctx context.Context, field graphql.CollectedField, obj *model.MapInfo) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MapInfo_gridSize(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.GridSize, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MapInfo_gridSize(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MapInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MapInfo_maxBattery(ctx context.Context, field graphql.CollectedField, obj *model.MapInfo) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MapInfo_maxBattery(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.MaxBattery, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MapInfo_maxBattery(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MapInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MapMessages_welcome(ctx context.Context, field graphql.CollectedField, obj *model.MapMessages) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MapMessages_welcome(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Welcome, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MapMessages_welcome(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MapMessages",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MapMessages_homeCharge(ctx context.Context, field graphql.CollectedField, obj *model.MapMessages) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MapMessages_homeCharge(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.HomeCharge, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MapMessages_homeCharge(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MapMessages",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MapMessages_superchargerCharge(ctx context.Context, field graphql.CollectedField, obj *model.MapMessages) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MapMessages_superchargerCharge(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.SuperchargerCharge, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MapMessages_superchargerCharge(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MapMessages",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MapMessages_parkVisited(ctx context.Context, field graphql.CollectedField, obj *model.MapMessages) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MapMessages_parkVisited(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ParkVisited, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MapMessages_parkVisited(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MapMessages",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MapMessages_parkAlreadyVisited(ctx context.Context, field graphql.CollectedField, obj *model.MapMessages) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MapMessages_parkAlreadyVisited(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ParkAlreadyVisited, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MapMessages_parkAlreadyVisited(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MapMessages",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MapMessages_victory(ctx context.Context, field graphql.CollectedField, obj *model.MapMessages) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MapMessages_victory(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Victory, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MapMessages_victory(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MapMessages",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MapMessages_outOfBattery(ctx context.Context, field graphql.CollectedField, obj *model.MapMessages) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MapMessages_outOfBattery(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.OutOfBattery, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MapMessages_outOfBattery(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MapMessages",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MapMessages_stranded(ctx context.Context, field graphql.CollectedField, obj *model.MapMessages) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MapMessages_stranded(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Stranded, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MapMessages_stranded(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MapMessages",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MapMessages_cantMove(ctx context.Context, field graphql.CollectedField, obj *model.MapMessages) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MapMessages_cantMove(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CantMove, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MapMessages_cantMove(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MapMessages",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MapMessages_batteryStatus(ctx context.Context, field graphql.CollectedField, obj *model.MapMessages) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MapMessages_batteryStatus(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.BatteryStatus, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MapMessages_batteryStatus(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MapMessages",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MapMessages_hitWall(ctx context.Context, field graphql.CollectedField, obj *model.MapMessages) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MapMessages_hitWall(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.HitWall, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MapMessages_hitWall(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MapMessages",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _MoveHistoryEntry_action(ctx context.Context, field graphql.CollectedField, obj *model.MoveHistoryEntry) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_MoveHistoryEntry_action(ctx, field)
 	if err != nil {
@@ -7150,8 +7150,8 @@ func (ec *executionContext) fieldContext_MoveResult_gameState(_ context.Context,
 				return ec.fieldContext_GameState_gameOver(ctx, field)
 			case "victory":
 				return ec.fieldContext_GameState_victory(ctx, field)
-			case "configName":
-				return ec.fieldContext_GameState_configName(ctx, field)
+			case "mapName":
+				return ec.fieldContext_GameState_mapName(ctx, field)
 			case "moveHistory":
 				return ec.fieldContext_GameState_moveHistory(ctx, field)
 			case "totalMoves":
@@ -7405,7 +7405,7 @@ func (ec *executionContext) _Mutation_createSession(ctx context.Context, field g
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().CreateSession(rctx, fc.Args["configID"].(*string), fc.Args["configName"].(*string))
+		return ec.resolvers.Mutation().CreateSession(rctx, fc.Args["mapID"].(*string), fc.Args["mapName"].(*string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -7432,16 +7432,16 @@ func (ec *executionContext) fieldContext_Mutation_createSession(ctx context.Cont
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_Session_id(ctx, field)
-			case "configName":
-				return ec.fieldContext_Session_configName(ctx, field)
+			case "mapName":
+				return ec.fieldContext_Session_mapName(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Session_createdAt(ctx, field)
 			case "lastAccessedAt":
 				return ec.fieldContext_Session_lastAccessedAt(ctx, field)
 			case "gameState":
 				return ec.fieldContext_Session_gameState(ctx, field)
-			case "gameConfig":
-				return ec.fieldContext_Session_gameConfig(ctx, field)
+			case "gameMap":
+				return ec.fieldContext_Session_gameMap(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Session", field.Name)
 		},
@@ -7750,8 +7750,8 @@ func (ec *executionContext) fieldContext_Mutation_reset(ctx context.Context, fie
 				return ec.fieldContext_GameState_gameOver(ctx, field)
 			case "victory":
 				return ec.fieldContext_GameState_victory(ctx, field)
-			case "configName":
-				return ec.fieldContext_GameState_configName(ctx, field)
+			case "mapName":
+				return ec.fieldContext_GameState_mapName(ctx, field)
 			case "moveHistory":
 				return ec.fieldContext_GameState_moveHistory(ctx, field)
 			case "totalMoves":
@@ -7784,8 +7784,8 @@ func (ec *executionContext) fieldContext_Mutation_reset(ctx context.Context, fie
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_createConfig(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Mutation_createConfig(ctx, field)
+func (ec *executionContext) _Mutation_createMap(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_createMap(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -7798,7 +7798,7 @@ func (ec *executionContext) _Mutation_createConfig(ctx context.Context, field gr
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().CreateConfig(rctx, fc.Args["name"].(string), fc.Args["config"].(model.GameConfigInput))
+		return ec.resolvers.Mutation().CreateMap(rctx, fc.Args["name"].(string), fc.Args["map"].(model.GameMapInput))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -7810,12 +7810,12 @@ func (ec *executionContext) _Mutation_createConfig(ctx context.Context, field gr
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.GameConfig)
+	res := resTmp.(*model.GameMap)
 	fc.Result = res
-	return ec.marshalNGameConfig2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐGameConfig(ctx, field.Selections, res)
+	return ec.marshalNGameMap2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐGameMap(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Mutation_createConfig(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_createMap(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -7824,25 +7824,25 @@ func (ec *executionContext) fieldContext_Mutation_createConfig(ctx context.Conte
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "name":
-				return ec.fieldContext_GameConfig_name(ctx, field)
+				return ec.fieldContext_GameMap_name(ctx, field)
 			case "description":
-				return ec.fieldContext_GameConfig_description(ctx, field)
+				return ec.fieldContext_GameMap_description(ctx, field)
 			case "gridSize":
-				return ec.fieldContext_GameConfig_gridSize(ctx, field)
+				return ec.fieldContext_GameMap_gridSize(ctx, field)
 			case "maxBattery":
-				return ec.fieldContext_GameConfig_maxBattery(ctx, field)
+				return ec.fieldContext_GameMap_maxBattery(ctx, field)
 			case "startingBattery":
-				return ec.fieldContext_GameConfig_startingBattery(ctx, field)
+				return ec.fieldContext_GameMap_startingBattery(ctx, field)
 			case "layout":
-				return ec.fieldContext_GameConfig_layout(ctx, field)
+				return ec.fieldContext_GameMap_layout(ctx, field)
 			case "legend":
-				return ec.fieldContext_GameConfig_legend(ctx, field)
+				return ec.fieldContext_GameMap_legend(ctx, field)
 			case "wallCrashEndsGame":
-				return ec.fieldContext_GameConfig_wallCrashEndsGame(ctx, field)
+				return ec.fieldContext_GameMap_wallCrashEndsGame(ctx, field)
 			case "messages":
-				return ec.fieldContext_GameConfig_messages(ctx, field)
+				return ec.fieldContext_GameMap_messages(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type GameConfig", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type GameMap", field.Name)
 		},
 	}
 	defer func() {
@@ -7852,7 +7852,7 @@ func (ec *executionContext) fieldContext_Mutation_createConfig(ctx context.Conte
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_createConfig_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_createMap_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -7988,16 +7988,16 @@ func (ec *executionContext) fieldContext_Query_session(ctx context.Context, fiel
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_Session_id(ctx, field)
-			case "configName":
-				return ec.fieldContext_Session_configName(ctx, field)
+			case "mapName":
+				return ec.fieldContext_Session_mapName(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Session_createdAt(ctx, field)
 			case "lastAccessedAt":
 				return ec.fieldContext_Session_lastAccessedAt(ctx, field)
 			case "gameState":
 				return ec.fieldContext_Session_gameState(ctx, field)
-			case "gameConfig":
-				return ec.fieldContext_Session_gameConfig(ctx, field)
+			case "gameMap":
+				return ec.fieldContext_Session_gameMap(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Session", field.Name)
 		},
@@ -8097,7 +8097,7 @@ func (ec *executionContext) _Query_unifiedSessions(ctx context.Context, field gr
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().UnifiedSessions(rctx, fc.Args["configName"].(*string))
+		return ec.resolvers.Query().UnifiedSessions(rctx, fc.Args["mapName"].(*string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -8122,8 +8122,8 @@ func (ec *executionContext) fieldContext_Query_unifiedSessions(ctx context.Conte
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
-			case "configName":
-				return ec.fieldContext_UnifiedSessions_configName(ctx, field)
+			case "mapName":
+				return ec.fieldContext_UnifiedSessions_mapName(ctx, field)
 			case "count":
 				return ec.fieldContext_UnifiedSessions_count(ctx, field)
 			case "sessions":
@@ -8203,8 +8203,8 @@ func (ec *executionContext) fieldContext_Query_gameState(ctx context.Context, fi
 				return ec.fieldContext_GameState_gameOver(ctx, field)
 			case "victory":
 				return ec.fieldContext_GameState_victory(ctx, field)
-			case "configName":
-				return ec.fieldContext_GameState_configName(ctx, field)
+			case "mapName":
+				return ec.fieldContext_GameState_mapName(ctx, field)
 			case "moveHistory":
 				return ec.fieldContext_GameState_moveHistory(ctx, field)
 			case "totalMoves":
@@ -8308,8 +8308,8 @@ func (ec *executionContext) fieldContext_Query_history(ctx context.Context, fiel
 	return fc, nil
 }
 
-func (ec *executionContext) _Query_configs(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Query_configs(ctx, field)
+func (ec *executionContext) _Query_maps(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_maps(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -8322,7 +8322,7 @@ func (ec *executionContext) _Query_configs(ctx context.Context, field graphql.Co
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().Configs(rctx)
+		return ec.resolvers.Query().Maps(rctx)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -8334,12 +8334,12 @@ func (ec *executionContext) _Query_configs(ctx context.Context, field graphql.Co
 		}
 		return graphql.Null
 	}
-	res := resTmp.([]*model.ConfigInfo)
+	res := resTmp.([]*model.MapInfo)
 	fc.Result = res
-	return ec.marshalNConfigInfo2ᚕᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐConfigInfoᚄ(ctx, field.Selections, res)
+	return ec.marshalNMapInfo2ᚕᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐMapInfoᚄ(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Query_configs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Query_maps(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Query",
 		Field:      field,
@@ -8348,26 +8348,26 @@ func (ec *executionContext) fieldContext_Query_configs(_ context.Context, field 
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "filename":
-				return ec.fieldContext_ConfigInfo_filename(ctx, field)
-			case "configId":
-				return ec.fieldContext_ConfigInfo_configId(ctx, field)
+				return ec.fieldContext_MapInfo_filename(ctx, field)
+			case "mapId":
+				return ec.fieldContext_MapInfo_mapId(ctx, field)
 			case "name":
-				return ec.fieldContext_ConfigInfo_name(ctx, field)
+				return ec.fieldContext_MapInfo_name(ctx, field)
 			case "description":
-				return ec.fieldContext_ConfigInfo_description(ctx, field)
+				return ec.fieldContext_MapInfo_description(ctx, field)
 			case "gridSize":
-				return ec.fieldContext_ConfigInfo_gridSize(ctx, field)
+				return ec.fieldContext_MapInfo_gridSize(ctx, field)
 			case "maxBattery":
-				return ec.fieldContext_ConfigInfo_maxBattery(ctx, field)
+				return ec.fieldContext_MapInfo_maxBattery(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type ConfigInfo", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type MapInfo", field.Name)
 		},
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _Query_config(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Query_config(ctx, field)
+func (ec *executionContext) _Query_map(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_map(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -8380,7 +8380,7 @@ func (ec *executionContext) _Query_config(ctx context.Context, field graphql.Col
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().Config(rctx, fc.Args["name"].(string))
+		return ec.resolvers.Query().Map(rctx, fc.Args["name"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -8392,12 +8392,12 @@ func (ec *executionContext) _Query_config(ctx context.Context, field graphql.Col
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.GameConfig)
+	res := resTmp.(*model.GameMap)
 	fc.Result = res
-	return ec.marshalNGameConfig2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐGameConfig(ctx, field.Selections, res)
+	return ec.marshalNGameMap2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐGameMap(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Query_config(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Query_map(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Query",
 		Field:      field,
@@ -8406,25 +8406,25 @@ func (ec *executionContext) fieldContext_Query_config(ctx context.Context, field
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "name":
-				return ec.fieldContext_GameConfig_name(ctx, field)
+				return ec.fieldContext_GameMap_name(ctx, field)
 			case "description":
-				return ec.fieldContext_GameConfig_description(ctx, field)
+				return ec.fieldContext_GameMap_description(ctx, field)
 			case "gridSize":
-				return ec.fieldContext_GameConfig_gridSize(ctx, field)
+				return ec.fieldContext_GameMap_gridSize(ctx, field)
 			case "maxBattery":
-				return ec.fieldContext_GameConfig_maxBattery(ctx, field)
+				return ec.fieldContext_GameMap_maxBattery(ctx, field)
 			case "startingBattery":
-				return ec.fieldContext_GameConfig_startingBattery(ctx, field)
+				return ec.fieldContext_GameMap_startingBattery(ctx, field)
 			case "layout":
-				return ec.fieldContext_GameConfig_layout(ctx, field)
+				return ec.fieldContext_GameMap_layout(ctx, field)
 			case "legend":
-				return ec.fieldContext_GameConfig_legend(ctx, field)
+				return ec.fieldContext_GameMap_legend(ctx, field)
 			case "wallCrashEndsGame":
-				return ec.fieldContext_GameConfig_wallCrashEndsGame(ctx, field)
+				return ec.fieldContext_GameMap_wallCrashEndsGame(ctx, field)
 			case "messages":
-				return ec.fieldContext_GameConfig_messages(ctx, field)
+				return ec.fieldContext_GameMap_messages(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type GameConfig", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type GameMap", field.Name)
 		},
 	}
 	defer func() {
@@ -8434,7 +8434,7 @@ func (ec *executionContext) fieldContext_Query_config(ctx context.Context, field
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Query_config_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Query_map_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -8616,8 +8616,8 @@ func (ec *executionContext) fieldContext_Session_id(_ context.Context, field gra
 	return fc, nil
 }
 
-func (ec *executionContext) _Session_configName(ctx context.Context, field graphql.CollectedField, obj *model.Session) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Session_configName(ctx, field)
+func (ec *executionContext) _Session_mapName(ctx context.Context, field graphql.CollectedField, obj *model.Session) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Session_mapName(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -8630,7 +8630,7 @@ func (ec *executionContext) _Session_configName(ctx context.Context, field graph
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.ConfigName, nil
+		return obj.MapName, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -8647,7 +8647,7 @@ func (ec *executionContext) _Session_configName(ctx context.Context, field graph
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Session_configName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Session_mapName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Session",
 		Field:      field,
@@ -8805,8 +8805,8 @@ func (ec *executionContext) fieldContext_Session_gameState(_ context.Context, fi
 				return ec.fieldContext_GameState_gameOver(ctx, field)
 			case "victory":
 				return ec.fieldContext_GameState_victory(ctx, field)
-			case "configName":
-				return ec.fieldContext_GameState_configName(ctx, field)
+			case "mapName":
+				return ec.fieldContext_GameState_mapName(ctx, field)
 			case "moveHistory":
 				return ec.fieldContext_GameState_moveHistory(ctx, field)
 			case "totalMoves":
@@ -8828,8 +8828,8 @@ func (ec *executionContext) fieldContext_Session_gameState(_ context.Context, fi
 	return fc, nil
 }
 
-func (ec *executionContext) _Session_gameConfig(ctx context.Context, field graphql.CollectedField, obj *model.Session) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Session_gameConfig(ctx, field)
+func (ec *executionContext) _Session_gameMap(ctx context.Context, field graphql.CollectedField, obj *model.Session) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Session_gameMap(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -8842,7 +8842,7 @@ func (ec *executionContext) _Session_gameConfig(ctx context.Context, field graph
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.GameConfig, nil
+		return obj.GameMap, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -8854,12 +8854,12 @@ func (ec *executionContext) _Session_gameConfig(ctx context.Context, field graph
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.GameConfig)
+	res := resTmp.(*model.GameMap)
 	fc.Result = res
-	return ec.marshalNGameConfig2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐGameConfig(ctx, field.Selections, res)
+	return ec.marshalNGameMap2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐGameMap(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Session_gameConfig(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Session_gameMap(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Session",
 		Field:      field,
@@ -8868,25 +8868,25 @@ func (ec *executionContext) fieldContext_Session_gameConfig(_ context.Context, f
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "name":
-				return ec.fieldContext_GameConfig_name(ctx, field)
+				return ec.fieldContext_GameMap_name(ctx, field)
 			case "description":
-				return ec.fieldContext_GameConfig_description(ctx, field)
+				return ec.fieldContext_GameMap_description(ctx, field)
 			case "gridSize":
-				return ec.fieldContext_GameConfig_gridSize(ctx, field)
+				return ec.fieldContext_GameMap_gridSize(ctx, field)
 			case "maxBattery":
-				return ec.fieldContext_GameConfig_maxBattery(ctx, field)
+				return ec.fieldContext_GameMap_maxBattery(ctx, field)
 			case "startingBattery":
-				return ec.fieldContext_GameConfig_startingBattery(ctx, field)
+				return ec.fieldContext_GameMap_startingBattery(ctx, field)
 			case "layout":
-				return ec.fieldContext_GameConfig_layout(ctx, field)
+				return ec.fieldContext_GameMap_layout(ctx, field)
 			case "legend":
-				return ec.fieldContext_GameConfig_legend(ctx, field)
+				return ec.fieldContext_GameMap_legend(ctx, field)
 			case "wallCrashEndsGame":
-				return ec.fieldContext_GameConfig_wallCrashEndsGame(ctx, field)
+				return ec.fieldContext_GameMap_wallCrashEndsGame(ctx, field)
 			case "messages":
-				return ec.fieldContext_GameConfig_messages(ctx, field)
+				return ec.fieldContext_GameMap_messages(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type GameConfig", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type GameMap", field.Name)
 		},
 	}
 	return fc, nil
@@ -9021,16 +9021,16 @@ func (ec *executionContext) fieldContext_SessionList_sessions(_ context.Context,
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_Session_id(ctx, field)
-			case "configName":
-				return ec.fieldContext_Session_configName(ctx, field)
+			case "mapName":
+				return ec.fieldContext_Session_mapName(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Session_createdAt(ctx, field)
 			case "lastAccessedAt":
 				return ec.fieldContext_Session_lastAccessedAt(ctx, field)
 			case "gameState":
 				return ec.fieldContext_Session_gameState(ctx, field)
-			case "gameConfig":
-				return ec.fieldContext_Session_gameConfig(ctx, field)
+			case "gameMap":
+				return ec.fieldContext_Session_gameMap(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Session", field.Name)
 		},
@@ -9737,8 +9737,8 @@ func (ec *executionContext) fieldContext_Subscription_sessionUpdated(ctx context
 				return ec.fieldContext_GameState_gameOver(ctx, field)
 			case "victory":
 				return ec.fieldContext_GameState_victory(ctx, field)
-			case "configName":
-				return ec.fieldContext_GameState_configName(ctx, field)
+			case "mapName":
+				return ec.fieldContext_GameState_mapName(ctx, field)
 			case "moveHistory":
 				return ec.fieldContext_GameState_moveHistory(ctx, field)
 			case "totalMoves":
@@ -9842,8 +9842,8 @@ func (ec *executionContext) fieldContext_Subscription_lobbyUpdated(_ context.Con
 				return ec.fieldContext_GameState_gameOver(ctx, field)
 			case "victory":
 				return ec.fieldContext_GameState_victory(ctx, field)
-			case "configName":
-				return ec.fieldContext_GameState_configName(ctx, field)
+			case "mapName":
+				return ec.fieldContext_GameState_mapName(ctx, field)
 			case "moveHistory":
 				return ec.fieldContext_GameState_moveHistory(ctx, field)
 			case "totalMoves":
@@ -10186,8 +10186,8 @@ func (ec *executionContext) fieldContext_UnifiedSession_gameState(_ context.Cont
 				return ec.fieldContext_GameState_gameOver(ctx, field)
 			case "victory":
 				return ec.fieldContext_GameState_victory(ctx, field)
-			case "configName":
-				return ec.fieldContext_GameState_configName(ctx, field)
+			case "mapName":
+				return ec.fieldContext_GameState_mapName(ctx, field)
 			case "moveHistory":
 				return ec.fieldContext_GameState_moveHistory(ctx, field)
 			case "totalMoves":
@@ -10209,8 +10209,8 @@ func (ec *executionContext) fieldContext_UnifiedSession_gameState(_ context.Cont
 	return fc, nil
 }
 
-func (ec *executionContext) _UnifiedSession_gameConfig(ctx context.Context, field graphql.CollectedField, obj *model.UnifiedSession) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_UnifiedSession_gameConfig(ctx, field)
+func (ec *executionContext) _UnifiedSession_gameMap(ctx context.Context, field graphql.CollectedField, obj *model.UnifiedSession) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_UnifiedSession_gameMap(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -10223,7 +10223,7 @@ func (ec *executionContext) _UnifiedSession_gameConfig(ctx context.Context, fiel
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.GameConfig, nil
+		return obj.GameMap, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -10235,12 +10235,12 @@ func (ec *executionContext) _UnifiedSession_gameConfig(ctx context.Context, fiel
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.GameConfig)
+	res := resTmp.(*model.GameMap)
 	fc.Result = res
-	return ec.marshalNGameConfig2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐGameConfig(ctx, field.Selections, res)
+	return ec.marshalNGameMap2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐGameMap(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_UnifiedSession_gameConfig(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_UnifiedSession_gameMap(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "UnifiedSession",
 		Field:      field,
@@ -10249,32 +10249,32 @@ func (ec *executionContext) fieldContext_UnifiedSession_gameConfig(_ context.Con
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "name":
-				return ec.fieldContext_GameConfig_name(ctx, field)
+				return ec.fieldContext_GameMap_name(ctx, field)
 			case "description":
-				return ec.fieldContext_GameConfig_description(ctx, field)
+				return ec.fieldContext_GameMap_description(ctx, field)
 			case "gridSize":
-				return ec.fieldContext_GameConfig_gridSize(ctx, field)
+				return ec.fieldContext_GameMap_gridSize(ctx, field)
 			case "maxBattery":
-				return ec.fieldContext_GameConfig_maxBattery(ctx, field)
+				return ec.fieldContext_GameMap_maxBattery(ctx, field)
 			case "startingBattery":
-				return ec.fieldContext_GameConfig_startingBattery(ctx, field)
+				return ec.fieldContext_GameMap_startingBattery(ctx, field)
 			case "layout":
-				return ec.fieldContext_GameConfig_layout(ctx, field)
+				return ec.fieldContext_GameMap_layout(ctx, field)
 			case "legend":
-				return ec.fieldContext_GameConfig_legend(ctx, field)
+				return ec.fieldContext_GameMap_legend(ctx, field)
 			case "wallCrashEndsGame":
-				return ec.fieldContext_GameConfig_wallCrashEndsGame(ctx, field)
+				return ec.fieldContext_GameMap_wallCrashEndsGame(ctx, field)
 			case "messages":
-				return ec.fieldContext_GameConfig_messages(ctx, field)
+				return ec.fieldContext_GameMap_messages(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type GameConfig", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type GameMap", field.Name)
 		},
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _UnifiedSessions_configName(ctx context.Context, field graphql.CollectedField, obj *model.UnifiedSessions) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_UnifiedSessions_configName(ctx, field)
+func (ec *executionContext) _UnifiedSessions_mapName(ctx context.Context, field graphql.CollectedField, obj *model.UnifiedSessions) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_UnifiedSessions_mapName(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -10287,7 +10287,7 @@ func (ec *executionContext) _UnifiedSessions_configName(ctx context.Context, fie
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.ConfigName, nil
+		return obj.MapName, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -10304,7 +10304,7 @@ func (ec *executionContext) _UnifiedSessions_configName(ctx context.Context, fie
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_UnifiedSessions_configName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_UnifiedSessions_mapName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "UnifiedSessions",
 		Field:      field,
@@ -10408,8 +10408,8 @@ func (ec *executionContext) fieldContext_UnifiedSessions_sessions(_ context.Cont
 				return ec.fieldContext_UnifiedSession_lastAccessedAt(ctx, field)
 			case "gameState":
 				return ec.fieldContext_UnifiedSession_gameState(ctx, field)
-			case "gameConfig":
-				return ec.fieldContext_UnifiedSession_gameConfig(ctx, field)
+			case "gameMap":
+				return ec.fieldContext_UnifiedSession_gameMap(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type UnifiedSession", field.Name)
 		},
@@ -12456,8 +12456,125 @@ func (ec *executionContext) fieldContext___Type_isOneOf(_ context.Context, field
 
 // region    **************************** input.gotpl *****************************
 
-func (ec *executionContext) unmarshalInputConfigMessagesInput(ctx context.Context, obj any) (model.ConfigMessagesInput, error) {
-	var it model.ConfigMessagesInput
+func (ec *executionContext) unmarshalInputGameMapInput(ctx context.Context, obj any) (model.GameMapInput, error) {
+	var it model.GameMapInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"name", "description", "gridSize", "maxBattery", "startingBattery", "layout", "legend", "wallCrashEndsGame", "messages"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "description":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Description = data
+		case "gridSize":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("gridSize"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.GridSize = data
+		case "maxBattery":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("maxBattery"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MaxBattery = data
+		case "startingBattery":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("startingBattery"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.StartingBattery = data
+		case "layout":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("layout"))
+			data, err := ec.unmarshalNString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Layout = data
+		case "legend":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("legend"))
+			data, err := ec.unmarshalNLegendEntryInput2ᚕᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐLegendEntryInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Legend = data
+		case "wallCrashEndsGame":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("wallCrashEndsGame"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.WallCrashEndsGame = data
+		case "messages":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("messages"))
+			data, err := ec.unmarshalNMapMessagesInput2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐMapMessagesInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Messages = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputLegendEntryInput(ctx context.Context, obj any) (model.LegendEntryInput, error) {
+	var it model.LegendEntryInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"key", "value"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "key":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("key"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Key = data
+		case "value":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("value"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Value = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputMapMessagesInput(ctx context.Context, obj any) (model.MapMessagesInput, error) {
+	var it model.MapMessagesInput
 	asMap := map[string]any{}
 	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
@@ -12547,123 +12664,6 @@ func (ec *executionContext) unmarshalInputConfigMessagesInput(ctx context.Contex
 				return it, err
 			}
 			it.HitWall = data
-		}
-	}
-
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputGameConfigInput(ctx context.Context, obj any) (model.GameConfigInput, error) {
-	var it model.GameConfigInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"name", "description", "gridSize", "maxBattery", "startingBattery", "layout", "legend", "wallCrashEndsGame", "messages"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "name":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Name = data
-		case "description":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Description = data
-		case "gridSize":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("gridSize"))
-			data, err := ec.unmarshalNInt2int(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.GridSize = data
-		case "maxBattery":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("maxBattery"))
-			data, err := ec.unmarshalNInt2int(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.MaxBattery = data
-		case "startingBattery":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("startingBattery"))
-			data, err := ec.unmarshalNInt2int(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.StartingBattery = data
-		case "layout":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("layout"))
-			data, err := ec.unmarshalNString2ᚕstringᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Layout = data
-		case "legend":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("legend"))
-			data, err := ec.unmarshalNLegendEntryInput2ᚕᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐLegendEntryInputᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Legend = data
-		case "wallCrashEndsGame":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("wallCrashEndsGame"))
-			data, err := ec.unmarshalNBoolean2bool(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.WallCrashEndsGame = data
-		case "messages":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("messages"))
-			data, err := ec.unmarshalNConfigMessagesInput2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐConfigMessagesInput(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Messages = data
-		}
-	}
-
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputLegendEntryInput(ctx context.Context, obj any) (model.LegendEntryInput, error) {
-	var it model.LegendEntryInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"key", "value"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "key":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("key"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Key = data
-		case "value":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("value"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Value = data
 		}
 	}
 
@@ -12937,159 +12937,6 @@ func (ec *executionContext) _Cell(ctx context.Context, sel ast.SelectionSet, obj
 	return out
 }
 
-var configInfoImplementors = []string{"ConfigInfo"}
-
-func (ec *executionContext) _ConfigInfo(ctx context.Context, sel ast.SelectionSet, obj *model.ConfigInfo) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, configInfoImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("ConfigInfo")
-		case "filename":
-			out.Values[i] = ec._ConfigInfo_filename(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "configId":
-			out.Values[i] = ec._ConfigInfo_configId(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "name":
-			out.Values[i] = ec._ConfigInfo_name(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "description":
-			out.Values[i] = ec._ConfigInfo_description(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "gridSize":
-			out.Values[i] = ec._ConfigInfo_gridSize(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "maxBattery":
-			out.Values[i] = ec._ConfigInfo_maxBattery(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
-var configMessagesImplementors = []string{"ConfigMessages"}
-
-func (ec *executionContext) _ConfigMessages(ctx context.Context, sel ast.SelectionSet, obj *model.ConfigMessages) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, configMessagesImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("ConfigMessages")
-		case "welcome":
-			out.Values[i] = ec._ConfigMessages_welcome(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "homeCharge":
-			out.Values[i] = ec._ConfigMessages_homeCharge(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "superchargerCharge":
-			out.Values[i] = ec._ConfigMessages_superchargerCharge(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "parkVisited":
-			out.Values[i] = ec._ConfigMessages_parkVisited(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "parkAlreadyVisited":
-			out.Values[i] = ec._ConfigMessages_parkAlreadyVisited(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "victory":
-			out.Values[i] = ec._ConfigMessages_victory(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "outOfBattery":
-			out.Values[i] = ec._ConfigMessages_outOfBattery(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "stranded":
-			out.Values[i] = ec._ConfigMessages_stranded(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "cantMove":
-			out.Values[i] = ec._ConfigMessages_cantMove(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "batteryStatus":
-			out.Values[i] = ec._ConfigMessages_batteryStatus(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "hitWall":
-			out.Values[i] = ec._ConfigMessages_hitWall(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
 var deleteSessionResultImplementors = []string{"DeleteSessionResult"}
 
 func (ec *executionContext) _DeleteSessionResult(ctx context.Context, sel ast.SelectionSet, obj *model.DeleteSessionResult) graphql.Marshaler {
@@ -13103,85 +12950,6 @@ func (ec *executionContext) _DeleteSessionResult(ctx context.Context, sel ast.Se
 			out.Values[i] = graphql.MarshalString("DeleteSessionResult")
 		case "message":
 			out.Values[i] = ec._DeleteSessionResult_message(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
-var gameConfigImplementors = []string{"GameConfig"}
-
-func (ec *executionContext) _GameConfig(ctx context.Context, sel ast.SelectionSet, obj *model.GameConfig) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, gameConfigImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("GameConfig")
-		case "name":
-			out.Values[i] = ec._GameConfig_name(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "description":
-			out.Values[i] = ec._GameConfig_description(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "gridSize":
-			out.Values[i] = ec._GameConfig_gridSize(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "maxBattery":
-			out.Values[i] = ec._GameConfig_maxBattery(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "startingBattery":
-			out.Values[i] = ec._GameConfig_startingBattery(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "layout":
-			out.Values[i] = ec._GameConfig_layout(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "legend":
-			out.Values[i] = ec._GameConfig_legend(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "wallCrashEndsGame":
-			out.Values[i] = ec._GameConfig_wallCrashEndsGame(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "messages":
-			out.Values[i] = ec._GameConfig_messages(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -13236,6 +13004,85 @@ func (ec *executionContext) _GameEvent(ctx context.Context, sel ast.SelectionSet
 			}
 		case "position":
 			out.Values[i] = ec._GameEvent_position(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var gameMapImplementors = []string{"GameMap"}
+
+func (ec *executionContext) _GameMap(ctx context.Context, sel ast.SelectionSet, obj *model.GameMap) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, gameMapImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("GameMap")
+		case "name":
+			out.Values[i] = ec._GameMap_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "description":
+			out.Values[i] = ec._GameMap_description(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "gridSize":
+			out.Values[i] = ec._GameMap_gridSize(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "maxBattery":
+			out.Values[i] = ec._GameMap_maxBattery(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "startingBattery":
+			out.Values[i] = ec._GameMap_startingBattery(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "layout":
+			out.Values[i] = ec._GameMap_layout(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "legend":
+			out.Values[i] = ec._GameMap_legend(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "wallCrashEndsGame":
+			out.Values[i] = ec._GameMap_wallCrashEndsGame(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "messages":
+			out.Values[i] = ec._GameMap_messages(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -13318,8 +13165,8 @@ func (ec *executionContext) _GameState(ctx context.Context, sel ast.SelectionSet
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "configName":
-			out.Values[i] = ec._GameState_configName(ctx, field, obj)
+		case "mapName":
+			out.Values[i] = ec._GameState_mapName(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -13468,6 +13315,159 @@ func (ec *executionContext) _LegendEntry(ctx context.Context, sel ast.SelectionS
 			}
 		case "value":
 			out.Values[i] = ec._LegendEntry_value(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var mapInfoImplementors = []string{"MapInfo"}
+
+func (ec *executionContext) _MapInfo(ctx context.Context, sel ast.SelectionSet, obj *model.MapInfo) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, mapInfoImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("MapInfo")
+		case "filename":
+			out.Values[i] = ec._MapInfo_filename(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "mapId":
+			out.Values[i] = ec._MapInfo_mapId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._MapInfo_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "description":
+			out.Values[i] = ec._MapInfo_description(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "gridSize":
+			out.Values[i] = ec._MapInfo_gridSize(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "maxBattery":
+			out.Values[i] = ec._MapInfo_maxBattery(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var mapMessagesImplementors = []string{"MapMessages"}
+
+func (ec *executionContext) _MapMessages(ctx context.Context, sel ast.SelectionSet, obj *model.MapMessages) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, mapMessagesImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("MapMessages")
+		case "welcome":
+			out.Values[i] = ec._MapMessages_welcome(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "homeCharge":
+			out.Values[i] = ec._MapMessages_homeCharge(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "superchargerCharge":
+			out.Values[i] = ec._MapMessages_superchargerCharge(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "parkVisited":
+			out.Values[i] = ec._MapMessages_parkVisited(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "parkAlreadyVisited":
+			out.Values[i] = ec._MapMessages_parkAlreadyVisited(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "victory":
+			out.Values[i] = ec._MapMessages_victory(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "outOfBattery":
+			out.Values[i] = ec._MapMessages_outOfBattery(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "stranded":
+			out.Values[i] = ec._MapMessages_stranded(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "cantMove":
+			out.Values[i] = ec._MapMessages_cantMove(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "batteryStatus":
+			out.Values[i] = ec._MapMessages_batteryStatus(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "hitWall":
+			out.Values[i] = ec._MapMessages_hitWall(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -13675,9 +13675,9 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "createConfig":
+		case "createMap":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_createConfig(ctx, field)
+				return ec._Mutation_createMap(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -13878,7 +13878,7 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
-		case "configs":
+		case "maps":
 			field := field
 
 			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
@@ -13887,7 +13887,7 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._Query_configs(ctx, field)
+				res = ec._Query_maps(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -13900,7 +13900,7 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
-		case "config":
+		case "map":
 			field := field
 
 			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
@@ -13909,7 +13909,7 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._Query_config(ctx, field)
+				res = ec._Query_map(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -13969,8 +13969,8 @@ func (ec *executionContext) _Session(ctx context.Context, sel ast.SelectionSet, 
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "configName":
-			out.Values[i] = ec._Session_configName(ctx, field, obj)
+		case "mapName":
+			out.Values[i] = ec._Session_mapName(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -13989,8 +13989,8 @@ func (ec *executionContext) _Session(ctx context.Context, sel ast.SelectionSet, 
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "gameConfig":
-			out.Values[i] = ec._Session_gameConfig(ctx, field, obj)
+		case "gameMap":
+			out.Values[i] = ec._Session_gameMap(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -14272,8 +14272,8 @@ func (ec *executionContext) _UnifiedSession(ctx context.Context, sel ast.Selecti
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "gameConfig":
-			out.Values[i] = ec._UnifiedSession_gameConfig(ctx, field, obj)
+		case "gameMap":
+			out.Values[i] = ec._UnifiedSession_gameMap(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -14311,8 +14311,8 @@ func (ec *executionContext) _UnifiedSessions(ctx context.Context, sel ast.Select
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("UnifiedSessions")
-		case "configName":
-			out.Values[i] = ec._UnifiedSessions_configName(ctx, field, obj)
+		case "mapName":
+			out.Values[i] = ec._UnifiedSessions_mapName(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -14856,75 +14856,6 @@ func (ec *executionContext) marshalNCell2ᚖgithubᚗcomᚋwricardoᚋteslaᚑro
 	return ec._Cell(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNConfigInfo2ᚕᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐConfigInfoᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ConfigInfo) graphql.Marshaler {
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		fc := &graphql.FieldContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithFieldContext(ctx, fc)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalNConfigInfo2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐConfigInfo(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
-func (ec *executionContext) marshalNConfigInfo2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐConfigInfo(ctx context.Context, sel ast.SelectionSet, v *model.ConfigInfo) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._ConfigInfo(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNConfigMessages2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐConfigMessages(ctx context.Context, sel ast.SelectionSet, v *model.ConfigMessages) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._ConfigMessages(ctx, sel, v)
-}
-
-func (ec *executionContext) unmarshalNConfigMessagesInput2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐConfigMessagesInput(ctx context.Context, v any) (*model.ConfigMessagesInput, error) {
-	res, err := ec.unmarshalInputConfigMessagesInput(ctx, v)
-	return &res, graphql.ErrorOnPath(ctx, err)
-}
-
 func (ec *executionContext) marshalNDeleteSessionResult2githubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐDeleteSessionResult(ctx context.Context, sel ast.SelectionSet, v model.DeleteSessionResult) graphql.Marshaler {
 	return ec._DeleteSessionResult(ctx, sel, &v)
 }
@@ -15008,25 +14939,6 @@ func (ec *executionContext) marshalNDirection2ᚕgithubᚗcomᚋwricardoᚋtesla
 	return ret
 }
 
-func (ec *executionContext) marshalNGameConfig2githubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐGameConfig(ctx context.Context, sel ast.SelectionSet, v model.GameConfig) graphql.Marshaler {
-	return ec._GameConfig(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNGameConfig2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐGameConfig(ctx context.Context, sel ast.SelectionSet, v *model.GameConfig) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._GameConfig(ctx, sel, v)
-}
-
-func (ec *executionContext) unmarshalNGameConfigInput2githubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐGameConfigInput(ctx context.Context, v any) (model.GameConfigInput, error) {
-	res, err := ec.unmarshalInputGameConfigInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
 func (ec *executionContext) marshalNGameEvent2ᚕᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐGameEventᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.GameEvent) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
@@ -15079,6 +14991,25 @@ func (ec *executionContext) marshalNGameEvent2ᚖgithubᚗcomᚋwricardoᚋtesla
 		return graphql.Null
 	}
 	return ec._GameEvent(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNGameMap2githubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐGameMap(ctx context.Context, sel ast.SelectionSet, v model.GameMap) graphql.Marshaler {
+	return ec._GameMap(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNGameMap2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐGameMap(ctx context.Context, sel ast.SelectionSet, v *model.GameMap) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._GameMap(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNGameMapInput2githubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐGameMapInput(ctx context.Context, v any) (model.GameMapInput, error) {
+	res, err := ec.unmarshalInputGameMapInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNGameState2githubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐGameState(ctx context.Context, sel ast.SelectionSet, v model.GameState) graphql.Marshaler {
@@ -15212,6 +15143,75 @@ func (ec *executionContext) unmarshalNLegendEntryInput2ᚕᚖgithubᚗcomᚋwric
 
 func (ec *executionContext) unmarshalNLegendEntryInput2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐLegendEntryInput(ctx context.Context, v any) (*model.LegendEntryInput, error) {
 	res, err := ec.unmarshalInputLegendEntryInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNMapInfo2ᚕᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐMapInfoᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.MapInfo) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNMapInfo2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐMapInfo(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNMapInfo2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐMapInfo(ctx context.Context, sel ast.SelectionSet, v *model.MapInfo) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._MapInfo(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNMapMessages2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐMapMessages(ctx context.Context, sel ast.SelectionSet, v *model.MapMessages) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._MapMessages(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNMapMessagesInput2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐMapMessagesInput(ctx context.Context, v any) (*model.MapMessagesInput, error) {
+	res, err := ec.unmarshalInputMapMessagesInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 

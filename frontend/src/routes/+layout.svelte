@@ -34,7 +34,7 @@
 			<a href="/lobby" class="hover:text-[#393c41] transition-colors">Sessions</a>
 			<a href="/multi" class="hover:text-[#393c41] transition-colors">Multi Session</a>
 			<a href="/admin" class="hover:text-[#393c41] transition-colors">Admin</a>
-			<a href="/graphql" class="hover:text-[#393c41] transition-colors" target="_blank" rel="noreferrer">GraphQL</a>
+			<a href="/playground" class="hover:text-[#393c41] transition-colors" target="_blank" rel="noreferrer">GraphQL</a>
 		</nav>
 	</header>
 

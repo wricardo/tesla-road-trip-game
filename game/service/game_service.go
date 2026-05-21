@@ -24,10 +24,10 @@ type GameService interface {
 	GetGameState(ctx context.Context, sessionID string) (*engine.GameState, error)
 	GetMoveHistory(ctx context.Context, sessionID string, opts HistoryOptions) (*HistoryResponse, error)
 
-	// Configuration
-	ListConfigs(ctx context.Context) ([]*ConfigInfo, error)
-	LoadConfig(ctx context.Context, configName string) (*engine.GameConfig, error)
-	SaveConfig(ctx context.Context, configName string, config *engine.GameConfig) error
+	// Map management
+	ListMaps(ctx context.Context) ([]*MapInfo, error)
+	LoadMap(ctx context.Context, mapName string) (*engine.GameConfig, error)
+	SaveMap(ctx context.Context, mapName string, config *engine.GameConfig) error
 }
 
 // SessionManager defines session storage operations
@@ -44,7 +44,7 @@ type SessionManager interface {
 // ConfigManager handles game configuration loading
 type ConfigManager interface {
 	LoadConfig(name string) (*engine.GameConfig, error)
-	ListConfigs() ([]*ConfigInfo, error)
+	ListConfigs() ([]*MapInfo, error)
 	GetDefault() *engine.GameConfig
 	SaveConfig(name string, config *engine.GameConfig) error
 }

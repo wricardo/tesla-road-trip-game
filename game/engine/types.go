@@ -77,7 +77,7 @@ type GameState struct {
 	Message      string             `json:"message"`
 	GameOver     bool               `json:"game_over"`
 	Victory      bool               `json:"victory"`
-	ConfigName   string             `json:"config_name"`
+	MapName      string             `json:"map_name"`
 	MoveHistory  []MoveHistoryEntry `json:"move_history"`
 	TotalMoves   int                `json:"total_moves"`
 	LocalView    []SurroundingCell  `json:"local_view,omitempty"` // 8 surrounding cells
