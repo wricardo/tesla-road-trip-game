@@ -1,0 +1,73 @@
+export const SESSIONS_QUERY = `
+  query Sessions {
+    sessions {
+      sessions {
+        id
+        mapName
+        gameState {
+          battery
+          maxBattery
+          score
+          victory
+          gameOver
+          totalMoves
+          playerPos { x y }
+          grid { type visited id }
+        }
+      }
+    }
+  }
+`;
+
+export const LOBBY_SUBSCRIPTION = `
+  subscription LobbyUpdated {
+    lobbyUpdated {
+      mapName
+      battery
+      maxBattery
+      score
+      victory
+      gameOver
+      totalMoves
+      playerPos { x y }
+    }
+  }
+`;
+
+export const SESSION_SUBSCRIPTION = `
+  subscription SessionUpdated($sessionID: ID!) {
+    sessionUpdated(sessionID: $sessionID) {
+      battery
+      maxBattery
+      score
+      victory
+      gameOver
+      totalMoves
+      message
+      mapName
+      playerPos { x y }
+      grid { type visited id }
+    }
+  }
+`;
+
+export const MAPS_QUERY = `
+  query Maps {
+    maps {
+      mapId
+      name
+      description
+      gridSize
+      maxBattery
+    }
+  }
+`;
+
+export const CREATE_SESSION_MUTATION = `
+  mutation CreateSession($mapID: String) {
+    createSession(mapID: $mapID) {
+      id
+      mapName
+    }
+  }
+`;

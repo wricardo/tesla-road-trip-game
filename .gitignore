@@ -48,4 +48,10 @@ tmp/
 temp/
 node_modules/
 settings.local.json
+.claude/*.local.md
 *.html
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key

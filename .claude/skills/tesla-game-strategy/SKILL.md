@@ -112,10 +112,11 @@ When routes fail:
 ### Movement Tools
 - `move(session_id, direction, intent)`: Single careful move with reasoning
 - `bulk_move(session_id, moves, intent)`: Execute planned sequences with reasoning
+- **Intent parameter**: Brief explanation of your reasoning (serves as rubber duck debugging to clarify your strategy)
 - Both support optional `reset: true` parameter to restart before moving
 
 ### Session Management
-- `create_session(config_name?)`: Start new game with optional difficulty
+- `create_session(map_name?)`: Start new game with optional difficulty
 - `reset_game(session_id)`: Return to initial state, preserving session
 
 ### Documentation

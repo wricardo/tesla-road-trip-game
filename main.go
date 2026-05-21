@@ -1,7 +1,7 @@
 // Command statefullgame starts the Tesla Road Trip Game server.
 //
 // It supports two modes:
-//  1. "server" (default) – runs the HTTP server exposing REST API, WebSocket, and an /mcp HTTP endpoint
+//  1. "server" (default) – runs the HTTP server exposing GraphQL, WebSocket, and an /mcp HTTP endpoint
 //  2. "stdio-mcp" – runs an MCP stdio server and spins up an internal HTTP API if none is available
 //
 // Flags control host/port, config directory, debug logging, version output,
@@ -9,27 +9,30 @@
 package main
 
 import (
+	"bytes"
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"log"
-	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
+	"text/template"
 	"time"
 
+	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/handler/extension"
+	"github.com/99designs/gqlgen/graphql/handler/transport"
+	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/joho/godotenv"
-	"github.com/mark3labs/mcp-go/server"
 	"github.com/wricardo/tesla-road-trip-game/api"
 	"github.com/wricardo/tesla-road-trip-game/game/config"
 	"github.com/wricardo/tesla-road-trip-game/game/service"
 	"github.com/wricardo/tesla-road-trip-game/game/session"
-	"github.com/wricardo/tesla-road-trip-game/transport/mcp"
+	"github.com/wricardo/tesla-road-trip-game/graph"
+	"github.com/wricardo/tesla-road-trip-game/graph/generated"
 	"github.com/wricardo/tesla-road-trip-game/transport/websocket"
 	"golang.ngrok.com/ngrok"
 	ngrokConfig "golang.ngrok.com/ngrok/config"
@@ -51,7 +54,261 @@ var (
 	ngrokEnabled = flag.Bool("ngrok", false, "Enable ngrok tunnel")
 	ngrokAuth    = flag.String("ngrok-auth", "", "Ngrok auth token (or use NGROK_AUTHTOKEN env var)")
 	ngrokDomain  = flag.String("ngrok-domain", "", "Custom ngrok domain (optional)")
+	publicURL    = flag.String("public-url", "", "Public base URL served in llms.txt (e.g. https://myserver.com). Defaults to http://<host>:<port>")
 )
+
+var llmsTxtTemplate = template.Must(template.New("llms").Parse(`# Tesla Road Trip Game — LLM Guide
+
+Grid-based navigation game. Control a Tesla, collect all parks, manage battery. Win by visiting every park.
+
+GraphQL endpoint: POST {{.BaseURL}}/graphql
+Playground:       GET  {{.BaseURL}}/playground
+
+---
+
+## Quick Start
+
+### 1. List available maps
+
+` + "```" + `graphql
+query {
+  maps {
+    mapId
+    name
+    description
+    gridSize
+    maxBattery
+  }
+}
+` + "```" + `
+
+### 2. Create a session
+
+` + "```" + `graphql
+mutation {
+  createSession(mapID: "easy") {
+    id
+    mapName
+    gameState {
+      battery
+      maxBattery
+      playerPos { x y }
+      grid { type visited id }
+      victory
+      gameOver
+    }
+  }
+}
+` + "```" + `
+
+### 3. Get current game state
+
+` + "```" + `graphql
+query {
+  gameState(sessionID: "abcd") {
+    playerPos { x y }
+    battery
+    maxBattery
+    batteryRisk
+    score
+    victory
+    gameOver
+    message
+    visitedParks { id visited }
+    localView3x3
+    grid { type visited id }
+  }
+}
+` + "```" + `
+
+` + "`" + `localView3x3` + "`" + ` returns a 3-row ASCII snapshot centered on the player — useful for quick spatial awareness without reading the full grid.
+
+` + "`" + `batteryRisk` + "`" + ` is one of: ` + "`" + `"safe"` + "`" + `, ` + "`" + `"moderate"` + "`" + `, ` + "`" + `"high"` + "`" + `, ` + "`" + `"critical"` + "`" + `.
+
+### 4. Move
+
+` + "```" + `graphql
+mutation {
+  move(sessionID: "abcd", direction: RIGHT) {
+    success
+    message
+    gameState {
+      playerPos { x y }
+      battery
+      victory
+      gameOver
+    }
+    attemptedTo { x y tileChar tileType passable }
+  }
+}
+` + "```" + `
+
+Directions: ` + "`" + `UP` + "`" + ` ` + "`" + `DOWN` + "`" + ` ` + "`" + `LEFT` + "`" + ` ` + "`" + `RIGHT` + "`" + `
+
+Optional ` + "`" + `reset: true` + "`" + ` resets the game before executing the move.
+
+### 5. Bulk move (sequence)
+
+` + "```" + `graphql
+mutation {
+  bulkMove(sessionID: "abcd", moves: [UP, UP, RIGHT, RIGHT, DOWN]) {
+    movesExecuted
+    success
+    stoppedReason
+    stopReasonCode
+    startPos { x y }
+    endPos { x y }
+    startBattery
+    endBattery
+    scoreDelta
+    gameOver
+    gameOverCode
+    victory
+    message
+    possibleMoves
+    localView3x3
+    batteryRisk
+    steps {
+      idx dir
+      from { x y } to { x y }
+      tileChar tileType
+      batteryBefore batteryAfter
+      success charged park victory
+    }
+    gameState {
+      playerPos { x y }
+      battery
+      victory
+      gameOver
+      visitedParks { id visited }
+    }
+  }
+}
+` + "```" + `
+
+Bulk moves stop early on: wall collision (if ` + "`" + `wallCrashEndsGame=true` + "`" + `), battery depletion, or victory.
+Check ` + "`" + `stoppedReason` + "`" + ` / ` + "`" + `stopReasonCode` + "`" + ` to understand why execution halted.
+
+### 5a. Execute a long route — reset + chained bulkMoves in one request
+
+GraphQL allows multiple named operations (aliases) in a single mutation. Use this to reset and execute a full route in one round trip:
+
+` + "```" + `graphql
+mutation {
+  reset(sessionID: "abcd") { battery score }
+
+  c1: bulkMove(sessionID: "abcd", moves: [LEFT,LEFT,UP,UP,RIGHT,RIGHT,RIGHT,UP,UP]) {
+    movesExecuted success stoppedReason
+    gameState { playerPos { x y } battery victory gameOver }
+  }
+
+  c2: bulkMove(sessionID: "abcd", moves: [RIGHT,RIGHT,DOWN,DOWN,LEFT,LEFT,LEFT,DOWN]) {
+    movesExecuted success stoppedReason
+    gameState { playerPos { x y } battery victory gameOver }
+  }
+}
+` + "```" + `
+
+Each ` + "`" + `bulkMove` + "`" + ` alias (c1, c2, c3 …) resumes from where the previous left off. Pack ~50 moves per chunk. Check ` + "`" + `stoppedReason` + "`" + ` on each — if ` + "`" + `"wall"` + "`" + ` or ` + "`" + `"battery"` + "`" + `, replan from that chunk's ` + "`" + `gameState` + "`" + `.
+
+### 6. Reset session
+
+` + "```" + `graphql
+mutation {
+  reset(sessionID: "abcd") {
+    playerPos { x y }
+    battery
+    score
+    gameOver
+    victory
+  }
+}
+` + "```" + `
+
+---
+
+## Grid Cell Types
+
+| char | type         | passable | effect                    |
+|------|--------------|----------|---------------------------|
+| R    | road         | yes      | none                      |
+| H    | home         | yes      | charges battery to max    |
+| S    | supercharger | yes      | charges battery to max    |
+| P    | park         | yes      | collect to score / win    |
+| B    | building     | no       | impassable obstacle       |
+| W    | water        | no       | impassable obstacle       |
+
+Grid is returned as ` + "`" + `grid: [[Cell]]` + "`" + ` — row-major, ` + "`" + `grid[y][x]` + "`" + `.
+` + "`" + `Cell.type` + "`" + ` uses the names above. ` + "`" + `Cell.id` + "`" + ` is a coordinate string.
+
+**Warning:** R and B look similar in monospace. Parse character-by-character before assuming a row is blocked.
+
+---
+
+## Winning
+
+Collect every park (P). ` + "`" + `victory: true` + "`" + ` appears in ` + "`" + `gameState` + "`" + ` once all parks are visited.
+Track progress via ` + "`" + `visitedParks` + "`" + ` — compare visited count to total P cells in the grid.
+
+---
+
+## Battery
+
+- Each move costs 1 battery.
+- Stepping on H or S restores battery to ` + "`" + `maxBattery` + "`" + `.
+- Reaching ` + "`" + `battery: 0` + "`" + ` ends the game (` + "`" + `gameOver: true` + "`" + `, ` + "`" + `gameOverCode: "battery"` + "`" + `).
+- Plan routes through charging cells. Check ` + "`" + `batteryRisk` + "`" + ` before long moves.
+
+---
+
+## Session Management
+
+` + "```" + `graphql
+# List all sessions
+query {
+  sessions {
+    count
+    sessions { id mapName lastAccessedAt gameState { victory gameOver score } }
+  }
+}
+
+# Delete a session
+mutation {
+  deleteSession(id: "abcd") { message }
+}
+` + "```" + `
+
+---
+
+## Move History
+
+` + "```" + `graphql
+query {
+  history(sessionID: "abcd", page: 1, limit: 20, order: DESC) {
+    totalMoves
+    totalPages
+    hasNext
+    moves {
+      moveNumber action
+      fromPosition { x y }
+      toPosition { x y }
+      battery success timestamp
+    }
+  }
+}
+` + "```" + `
+
+---
+
+## Strategy Tips for LLMs
+
+1. Call ` + "`" + `gameState` + "`" + ` first — read ` + "`" + `localView3x3` + "`" + ` for immediate surroundings, full ` + "`" + `grid` + "`" + ` for planning.
+2. Identify H/S cells near your route before venturing far from the start.
+3. Use ` + "`" + `bulkMove` + "`" + ` for known-safe corridors; use single ` + "`" + `move` + "`" + ` when navigating around obstacles.
+4. After ` + "`" + `bulkMove` + "`" + `, check ` + "`" + `stopReasonCode` + "`" + ` — if ` + "`" + `"wall"` + "`" + ` or ` + "`" + `"battery"` + "`" + `, update your map and replan.
+5. Never assume a row is fully blocked — verify each cell character individually (R≠B≠W).
+6. Recharge proactively. Keep at least 3 battery buffer relative to distance to nearest H/S.
+`))
 
 // getConfigDirDefault returns the default configuration directory.
 // It first honors the CONFIG_DIR environment variable, then falls back to "configs".
@@ -67,8 +324,8 @@ func init() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [OPTIONS] [MODE]\n\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "%s v%s\n\n", AppName, Version)
 		fmt.Fprintf(os.Stderr, "Available modes:\n")
-		fmt.Fprintf(os.Stderr, "  server, http     Run HTTP server with API, WebSocket, and MCP endpoint (default)\n")
-		fmt.Fprintf(os.Stderr, "  stdio-mcp        Run MCP stdio server with internal HTTP server\n")
+		fmt.Fprintf(os.Stderr, "  server, http     Run HTTP server with GraphQL and WebSocket (default)\n")
+		fmt.Fprintf(os.Stderr, "  stdio-mcp        Disabled: MCP transport needs GraphQL migration\n")
 		fmt.Fprintf(os.Stderr, "  mcp-stdio        Alias for stdio-mcp\n")
 		fmt.Fprintf(os.Stderr, "  mcp              Alias for stdio-mcp\n")
 		fmt.Fprintf(os.Stderr, "\nOptions:\n")
@@ -125,12 +382,11 @@ func main() {
 
 	switch mode {
 	case "stdio-mcp", "mcp-stdio", "mcp":
-		// Run MCP stdio server with internal HTTP server
-		runStdioMCPWithInternalServer(gameService)
+		log.Fatalf("stdio MCP is disabled because the REST API was removed; migrate MCP transport to GraphQL first")
 		return
 
 	case "server", "http":
-		// Run HTTP server with API, WebSocket, and MCP endpoint
+		// Run HTTP server with GraphQL and WebSocket
 		runHTTPServer(gameService)
 
 	default:
@@ -138,53 +394,53 @@ func main() {
 	}
 }
 
-// runHTTPServer starts the HTTP server with REST API, WebSocket hub, and an /mcp proxy endpoint.
+// runHTTPServer starts the HTTP server with GraphQL, WebSocket hub, and an /mcp proxy endpoint.
 // If ngrok is enabled (via flag or environment), it also provisions a public tunnel.
 func runHTTPServer(gameService service.GameService) {
 	// Create WebSocket hub
 	hub := websocket.NewHub()
 	go hub.Run()
 
-	// Create API server
+	// Create static/WebSocket server
 	apiServer := api.NewServer(gameService, hub)
 
 	// Setup HTTP server address
 	addr := fmt.Sprintf("%s:%d", *host, *port)
 
-	// Create MCP client for /mcp endpoint
-	baseURL := fmt.Sprintf("http://%s", addr)
-	mcpClient := mcp.NewClient(baseURL)
-
-	// Create main router that combines API and MCP
+	// Create main router.
 	mainRouter := http.NewServeMux()
 
-	// Mount API server at root
-	mainRouter.Handle("/", apiServer)
-
-	// Always add MCP endpoint for HTTP server
-	mainRouter.HandleFunc("/mcp", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			http.Error(w, "Failed to read request", http.StatusBadRequest)
-			return
-		}
-		defer r.Body.Close()
-
-		response := mcpClient.GetMCPServer().HandleMessage(r.Context(), body)
-
-		w.Header().Set("Content-Type", "application/json")
-		responseData, err := json.Marshal(response)
-		if err != nil {
-			http.Error(w, "Failed to marshal response", http.StatusInternalServerError)
-			return
-		}
-		w.Write(responseData)
+	// GraphQL is the public game API.
+	graphqlResolver := graph.NewResolver(gameService, hub)
+	gqlSrv := handler.New(generated.NewExecutableSchema(generated.Config{Resolvers: graphqlResolver}))
+	gqlSrv.Use(extension.Introspection{})
+	gqlSrv.AddTransport(transport.POST{})
+	gqlSrv.AddTransport(transport.GET{})
+	gqlSrv.AddTransport(transport.Options{})
+	gqlSrv.AddTransport(&transport.Websocket{
+		KeepAlivePingInterval: 10 * time.Second,
+		Upgrader: websocket.DefaultUpgrader(),
 	})
+	mainRouter.Handle("/graphql", gqlSrv)
+	mainRouter.Handle("/playground", playground.Handler("GraphQL playground", "/graphql"))
+
+	// /llms.txt — rendered from template so the server URL is always correct.
+	baseURL := *publicURL
+	if baseURL == "" {
+		baseURL = fmt.Sprintf("http://%s", addr)
+	}
+	mainRouter.HandleFunc("/llms.txt", func(w http.ResponseWriter, r *http.Request) {
+		var buf bytes.Buffer
+		if err := llmsTxtTemplate.Execute(&buf, struct{ BaseURL string }{BaseURL: baseURL}); err != nil {
+			http.Error(w, "template error", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Write(buf.Bytes())
+	})
+
+	// Mount static UI and WebSocket routes at root.
+	mainRouter.Handle("/", apiServer)
 
 	httpServer := &http.Server{
 		Addr:         addr,
@@ -210,9 +466,9 @@ func runHTTPServer(gameService service.GameService) {
 		defer wg.Done()
 
 		log.Printf("HTTP server listening on %s", addr)
-		log.Printf("REST API: http://%s/api", addr)
+		log.Printf("GraphQL API: http://%s/graphql", addr)
+		log.Printf("GraphQL playground: http://%s/playground", addr)
 		log.Printf("WebSocket: ws://%s/ws?session=<session_id>", addr)
-		log.Printf("MCP endpoint: http://%s/mcp", addr)
 
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("HTTP server failed: %v", err)
@@ -282,9 +538,9 @@ func runHTTPServer(gameService service.GameService) {
 
 			ngrokURL := tun.URL()
 			log.Printf("🚀 Ngrok tunnel established: %s", ngrokURL)
-			log.Printf("  REST API (ngrok): %s/api", ngrokURL)
+			log.Printf("  GraphQL API (ngrok): %s/graphql", ngrokURL)
+			log.Printf("  GraphQL playground (ngrok): %s/playground", ngrokURL)
 			log.Printf("  WebSocket (ngrok): %s/ws?session=<session_id>", ngrokURL)
-			log.Printf("  MCP endpoint (ngrok): %s/mcp", ngrokURL)
 			log.Printf("  Game UI (ngrok): %s/", ngrokURL)
 
 			// Serve HTTP through ngrok tunnel
@@ -393,79 +649,5 @@ func filesystemSyncRoutine(manager *session.Manager, persistence session.Session
 		if pruned > 0 {
 			log.Printf("Filesystem sync: pruned %d orphaned sessions from memory", pruned)
 		}
-	}
-}
-
-// runStdioMCPWithInternalServer runs an MCP stdio server.
-// It tries to reuse an external API at http://localhost:8080; if unavailable, it
-// starts a minimal internal HTTP API bound to a random loopback port and targets that.
-func runStdioMCPWithInternalServer(gameService service.GameService) {
-	var baseURL string
-	var httpServer *http.Server
-	var listener net.Listener
-
-	// First, try to connect to external API server at localhost:8080
-	externalURL := "http://localhost:8080"
-	log.Printf("Checking for external API server at %s...", externalURL)
-
-	// Test if external server is running
-	testClient := &http.Client{Timeout: 2 * time.Second}
-	resp, err := testClient.Get(externalURL + "/api")
-	if err == nil && resp.StatusCode < 500 {
-		resp.Body.Close()
-		log.Printf("External API server found at %s, using it for MCP", externalURL)
-		baseURL = externalURL
-	} else {
-		// No external server found, start internal one
-		log.Printf("No external API server found, starting internal HTTP server")
-
-		// Start internal HTTP server on a random available port
-		listener, err = net.Listen("tcp", "127.0.0.1:0")
-		if err != nil {
-			log.Fatalf("Failed to get available port: %v", err)
-		}
-
-		// Get the actual port that was assigned
-		internalPort := listener.Addr().(*net.TCPAddr).Port
-		internalAddr := fmt.Sprintf("127.0.0.1:%d", internalPort)
-
-		log.Printf("Starting internal HTTP server on %s for MCP stdio", internalAddr)
-
-		// Create WebSocket hub
-		hub := websocket.NewHub()
-		go hub.Run()
-
-		// Create API server
-		apiServer := api.NewServer(gameService, hub)
-
-		// Start internal HTTP server in background
-		httpServer = &http.Server{
-			Handler: apiServer,
-		}
-
-		go func() {
-			if err := httpServer.Serve(listener); err != nil && err != http.ErrServerClosed {
-				log.Printf("Internal HTTP server error: %v", err)
-			}
-		}()
-
-		// Wait a moment for the server to be ready
-		time.Sleep(100 * time.Millisecond)
-
-		baseURL = fmt.Sprintf("http://%s", internalAddr)
-	}
-
-	// Create MCP client pointing to the selected server
-	mcpClient := mcp.NewClient(baseURL)
-
-	// Run MCP stdio server (blocking)
-	if baseURL == externalURL {
-		log.Println("MCP stdio server ready (using external HTTP server)")
-	} else {
-		log.Println("MCP stdio server ready (using internal HTTP server)")
-	}
-
-	if err := server.ServeStdio(mcpClient.GetMCPServer()); err != nil {
-		log.Fatalf("MCP stdio server error: %v", err)
 	}
 }

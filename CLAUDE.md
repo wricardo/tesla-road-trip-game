@@ -4,307 +4,200 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Tesla Road Trip Game - A grid-based multi-session game server written in Go where players control a Tesla to collect parks while managing battery. Features per-session configuration system, isolated game sessions, WebSocket support, RESTful API, and MCP server integration for AI assistance.
+Tesla Road Trip Game — grid-based multi-session game server in Go where players control a Tesla to collect parks while managing battery. Features: per-session configuration, GraphQL API (gqlgen), REST API, WebSocket, MCP server, SvelteKit frontend, and ngrok tunneling.
 
 ## Development Commands
 
-WHEN running the game server, try to use default port 8080
+Server uses default port 8080. Use `make` for all common tasks.
 
 ### Build and Run
 ```bash
-# Build the game
-go build -o statefullgame
-
-# Run the game server
-./statefullgame                                # Default server mode
-./statefullgame -port 9090                     # Custom port
+make build          # Build binary → ./statefullgame
+make run            # Build + run (port 8080)
+make dev            # Same as run, explicit port 8080
+./statefullgame -port 9090              # Custom port
+./statefullgame -ngrok                  # With ngrok tunnel
+./statefullgame stdio-mcp               # MCP stdio mode
 ```
 
 ### Testing
 ```bash
-# Run API tests
-./test-api.sh
-
-# Test specific endpoints (default session)
-curl http://localhost:8080/api                                          # Get game state
-curl -X POST http://localhost:8080/api -d '{"action":"right"}'         # Move player
-curl -X POST http://localhost:8080/api -d '{"action":"save"}'          # Save game
-curl http://localhost:8080/api/configs                                  # List configs
-curl http://localhost:8080/api/saves                                    # List saves
-
-# Test session management
-curl -X POST http://localhost:8080/api/sessions                         # Create session (default config)
-curl -X POST http://localhost:8080/api/sessions -d '{"config_name":"easy"}'             # Create session with easy config
-curl -X POST http://localhost:8080/api/sessions -d '{"config_name":"medium_maze"}'      # Create session with medium maze
-curl http://localhost:8080/api/sessions/a3x7                           # Get specific session state
-
-# Test session-specific gameplay
-curl http://localhost:8080/api?sessionId=a3x7                          # Get session state
-curl -X POST http://localhost:8080/api?sessionId=a3x7 -d '{"action":"right"}'          # Move in specific session
-curl -X POST http://localhost:8080/api?sessionId=a3x7 -d '{"actions":["up","left"]}'   # Bulk moves in session
-curl http://localhost:8080/api/history?sessionId=a3x7                  # Session move history
-
-# Test reset functionality
-curl -X POST http://localhost:8080/api -d '{"action":"right","reset":true}'              # Move with reset
-curl -X POST http://localhost:8080/api -d '{"actions":["up","left"],"reset":true}'      # Bulk moves with reset
-
-# Test MCP server integration
-./test-mcp-integration.sh
+make test                   # All Go tests
+make test-verbose            # Verbose output
+make test-coverage           # Coverage report → coverage.html
+go test ./game/engine/...    # Single package
+go test -run TestName ./...  # Single test
+make validate                # Validate all configs
 ```
+
+### Code Quality
+```bash
+make verify         # fmt-check + vet-safe + lint (fast CI)
+make fmt            # Format (gofmt -s + goimports)
+make lint           # golangci-lint
+make vet-safe       # go vet core packages (skips flaky test pkg)
+```
+
+### Frontend (SvelteKit + Tailwind)
+```bash
+cd frontend
+npm install
+npm run dev         # Dev server (Vite, proxies to Go backend)
+npm run build       # Static build → frontend/build/
+npm run check       # Type-check
+```
+
+### GraphQL Code Generation
+```bash
+go run github.com/99designs/gqlgen generate   # Regenerate from schema.graphqls
+```
+Schema lives in `graph/schema.graphqls`. Do not edit `graph/generated/` directly.
 
 ### MCP Server
 ```bash
-# Run MCP stdio server (self-contained, no separate server needed)
-./statefullgame stdio-mcp                                              # Stdio mode with internal HTTP server
-
-# OR run HTTP server with MCP endpoint always available
-./statefullgame                                                        # Default server mode
-# Then use MCP via HTTP endpoint: http://localhost:8080/mcp
-
-# MCP tools support session management
-# create_session(config_name?) - Create session with optional config
-# get_session(session_id) - Get specific session state
-# describe_cell(session_id, x, y) - Get detailed info about a specific grid cell
-# All game tools accept optional session_id parameter
+make claude-game         # Claude with HTTP MCP (./mcp.json)
+make claude-game-stdin   # Claude with stdio MCP (./mcp-stdin.json)
+./statefullgame stdio-mcp  # Standalone stdio MCP
 ```
 
-### Dependencies
+### Config Analysis Tool
 ```bash
-go mod download  # Install dependencies (gorilla/websocket)
+cd cmd/analyze && go run .   # Prints heuristics: dimensions, battery, parks, chargers, reachability
 ```
 
 ## Architecture
 
-### Core Components
+### Package Structure
+```
+main.go                  Entry point — wires all packages, handles flags, starts server
+api/                     REST HTTP handlers (GET/POST /api, sessions, saves, configs)
+game/
+  config/                Config file loading and management (configs/*.json)
+  engine/                Core game logic: movement, battery, victory, cell types
+  service/               GameService interface + implementation (facade over engine+session)
+  session/               Session lifecycle, in-memory manager, file persistence
+graph/
+  schema.graphqls        GraphQL schema (source of truth)
+  generated/             gqlgen-generated code (do not edit)
+  resolver.go            Resolver wiring
+  schema.resolvers.go    Mutation/Query/Subscription implementations
+transport/
+  mcp/                   MCP server (tools: game_state, move, bulk_move, create_session, etc.)
+  websocket/             WebSocket hub — broadcasts state updates to session subscribers
+validate/                Config winnability checks
+cmd/analyze/             CLI: config heuristics analyzer
+frontend/                SvelteKit app (Tailwind, Svelte 5)
+  src/routes/
+    +page.svelte         Home / game selection
+    multi/               Multi-player lobby
+    watch/[id]/          Spectator view
+    learn/               Tutorial/learn page
+    admin/               Admin panel
+    lobby/               Session lobby
+```
 
-**main.go** - Single-file architecture containing:
-- **GameSession**: Multi-session container with unique ID, state, and configuration
-- **GameState**: Runtime game state with grid, player position, battery, score
-- **GameConfig**: JSON-loaded configuration defining grid layout, battery limits, messages
-- **WebSocket Hub**: Broadcasts state changes to connected clients in real-time
-- **HTTP Handlers**: REST API endpoints with session support and WebSocket upgrade handler
+### Key Interfaces
+- `game/service.GameService` — primary facade used by all transport layers (REST, GraphQL, MCP)
+- `game/session.Manager` — session CRUD + persistence
+- `game/engine` — stateless game logic; takes/returns `GameState`
 
 ### Data Flow
-1. **Session Creation**: Client creates session → select config → server initializes GameSession with chosen config
-2. **Multi-Session Game Loop**: API request with sessionId → action processing on specific session → state mutation → WebSocket broadcast to session clients  
-3. **Session Isolation**: Each session maintains independent state, configuration, and history
-4. **Persistence**: Save action → serialize GameState to `saves/` directory as timestamped JSON
-5. **State Recovery**: Load action → deserialize saved JSON → replace current GameState
+1. **Session creation**: client → REST or GraphQL → `GameService.CreateSession` → `session.Manager` → persisted to `sessions/`
+2. **Move**: client → REST (`/api`) or GraphQL mutation (`move`/`bulkMove`) → `GameService.Move` → `engine.ApplyMove` → state saved → WebSocket broadcast
+3. **MCP**: stdio or HTTP `/mcp` → MCP tools → same `GameService` interface
+
+### GraphQL Endpoints
+- `/graphql` — GraphQL HTTP endpoint + playground (GET opens playground, POST executes)
+- `/ws` — WebSocket (upgrades for real-time subscriptions, also accepts `?sessionId=`)
+
+### REST Endpoints
+- `GET/POST /api` — game state / move (`?sessionId=`)
+- `POST /api/sessions` — create session (`{"map_name":"easy"}`)
+- `GET /api/sessions/{id}` — session state
+- `GET /api/maps`, `GET /api/saves`, `GET /api/history`
+- `GET /llms.txt` — LLM-readable server guide (auto-generated, includes public URL)
 
 ### Configuration System
 
-Game configurations (`configs/*.json`) define:
-- Grid layout using character mapping:
-  - **R = road (passable)** - CRITICAL: Look for 'R' carefully, it can be adjacent to B/W
-  - **H = home (passable, charges battery to full)** - represents home base/garage
-  - **P = park (passable, objective to collect)**
-  - **S = supercharger (passable, charges battery to full)**
-  - **W = water (impassable obstacle)** - Do NOT confuse with R
-  - **B = building (impassable obstacle)** - Do NOT confuse with R
+Configs at `configs/*.json`. Grid cell characters:
+- `R` = road (passable) — **often hidden between B/W, look carefully**
+- `H` = home base (passable, full battery charge)
+- `P` = park (objective)
+- `S` = supercharger (passable, full battery charge)
+- `B` = building (impassable)
+- `W` = water (impassable)
 
-**⚠️ CRITICAL CHARACTER RECOGNITION**:
-- The character 'R' (road) is visually similar to 'B' and may appear between obstacles
-- When analyzing grids, examine each character individually: R≠B≠W
-- Roads (R) often appear as single-character gaps between obstacles
-- Double-check any row that appears "completely blocked" - there may be an R hidden between B/W characters
-- Battery parameters (max_battery, starting_battery)
-- Custom messages for game events
-- Grid size and difficulty settings
+Battery: move costs 1, H/S restore to max. Victory: visit all parks.
 
-Sessions can use any available configuration independently. The server loads the default configuration at startup via `-config` flag, but each session can override this. Multiple sessions can run different configurations simultaneously without server restart.
+**⚠️ R is visually similar to B in monospace. Re-parse any "fully blocked" row character by character before concluding it's impassable.**
 
-### Save System
+### ngrok Integration
+`-ngrok` flag starts an ngrok tunnel. Auth token via `-ngrok-auth` flag or `NGROK_AUTHTOKEN` env var. Domain via `-ngrok-domain`. Public URL is served in `/llms.txt`.
 
-- Saves stored as `saves/save_<timestamp>.json`
-- Complete state serialization including grid, visited parks, position, battery
-- Survives server restarts
-- Can load saves from different game configurations
+## AI Strategy Guidelines (Gameplay)
 
-### API Design
+When playing the Tesla game, ask: where is the nearest charger/home? How much battery remains? Any walls nearby?
 
-**Multi-Session Support**: All endpoints support optional `sessionId` query parameter for session-specific operations.
+### Navigation
+- Map grid character-by-character before planning routes
+- Identify obstacle-free rows/columns ("golden corridors") for long-distance travel
+- When direct routes are blocked, try perpendicular approaches
+- Maintain 3+ battery buffer when far from charging
 
-**Session Management**:
-- `POST /api/sessions` - Create new session with optional config selection
-- `GET /api/sessions/{sessionId}` - Get specific session state
+### Systematic Play
+1. **Analyze**: map all parks, chargers, obstacle clusters
+2. **Plan**: section-based routes through safe corridors
+3. **Execute**: `bulkMove` for known safe paths, single `move` near obstacles
+4. **Refine**: when blocked, re-parse that row, try alternative approach angle
 
-**Single endpoint multiplexing** (`/api`):
-- GET: Returns current GameState (supports `?sessionId=`)
-- POST with action field: Executes game actions (supports `?sessionId=`)
-  - `{"action": "up/down/left/right"}` - Single move
-  - `{"actions": ["up", "right", "down"]}` - Bulk moves
-  - `{"action": "up", "reset": true}` - Single move with reset
-  - `{"actions": ["up", "right"], "reset": true}` - Bulk moves with reset
-  - `{"action": "reset"}` - Reset game only
+### Common Pitfalls
+- Assuming a row is fully blocked without character-by-character check
+- Depleting battery without a clear path to a charger
+- Confusing `R` (road) with `B` (building) — they look similar in monospace
 
-**Reset Parameter**: Both single and bulk move requests support an optional `reset: true/false` parameter that resets the game to initial state before executing the move(s). This saves an API call by combining reset + move operations.
+<!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:ca08a54f -->
+## Beads Issue Tracker
 
-**Session-Aware Auxiliary endpoints**:
-- `/api/configs`: Lists available game configurations
-- `/api/saves`: Lists saved game sessions
-- `/api/history?sessionId=`: Paginated move history for specific session
-- `/ws?sessionId=`: WebSocket for real-time state updates (session-specific)
+This project uses **bd (beads)** for issue tracking. Run `bd prime` to see full workflow context and commands.
 
-## Key Implementation Details
+### Quick Reference
 
-- **Multi-session architecture**: Thread-safe session management with 4-character IDs
-- **Per-session configuration**: Each session can run different maze/config independently  
-- **Session isolation**: Complete state separation between concurrent sessions
-- **Embedded templates**: HTML template with session selection UI
-- **Atomic saves**: Game state serialized with `json.MarshalIndent` for readability
-- **Grid validation**: `canMoveTo()` checks bounds and cell type before movement (only water and buildings are impassable)
-- **Victory condition**: Tracked by comparing visited parks count to total parks in grid
-- **Battery management**: Movement costs 1 battery, home tiles and superchargers restore to max
-- **Home tiles**: Represent Tesla home garage/base - passable and provide full battery charge
+```bash
+bd ready              # Find available work
+bd show <id>          # View issue details
+bd update <id> --claim  # Claim work
+bd close <id>         # Complete work
+```
 
-## Testing Workflow
+### Rules
 
-When testing game functionality:
-1. Start server (loads default config)
-2. Create multiple sessions with different configs via API/UI
-3. Test session isolation - verify moves in one session don't affect others
-4. Use `curl` or `test-api.sh` to verify endpoints with sessionId parameters
-5. Test save/load across server restarts
-6. Verify WebSocket updates with browser dev tools (session-specific)
-7. Test MCP server with session management tools
+- Use `bd` for ALL task tracking — do NOT use TodoWrite, TaskCreate, or markdown TODO lists
+- Run `bd prime` for detailed command reference and session close protocol
+- Use `bd remember` for persistent knowledge — do NOT use MEMORY.md files
 
-## AI Strategy Guidelines
+## Session Completion
 
-When working with AI agents to play or solve the Tesla Road Trip game, the following systematic approaches have proven highly effective:
+**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
 
-### Grid Character Recognition Strategy
+**MANDATORY WORKFLOW:**
 
-**🔤 ESSENTIAL: Accurate Character Recognition**
-
-Before any navigation planning, agents MUST:
-
-1. **Character-by-Character Analysis**
-   - Parse each row character by character, not as patterns
-   - Example: "BBBBRWWWWWBBBBB" should be parsed as:
-     ```
-     Position 0: B (building)
-     Position 1: B (building)
-     Position 2: B (building)
-     Position 3: B (building)
-     Position 4: R (road) ← CRITICAL: This is an R, not B or W!
-     Position 5: W (water)
-     ... and so on
-     ```
-
-2. **Visual Similarity Awareness**
-   - R (road) can look similar to B (building) in monospace fonts
-   - Always double-check rows that appear "completely blocked"
-   - Single R characters often appear between clusters of B or W
-
-3. **Systematic Verification**
-   - When a row seems impassable, re-examine it position by position
-   - Test movement to verify character interpretation
-   - If movement fails where you expect an R, re-parse that specific position
-
-4. **Grid Mapping Best Practice**
+1. **File issues for remaining work** - Create issues for anything that needs follow-up
+2. **Run quality gates** (if code changed) - Tests, linters, builds
+3. **Update issue status** - Close finished work, update in-progress items
+4. **PUSH TO REMOTE** - This is MANDATORY:
+   ```bash
+   git pull --rebase
+   bd dolt push
+   git push
+   git status  # MUST show "up to date with origin"
    ```
-   CORRECT approach:
-   - Parse: B B B B R W W W W W B B B B B
-   - Index: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14
-   - Note: Road at position 4!
+5. **Clean up** - Clear stashes, prune remote branches
+6. **Verify** - All changes committed AND pushed
+7. **Hand off** - Provide context for next session
 
-   INCORRECT approach:
-   - Quick scan: "All blocked, no roads"
-   - Missing the critical R character
-   ```
-
-### Proven Navigation Strategies
-
-**🗺️ Systematic World Mapping**
-- Create ASCII representations of the grid to track understanding
-- Document obstacle patterns and safe navigation corridors
-- Build comprehensive maps of all parks, chargers, and obstacles
-- Update maps iteratively as new areas are explored
-
-**🧩 Corridor Navigation Technique**
-- Identify horizontal and vertical corridors of passable cells
-- Use "golden corridors" (obstacle-free rows/columns) for efficient navigation
-- Plan multi-corridor routes to bypass complex obstacle clusters
-- Apply perpendicular approach strategies when direct routes are blocked
-
-**⚡ Proactive Battery Management**
-- Calculate distances to charging stations before starting routes
-- Recharge proactively rather than waiting until battery is critically low
-- Use charging stations as strategic "base camps" between game sections
-- Plan routes that efficiently pass through available charging infrastructure
-
-**🎯 Section-Based Problem Solving**
-- Divide large grids into manageable sections
-- Complete one section fully before moving to the next
-- Use iterative refinement when initial approaches encounter obstacles
-- Document successful routes for reuse in similar patterns
-
-### Iterative Development Methodology
-
-**📝 Documentation-Driven Approach**
-- Maintain ASCII maps showing evolving understanding of the game world
-- Create versioned scripts/approaches to track learning progression
-- Document both successful techniques and failed attempts with reasons
-- Build systematic knowledge that applies across different grid configurations
-
-**🔄 Systematic Iteration Process**
-1. **Analysis Phase**: Map the world, identify objectives and charging infrastructure
-2. **Planning Phase**: Design section-based routes using corridor navigation
-3. **Execution Phase**: Implement planned routes with proactive battery management
-4. **Refinement Phase**: Analyze failures, update world understanding, iterate
-
-**🧠 Adaptive Problem Solving**
-- When direct routes fail, systematically try alternative approach angles
-- Use building pattern recognition to predict and avoid similar obstacles
-- Build upon partial successes rather than restarting from scratch
-- Apply lessons learned from one grid section to similar patterns elsewhere
-
-### Best Practices for AI Implementation
-
-**🎮 API Usage Patterns**
-- Use batch move execution for efficiency rather than individual API calls
-- Implement proper error handling for obstacle collisions
-- Monitor game state continuously during execution
-- Leverage save/load functionality for complex route testing
-
-**🚨 Common Pitfalls to Avoid**
-- Don't attempt direct routes without systematic obstacle analysis
-- Avoid depleting battery without clear path to charging stations
-- Don't abandon partially successful routes - refine them instead
-- Don't ignore corridor navigation opportunities in complex areas
-- **CRITICAL: Don't assume a row is fully blocked without character-by-character verification**
-- **Don't confuse R (road) with B (building) or W (water) - they look similar**
-
-**🐛 Debugging Character Recognition Issues**
-When agents report "completely blocked" rows:
-1. Request the exact grid display output
-2. Parse each character position individually
-3. Look specifically for 'R' characters between obstacles
-4. Common misread patterns:
-   - "BBBBR" may be read as "BBBBB"
-   - "RWWWW" may be read as "WWWWW"
-   - "BBRBB" - the R in the middle is often missed
-5. Use exploratory moves to verify character interpretation
-
-**🏆 Victory Optimization**
-- Focus on systematic completion rather than speed optimization
-- Maintain resource safety buffers for unexpected route changes
-- Use section-based approaches to ensure progress isn't lost
-- Apply proven techniques consistently across different game configurations
-
-These strategies have achieved consistent victory across multiple game configurations through systematic application of corridor navigation, proactive battery management, and iterative problem-solving approaches.
-- when we are playing the game, questions to think about: where
-are the nearst chargers/home? how much battery do I have left?
-any walls nearby?
-
-
-
-
-## Documentation
-
-For detailed technical documentation, see the `docs/` directory:
-- **[docs/architecture.md](docs/architecture.md)** - System design and architecture
-- **[docs/ai-strategy.md](docs/ai-strategy.md)** - Comprehensive AI strategy guide
-- **[docs/mcp-integration.md](docs/mcp-integration.md)** - MCP server setup and usage
-- **[docs/config-schema.md](docs/config-schema.md)** - Configuration format reference
-- **[docs/README.md](docs/README.md)** - Documentation index
+**CRITICAL RULES:**
+- Work is NOT complete until `git push` succeeds
+- NEVER stop before pushing - that leaves work stranded locally
+- NEVER say "ready to push when you are" - YOU must push
+- If push fails, resolve and retry until it succeeds
+<!-- END BEADS INTEGRATION -->

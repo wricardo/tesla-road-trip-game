@@ -839,18 +839,34 @@
             }
         }
 
+        async function graphqlRequest(query, variables = {}) {
+            const response = await fetch('/graphql', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query, variables })
+            });
+            const payload = await response.json();
+            if (payload.errors && payload.errors.length) {
+                throw new Error(payload.errors.map(e => e.message).join('; '));
+            }
+            return payload.data;
+        }
+
+        const CONFIG_FIELDS = `filename configId name description gridSize maxBattery`;
+        const GAME_CONFIG_FIELDS = `name description gridSize maxBattery startingBattery layout wallCrashEndsGame messages { welcome homeCharge superchargerCharge parkVisited parkAlreadyVisited victory outOfBattery stranded cantMove batteryStatus hitWall }`;
+
         // Load available configurations
         async function loadAvailableConfigs() {
             try {
-                const response = await fetch('/api/configs');
-                const configs = await response.json();
+                const data = await graphqlRequest(`query { configs { ${CONFIG_FIELDS} } }`);
+                const configs = data.configs;
 
                 const selector = document.getElementById('configSelector');
                 selector.innerHTML = '<option value="">-- New Configuration --</option>';
 
                 configs.forEach(config => {
                     const option = document.createElement('option');
-                    option.value = config.config_id;
+                    option.value = config.configId;
                     option.textContent = config.name + (config.description ? ' - ' + config.description : '');
                     selector.appendChild(option);
                 });
@@ -879,15 +895,10 @@
             }
 
             try {
-                // Fetch the full config from the specific config endpoint
+                // Fetch the full config through GraphQL
                 console.log('Loading config:', configId);
-                const response = await fetch(`/api/configs/${configId}`);
-                console.log('Response status:', response.status);
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Failed to load configuration: ${response.status} - ${errorText}`);
-                }
-                const config = await response.json();
+                const data = await graphqlRequest(`query($name: String!) { config(name: $name) { ${GAME_CONFIG_FIELDS} } }`, { name: configId });
+                const config = data.config;
                 console.log('Config loaded:', config);
 
                 // Enter edit mode
@@ -895,7 +906,7 @@
                 editingConfigName = configId;
 
                 // Set grid size and initialize
-                gridSize = config.grid_size;
+                gridSize = config.gridSize;
                 document.getElementById('gridSize').value = gridSize;
 
                 // Parse layout into gridData
@@ -907,9 +918,9 @@
                 document.getElementById('configName').value = configId;
                 document.getElementById('configName').readOnly = true; // Prevent name changes in edit mode
                 document.getElementById('configDescription').value = config.description || '';
-                document.getElementById('maxBattery').value = config.max_battery;
-                document.getElementById('startingBattery').value = config.starting_battery;
-                document.getElementById('wallCrash').checked = config.wall_crash_ends_game;
+                document.getElementById('maxBattery').value = config.maxBattery;
+                document.getElementById('startingBattery').value = config.startingBattery;
+                document.getElementById('wallCrash').checked = config.wallCrashEndsGame;
 
                 // Update button text
                 document.querySelector('.btn-primary').textContent = '💾 Update Configuration';
@@ -937,49 +948,42 @@
             const layout = gridData.map(row => row.join(''));
 
             // Build config object
+            const configName = document.getElementById('configName').value.trim();
             const config = {
-                name: document.getElementById('configName').value.trim(),
+                name: configName,
                 description: document.getElementById('configDescription').value.trim(),
-                grid_size: gridSize,
-                max_battery: parseInt(document.getElementById('maxBattery').value),
-                starting_battery: parseInt(document.getElementById('startingBattery').value),
+                gridSize: gridSize,
+                maxBattery: parseInt(document.getElementById('maxBattery').value),
+                startingBattery: parseInt(document.getElementById('startingBattery').value),
                 layout: layout,
-                legend: {
-                    "R": "road",
-                    "H": "home",
-                    "P": "park",
-                    "S": "supercharger",
-                    "W": "water",
-                    "B": "building"
-                },
-                wall_crash_ends_game: document.getElementById('wallCrash').checked,
+                legend: [
+                    { key: "R", value: "road" },
+                    { key: "H", value: "home" },
+                    { key: "P", value: "park" },
+                    { key: "S", value: "supercharger" },
+                    { key: "W", value: "water" },
+                    { key: "B", value: "building" }
+                ],
+                wallCrashEndsGame: document.getElementById('wallCrash').checked,
                 messages: {
-                    "welcome": "Welcome to " + document.getElementById('configName').value + "!",
-                    "home_charge": "Home sweet home! Battery fully charged!",
-                    "supercharger_charge": "Supercharger! Battery fully charged!",
-                    "park_visited": "Park visited! Score: %d",
-                    "park_already_visited": "Already visited this park",
-                    "victory": "Excellent! All %d parks visited!",
-                    "out_of_battery": "Battery depleted! Try again!",
-                    "stranded": "No battery left! Game Over!",
-                    "cant_move": "Can't go there!",
-                    "battery_status": "Battery: %d/%d",
-                    "hit_wall": "You crashed into a wall! Game Over!"
+                    welcome: "Welcome to " + configName + "!",
+                    homeCharge: "Home sweet home! Battery fully charged!",
+                    superchargerCharge: "Supercharger! Battery fully charged!",
+                    parkVisited: "Park visited! Score: %d",
+                    parkAlreadyVisited: "Already visited this park",
+                    victory: "Excellent! All %d parks visited!",
+                    outOfBattery: "Battery depleted! Try again!",
+                    stranded: "No battery left! Game Over!",
+                    cantMove: "Can't go there!",
+                    batteryStatus: "Battery: %d/%d",
+                    hitWall: "You crashed into a wall! Game Over!"
                 }
             };
 
             try {
-                const response = await fetch('/api/configs', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(config)
-                });
+                await graphqlRequest(`mutation($name: String!, $config: GameConfigInput!) { createConfig(name: $name, config: $config) { name } }`, { name: configName, config });
 
-                const result = await response.json();
-
-                if (response.ok) {
+                {
                     const validation = document.getElementById('validationMessage');
                     validation.className = 'validation-message validation-success';
                     validation.innerHTML = isEditMode ?
@@ -990,8 +994,6 @@
                     setTimeout(() => {
                         window.location.href = '/';
                     }, 2000);
-                } else {
-                    throw new Error(result.error || 'Failed to save configuration');
                 }
             } catch (error) {
                 const validation = document.getElementById('validationMessage');

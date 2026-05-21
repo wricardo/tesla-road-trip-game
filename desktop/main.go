@@ -68,7 +68,7 @@ type GameState struct {
 	GameOver    bool     `json:"game_over"`
 	Victory     bool     `json:"victory"`
 	Message     string   `json:"message"`
-	ConfigName  string   `json:"config_name"`
+	MapName  string   `json:"map_name"`
 	MoveHistory []Move   `json:"move_history,omitempty"`
 }
 
@@ -112,7 +112,7 @@ type SessionData struct {
 // SessionListItem represents a session from the server
 type SessionListItem struct {
 	ID         string `json:"id"`
-	ConfigName string `json:"config_name"`
+	MapName string `json:"map_name"`
 	CreatedAt  string `json:"created_at"`
 	Battery    int    `json:"battery"`
 	Score      int    `json:"score"`
@@ -189,7 +189,7 @@ func (g *Game) addSession(sessionID string) {
 	if sessionID == "" {
 		configName := ""
 		if len(g.sessions) > 0 && g.sessions[0].state != nil {
-			configName = g.sessions[0].state.ConfigName
+			configName = g.sessions[0].state.MapName
 		}
 		if err := g.createSessionWithConfig(session, configName); err != nil {
 			log.Printf("Failed to create session: %v", err)
@@ -222,7 +222,7 @@ func (g *Game) createSessionWithConfig(session *SessionData, configName string) 
 
 	payload := "{}"
 	if configName != "" {
-		payload = fmt.Sprintf(`{"config_name":"%s"}`, configName)
+		payload = fmt.Sprintf(`{"map_name":"%s"}`, configName)
 	}
 
 	resp, err := http.Post(url, "application/json", strings.NewReader(payload))
@@ -407,7 +407,7 @@ func (g *Game) loadWelcomeData() {
 	}
 
 	// Fetch available configs
-	resp, err = http.Get(fmt.Sprintf("%s/api/configs", baseURL))
+	resp, err = http.Get(fmt.Sprintf("%s/api/maps", baseURL))
 	if err != nil {
 		g.welcomeScreen.errorMsg = fmt.Sprintf("Error loading configs: %v", err)
 		g.welcomeScreen.loading = false
@@ -433,7 +433,7 @@ func (g *Game) createNewSessionFromWelcome() error {
 
 	payload := "{}"
 	if configName != "" {
-		payload = fmt.Sprintf(`{"config_name":"%s"}`, configName)
+		payload = fmt.Sprintf(`{"map_name":"%s"}`, configName)
 	}
 
 	resp, err := http.Post(url, "application/json", strings.NewReader(payload))
@@ -737,7 +737,7 @@ func (g *Game) drawWelcomeScreen(screen *ebiten.Image) {
 			}
 
 			line := fmt.Sprintf("%s%s %s | %s | Battery:%d Score:%d%s",
-				cursor, checkbox, session.ID, session.ConfigName,
+				cursor, checkbox, session.ID, session.MapName,
 				session.Battery, session.Score, status)
 
 			ebitenutil.DebugPrintAt(screen, line, 20, y)
