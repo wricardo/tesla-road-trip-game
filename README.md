@@ -75,7 +75,7 @@ make dev-watch
 
 - `-port`: HTTP server port (default: 8080)
 - `-host`: HTTP server host (default: localhost)
-- `-config-dir`: Directory containing game configurations (default: configs)
+- `-config-dir`: Directory containing game configurations (default: maps)
 - `-debug`: Enable debug logging
 - `-ngrok`: Enable ngrok tunnel for public access
 - `-ngrok-auth`: Ngrok auth token (alternatively use NGROK_AUTHTOKEN env var)
@@ -392,7 +392,7 @@ make dev-watch
 # Development server supports:
 # - Automatic rebuilds on file changes
 # - Process management with PID tracking
-# - Configurable ports and configs
+# - Configurable ports and maps
 # - Cross-platform file watching
 ```
 
@@ -424,7 +424,7 @@ statefullgame/
 ├── main.go               # Application entry point
 ├── api/                  # HTTP API handlers and routing
 ├── cmd/analyze/          # Configuration analysis tool
-├── configs/              # Game configuration files (JSON)
+├── maps/                 # Game configuration files (JSON)
 ├── docs/                 # Additional documentation
 ├── game/
 │   ├── config/          # Configuration loading and validation

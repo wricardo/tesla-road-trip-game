@@ -70,9 +70,9 @@ cd cmd/analyze && go run .   # Prints heuristics: dimensions, battery, parks, ch
 ### Package Structure
 ```
 main.go                  Entry point — wires all packages, handles flags, starts server
-api/                     REST HTTP handlers (GET/POST /api, sessions, saves, configs)
+api/                     REST HTTP handlers (GET/POST /api, sessions, saves, maps)
 game/
-  config/                Config file loading and management (configs/*.json)
+  config/                Config file loading and management (maps/*.json)
   engine/                Core game logic: movement, battery, victory, cell types
   service/               GameService interface + implementation (facade over engine+session)
   session/               Session lifecycle, in-memory manager, file persistence
@@ -119,7 +119,7 @@ frontend/                SvelteKit app (Tailwind, Svelte 5)
 
 ### Configuration System
 
-Configs at `configs/*.json`. Grid cell characters:
+Configs at `maps/*.json`. Grid cell characters:
 - `R` = road (passable) — **often hidden between B/W, look carefully**
 - `H` = home base (passable, full battery charge)
 - `P` = park (objective)

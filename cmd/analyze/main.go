@@ -1,5 +1,5 @@
 // Command analyze prints quick, human-readable heuristics about configuration
-// files in the project's configs directory. It summarizes dimensions, battery
+// files in the project's maps directory. It summarizes dimensions, battery
 // settings, counts of chargers and parks, and highlights unreachable locations
 // based on Manhattan distance vs. max battery.
 package main
@@ -42,7 +42,7 @@ func main() {
 
 	for _, configFile := range configs {
 		fmt.Printf("\n=== Analyzing %s ===\n", configFile)
-		analyzeConfig(filepath.Join("configs", configFile))
+		analyzeConfig(filepath.Join("maps", configFile))
 	}
 }
 

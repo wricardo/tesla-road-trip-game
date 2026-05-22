@@ -33,6 +33,7 @@ import (
 	"github.com/wricardo/tesla-road-trip-game/game/session"
 	"github.com/wricardo/tesla-road-trip-game/graph"
 	"github.com/wricardo/tesla-road-trip-game/graph/generated"
+	mcptransport "github.com/wricardo/tesla-road-trip-game/transport/mcp"
 	"github.com/wricardo/tesla-road-trip-game/transport/websocket"
 	"golang.ngrok.com/ngrok"
 	ngrokConfig "golang.ngrok.com/ngrok/config"
@@ -307,12 +308,12 @@ query {
 `))
 
 // getConfigDirDefault returns the default configuration directory.
-// It first honors the CONFIG_DIR environment variable, then falls back to "configs".
+// It first honors the CONFIG_DIR environment variable, then falls back to "maps".
 func getConfigDirDefault() string {
 	if configDir := os.Getenv("CONFIG_DIR"); configDir != "" {
 		return configDir
 	}
-	return "configs"
+	return "maps"
 }
 
 func init() {
@@ -434,6 +435,10 @@ func runHTTPServer(gameService service.GameService) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Write(buf.Bytes())
 	})
+
+	// MCP HTTP endpoint (Streamable HTTP transport).
+	mcpSrv := mcptransport.NewServer(gameService)
+	mainRouter.Handle("/mcp", mcpSrv.Handler())
 
 	// Mount static UI and WebSocket routes at root.
 	mainRouter.Handle("/", apiServer)

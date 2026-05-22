@@ -218,14 +218,14 @@ func LoadGameConfig(filename string) (*GameConfig, error) {
 	return &config, nil
 }
 
-// LoadConfigByName loads a game configuration by name from the configs directory
+// LoadConfigByName loads a game configuration by name from the maps directory
 func LoadConfigByName(configName string) (*GameConfig, error) {
 	// Add .json extension if not present
 	if !strings.HasSuffix(configName, ".json") {
 		configName = configName + ".json"
 	}
 
-	configPath := filepath.Join("configs", configName)
+	configPath := filepath.Join("maps", configName)
 
 	// Check if config file exists
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {

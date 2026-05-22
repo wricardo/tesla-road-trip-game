@@ -340,7 +340,7 @@ func TestLoadConfigByName(t *testing.T) {
 	os.Chdir(tempDir)
 
 	// Create configs directory
-	os.MkdirAll("configs", 0755)
+	os.MkdirAll("maps", 0755)
 
 	configContent := `{
 		"name": "Test Config",
@@ -379,7 +379,7 @@ func TestLoadConfigByName(t *testing.T) {
 		}
 	}`
 
-	err := os.WriteFile(filepath.Join("configs", "test.json"), []byte(configContent), 0644)
+	err := os.WriteFile(filepath.Join("maps", "test.json"), []byte(configContent), 0644)
 	if err != nil {
 		t.Fatalf("Failed to create test config file: %v", err)
 	}

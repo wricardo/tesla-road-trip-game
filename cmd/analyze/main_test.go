@@ -161,8 +161,8 @@ func TestAnalyzeConfig_InvalidJSON(t *testing.T) {
 }
 
 func TestMain_Integration(t *testing.T) {
-	// Create a temporary configs directory for testing
-	tmpDir, err := os.MkdirTemp("", "test_configs_*")
+	// Create a temporary maps directory for testing
+	tmpDir, err := os.MkdirTemp("", "test_maps_*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -208,12 +208,12 @@ func TestMain_Integration(t *testing.T) {
 		t.Fatalf("Failed to change directory: %v", err)
 	}
 
-	// Create configs subdirectory and move the file there
-	if err := os.Mkdir("configs", 0755); err != nil {
-		t.Fatalf("Failed to create configs dir: %v", err)
+	// Create maps subdirectory and move the file there
+	if err := os.Mkdir("maps", 0755); err != nil {
+		t.Fatalf("Failed to create maps dir: %v", err)
 	}
 
-	if err := os.Rename("classic.json", "configs/classic.json"); err != nil {
+	if err := os.Rename("classic.json", "maps/classic.json"); err != nil {
 		t.Fatalf("Failed to move config file: %v", err)
 	}
 
@@ -226,7 +226,7 @@ func TestMain_Integration(t *testing.T) {
 
 	// We can't call main() directly as it would process all hardcoded configs,
 	// but we can test analyzeConfig with our test file
-	analyzeConfig("configs/classic.json")
+	analyzeConfig("maps/classic.json")
 }
 
 func TestAnalyzeConfig_ReachabilityAnalysis(t *testing.T) {
