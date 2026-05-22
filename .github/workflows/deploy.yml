@@ -40,24 +40,31 @@ jobs:
           tar czf /tmp/deploy.tgz -C /tmp/tesla-deploy .
 
       # Setup SSH once — used by both Upload and Install steps.
-      # EC2_KNOWN_HOST: run `ssh-keyscan -H <host>` on a trusted network
-      # and store the output line as a GitHub Actions secret.
+      # Use a fresh per-run known_hosts file populated from the current EC2 host
+      # key so stale runner or secret entries cannot break deploys.
       - name: Setup SSH
         env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
-          EC2_KNOWN_HOST: ${{ secrets.EC2_KNOWN_HOST }}
         run: |
+          test -n "$EC2_HOST"
+          test -n "$EC2_SSH_KEY"
           mkdir -p ~/.ssh
           echo "$EC2_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          echo "$EC2_KNOWN_HOST" >> ~/.ssh/known_hosts
+          ssh-keygen -R "$EC2_HOST" 2>/dev/null || true
+          ssh-keyscan -T 10 -H "$EC2_HOST" > ~/.ssh/known_hosts
+          test -s ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
       - name: Upload to EC2
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
-          scp -o BatchMode=yes -i ~/.ssh/deploy_key \
+          scp -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            -i ~/.ssh/deploy_key \
             /tmp/deploy.tgz \
             ubuntu@"$EC2_HOST":/tmp/tesla-road-trip-game-deploy.tgz
 
@@ -65,7 +72,10 @@ jobs:
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
-          ssh -o BatchMode=yes -i ~/.ssh/deploy_key \
+          ssh -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            -i ~/.ssh/deploy_key \
             ubuntu@"$EC2_HOST" '
             sudo mkdir -p /opt/tesla-road-trip-game
             sudo tar xzf /tmp/tesla-road-trip-game-deploy.tgz \
