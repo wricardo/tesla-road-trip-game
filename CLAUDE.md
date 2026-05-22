@@ -47,6 +47,19 @@ npm run build       # Static build → frontend/build/
 npm run check       # Type-check
 ```
 
+### Full-Stack Live Dev
+```bash
+make dev-live       # Backend on :9090 + frontend on :5173 (both with live reload)
+# Or separately:
+make dev-backend    # Backend only on :9090
+make frontend-dev   # Frontend only on :5173 (proxies to :9090)
+```
+
+### Install Dev Tools
+```bash
+make tools          # Install goimports + golangci-lint
+```
+
 ### GraphQL Code Generation
 ```bash
 go run github.com/99designs/gqlgen generate   # Regenerate from schema.graphqls
@@ -86,6 +99,7 @@ transport/
   websocket/             WebSocket hub — broadcasts state updates to session subscribers
 validate/                Config winnability checks
 cmd/analyze/             CLI: config heuristics analyzer
+bruteforcer/             Standalone Go binary — brute-forces map solutions via HTTP API (separate go.mod)
 frontend/                SvelteKit app (Tailwind, Svelte 5)
   src/routes/
     +page.svelte         Home / game selection
@@ -130,6 +144,15 @@ Configs at `maps/*.json`. Grid cell characters:
 Battery: move costs 1, H/S restore to max. Victory: visit all parks.
 
 **⚠️ R is visually similar to B in monospace. Re-parse any "fully blocked" row character by character before concluding it's impassable.**
+
+### Non-Interactive Shell Commands
+
+`cp`, `mv`, `rm` may be aliased with `-i` on this system — always use force flags to avoid hangs:
+```bash
+cp -f src dst    # not: cp src dst
+mv -f src dst
+rm -f file       # rm -rf dir
+```
 
 ### ngrok Integration
 `-ngrok` flag starts an ngrok tunnel. Auth token via `-ngrok-auth` flag or `NGROK_AUTHTOKEN` env var. Domain via `-ngrok-domain`. Public URL is served in `/llms.txt`.

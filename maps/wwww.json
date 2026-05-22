@@ -1,20 +1,20 @@
 {
-  "name": "Easy Mode",
-  "description": "Beginner-friendly layout with more superchargers",
+  "name": "wwww",
+  "description": "A city block with parks, water feature, and a supercharger hub",
   "grid_size": 10,
-  "max_battery": 15,
+  "max_battery": 20,
   "starting_battery": 15,
   "layout": [
-    "BBBBBBBBBB",
-    "BRRRRSRRRB",
-    "BRPRRRRPRB",
-    "BRRRRRRRRB",
-    "BSRHHHRRBB",
-    "BRRHHHRRBB",
-    "BRRRRRRRBB",
-    "BRPRRRRPRB",
-    "BRRRRSRRRB",
-    "BBBBBBBBBB"
+    "RRRBBBRRRR",
+    "RRRBRRRRRR",
+    "RRHBRRRSRR",
+    "RRRBBBRRRR",
+    "RRRRRRRRRR",
+    "RRWWWWRRRR",
+    "RRWPRRPRRR",
+    "RRWWWWPRRR",
+    "RRRRRRRRRR",
+    "RRRPRRRBBB"
   ],
   "legend": {
     "B": "building",

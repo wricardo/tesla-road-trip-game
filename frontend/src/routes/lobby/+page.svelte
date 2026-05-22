@@ -114,7 +114,7 @@
 						</div>
 					</div>
 					<div class="flex gap-4 text-xs text-gray-500">
-						<span>🌳 {s.score} parks</span>
+						<span>{s.score} parks</span>
 						<span>📍 {s.totalMoves} moves</span>
 						<span class="ml-auto {s.victory ? 'text-green-500' : s.gameOver ? 'text-red-500' : 'text-gray-400'}">
 							{s.victory ? '🏆 Won' : s.gameOver ? '💥 Crashed' : '🟢 Active'}

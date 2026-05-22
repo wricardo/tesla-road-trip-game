@@ -299,9 +299,16 @@
 		};
 	});
 
-	const cellEmoji: Record<string, string> = {
-		home: '🏠', park: '🌳', supercharger: '⚡', water: '💧', building: '🏢'
-	};
+	function cellColorClass(type: string): string {
+		switch (type) {
+			case 'home': return 'bg-red-500 border-red-200';
+			case 'park': return 'bg-emerald-500 border-emerald-200';
+			case 'supercharger': return 'bg-yellow-400 border-yellow-200';
+			case 'water': return 'bg-blue-400 border-blue-200';
+			case 'building': return 'bg-slate-700 border-slate-600';
+			default: return 'bg-white border-gray-50';
+		}
+	}
 </script>
 
 <svelte:head>
@@ -338,8 +345,9 @@
 									{@const allOver = hasPlayer && players.every(i => { const s = states.get(sessionOrder[i]); return s?.gameOver && !s?.victory; })}
 									{@const trailIdxs = !hasPlayer && cell.type === 'road' ? (trailMap.get(`${x},${y}`) ?? []) : []}
 									{@const isTrail = trailIdxs.length > 0}
-									<td class="w-9 h-9 text-center text-base border border-gray-50 transition-colors
-										{cell.type === 'building' || cell.type === 'water' ? 'bg-gray-100' : 'bg-white'}
+									<td class="w-9 h-9 text-center text-base border transition-colors
+										{cellColorClass(cell.type)}
+										{isTrail && !hasPlayer ? 'ring-2 ring-inset ring-sky-300' : ''}
 										{cell.visited && !hasPlayer && !isTrail ? 'opacity-40' : ''}">
 										{#if hasPlayer}
 											{#if players.length === 1}
@@ -357,8 +365,6 @@
 													<span class="inline-block rounded-full w-1 h-1 shrink-0" style="background:{dotColors[idx % dotColors.length]}"></span>
 												{/each}
 											</span>
-										{:else if cell.type !== 'road'}
-											{cellEmoji[cell.type] ?? ''}
 										{/if}
 									</td>
 								{/each}
@@ -404,7 +410,7 @@
 									style="width:{Math.max(0, s.battery / s.maxBattery * 100)}%"></div>
 							</div>
 							<div class="flex gap-2 text-xs text-gray-400 mt-0.5">
-								<span>🌳 {s.score}</span><span>📍 {s.totalMoves}</span>
+								<span>Parks {s.score}</span><span>📍 {s.totalMoves}</span>
 							</div>
 						{/if}
 					</div>

@@ -409,9 +409,12 @@
         }
 
         .palette-icon {
-            font-size: 24px;
             display: block;
-            margin-bottom: 4px;
+            width: 28px;
+            height: 28px;
+            border: 1px solid rgba(255,255,255,0.7);
+            border-radius: 6px;
+            margin: 0 auto 6px;
         }
 
         .palette-label {
@@ -585,27 +588,27 @@
                     <h3>Cell Types (Click to Select)</h3>
                     <div class="cell-palette">
                         <div class="palette-item active" onclick="selectCellType('R')" data-type="R">
-                            <span class="palette-icon">⬜</span>
+                            <span class="palette-icon cell-R"></span>
                             <span class="palette-label">Road (R)</span>
                         </div>
                         <div class="palette-item" onclick="selectCellType('H')" data-type="H">
-                            <span class="palette-icon">🏠</span>
+                            <span class="palette-icon cell-H"></span>
                             <span class="palette-label">Home (H)</span>
                         </div>
                         <div class="palette-item" onclick="selectCellType('P')" data-type="P">
-                            <span class="palette-icon">🌳</span>
+                            <span class="palette-icon cell-P"></span>
                             <span class="palette-label">Park (P)</span>
                         </div>
                         <div class="palette-item" onclick="selectCellType('S')" data-type="S">
-                            <span class="palette-icon">⚡</span>
+                            <span class="palette-icon cell-S"></span>
                             <span class="palette-label">Supercharger (S)</span>
                         </div>
                         <div class="palette-item" onclick="selectCellType('W')" data-type="W">
-                            <span class="palette-icon">💧</span>
+                            <span class="palette-icon cell-W"></span>
                             <span class="palette-label">Water (W)</span>
                         </div>
                         <div class="palette-item" onclick="selectCellType('B')" data-type="B">
-                            <span class="palette-icon">🏢</span>
+                            <span class="palette-icon cell-B"></span>
                             <span class="palette-label">Building (B)</span>
                         </div>
                     </div>
@@ -692,11 +695,11 @@
         const cellTypes = ['R', 'H', 'P', 'S', 'W', 'B'];
         const cellIcons = {
             'R': '',
-            'H': '🏠',
-            'P': '🌳',
-            'S': '⚡',
-            'W': '💧',
-            'B': '🏢'
+            'H': '',
+            'P': '',
+            'S': '',
+            'W': '',
+            'B': ''
         };
 
         // Initialize grid

@@ -13,10 +13,14 @@ tesla-desktop
 *.out
 coverage.html
 
-# Environment variables
+# Environment variables — never commit real credentials
 .env
 .env.local
 .env.*.local
+# belt-and-suspenders: explicit frontend env coverage at root level
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
 
 # Go build cache
 /vendor/
