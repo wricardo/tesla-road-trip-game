@@ -50,6 +50,7 @@ var (
 	port         = flag.Int("port", 8080, "HTTP server port")
 	host         = flag.String("host", "localhost", "HTTP server host")
 	configDir    = flag.String("config-dir", getConfigDirDefault(), "Directory containing game configurations")
+	sessionsDir  = flag.String("sessions-dir", getSessionsDirDefault(), "Directory for persisted game sessions")
 	debug        = flag.Bool("debug", false, "Enable debug logging")
 	version      = flag.Bool("version", false, "Show version information")
 	ngrokEnabled = flag.Bool("ngrok", false, "Enable ngrok tunnel")
@@ -398,6 +399,7 @@ WebSocket URL: ` + "`" + `ws://<host>/graphql` + "`" + ` (` + "`" + `wss://` + "
 ## MCP (Model Context Protocol)
 
 MCP endpoint: ` + "`" + `{{.BaseURL}}/mcp` + "`" + ` (Streamable HTTP transport)
+Production MCP endpoint: ` + "`" + `https://tesla.ngrok.pro/mcp` + "`" + `
 
 Available tools:
 
@@ -424,7 +426,7 @@ To use MCP in Claude Code, add to ` + "`" + `mcp.json` + "`" + `:
   "mcpServers": {
     "tesla-game": {
       "type": "http",
-      "url": "{{.BaseURL}}/mcp"
+      "url": "https://tesla.ngrok.pro/mcp"
     }
   }
 }
@@ -474,6 +476,15 @@ func getConfigDirDefault() string {
 		return configDir
 	}
 	return "maps"
+}
+
+// getSessionsDirDefault returns the default session persistence directory.
+// It first honors the SESSIONS_DIR environment variable, then falls back to "sessions".
+func getSessionsDirDefault() string {
+	if sessionsDir := os.Getenv("SESSIONS_DIR"); sessionsDir != "" {
+		return sessionsDir
+	}
+	return "sessions"
 }
 
 // envBool reads an env var as a boolean. Returns defaultVal if the var is unset.
@@ -785,8 +796,7 @@ func initializeServices() (service.GameService, error) {
 	}
 
 	// Create session persistence
-	sessionsDir := "sessions"
-	persistence, err := session.NewFilePersistence(sessionsDir, configManager)
+	persistence, err := session.NewFilePersistence(*sessionsDir, configManager)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create session persistence: %w", err)
 	}

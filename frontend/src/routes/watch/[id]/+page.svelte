@@ -110,6 +110,17 @@
 Session ID: ${sessionId}
 GraphQL endpoint: ${typeof window !== 'undefined' ? window.location.origin : ''}/graphql
 Playground: ${typeof window !== 'undefined' ? window.location.origin : ''}/playground
+MCP endpoint: https://tesla.ngrok.pro/mcp (Streamable HTTP transport)
+
+To use MCP in Claude Code, configure:
+{
+  "mcpServers": {
+    "tesla-game": {
+      "type": "http",
+      "url": "https://tesla.ngrok.pro/mcp"
+    }
+  }
+}
 
 GraphQL introspection is enabled. Use the Playground Docs panel or query __schema/__type to discover fields before constructing operations.
 

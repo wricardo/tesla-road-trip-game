@@ -27,8 +27,13 @@ func TestConstants(t *testing.T) {
 func TestInitializeServices(t *testing.T) {
 	// Test with default config directory
 	originalConfigDir := *configDir
+	originalSessionsDir := *sessionsDir
 	*configDir = "maps"
-	defer func() { *configDir = originalConfigDir }()
+	*sessionsDir = t.TempDir()
+	defer func() {
+		*configDir = originalConfigDir
+		*sessionsDir = originalSessionsDir
+	}()
 
 	// Create config directory if it doesn't exist for test
 	if _, err := os.Stat("maps"); os.IsNotExist(err) {
@@ -70,6 +75,17 @@ func TestFlagDefaults(t *testing.T) {
 	if *configDir == "" {
 		t.Error("Config directory should have a default value")
 	}
+
+	if *sessionsDir == "" {
+		t.Error("Sessions directory should have a default value")
+	}
+}
+
+func TestGetSessionsDirDefault(t *testing.T) {
+	t.Setenv("SESSIONS_DIR", "/tmp/tesla-sessions-test")
+	if got := getSessionsDirDefault(); got != "/tmp/tesla-sessions-test" {
+		t.Errorf("Expected SESSIONS_DIR override, got %q", got)
+	}
 }
 
 // Note: We can't easily test main(), runHTTPServer(), and runStdioMCPWithInternalServer()
@@ -80,8 +96,13 @@ func TestFlagDefaults(t *testing.T) {
 func TestServiceInitialization(t *testing.T) {
 	// Test that we can initialize services without panicking
 	originalConfigDir := *configDir
+	originalSessionsDir := *sessionsDir
 	*configDir = "maps"
-	defer func() { *configDir = originalConfigDir }()
+	*sessionsDir = t.TempDir()
+	defer func() {
+		*configDir = originalConfigDir
+		*sessionsDir = originalSessionsDir
+	}()
 
 	defer func() {
 		if r := recover(); r != nil {
