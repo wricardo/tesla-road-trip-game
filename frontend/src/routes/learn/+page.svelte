@@ -11,6 +11,15 @@
     gameState { battery score playerPos { x y } }
   }
 }`;
+
+	const legendTiles = [
+		{ label: 'Player', icon: '🚗' },
+		{ label: 'Home', swatch: 'bg-red-500' },
+		{ label: 'Park', swatch: 'bg-emerald-500' },
+		{ label: 'Charger', swatch: 'bg-yellow-400' },
+		{ label: 'Water', swatch: 'bg-blue-400' },
+		{ label: 'Building', swatch: 'bg-slate-700' }
+	];
 </script>
 
 <div class="max-w-3xl mx-auto px-6 py-12">
@@ -26,10 +35,14 @@
 			water) are impassable. Collect all parks to win.
 		</p>
 		<div class="grid grid-cols-3 sm:grid-cols-6 gap-3">
-			{#each [['🚗','Player'],['🏠','Home'],['🌳','Park'],['⚡','Charger'],['💧','Water'],['🏢','Building']] as [icon, label]}
+			{#each legendTiles as tile}
 				<div class="bg-white rounded-xl border border-[#e8e8e8] p-3 text-center">
-					<div class="text-2xl mb-1">{icon}</div>
-					<div class="text-xs text-gray-400">{label}</div>
+					{#if tile.icon}
+						<div class="text-2xl mb-1">{tile.icon}</div>
+					{:else}
+						<div class={`h-7 w-7 rounded-md mx-auto mb-2 border border-white/70 ${tile.swatch}`}></div>
+					{/if}
+					<div class="text-xs text-gray-400">{tile.label}</div>
 				</div>
 			{/each}
 		</div>

@@ -61,9 +61,16 @@
 		return () => unsub();
 	});
 
-	const cellEmoji: Record<string, string> = {
-		home: '🏠', park: '🌳', supercharger: '⚡', water: '💧', building: '🏢'
-	};
+	function cellColorClass(type: string): string {
+		switch (type) {
+			case 'home': return 'bg-red-500';
+			case 'park': return 'bg-emerald-500';
+			case 'supercharger': return 'bg-yellow-400';
+			case 'water': return 'bg-blue-400';
+			case 'building': return 'bg-slate-700';
+			default: return 'bg-white';
+		}
+	}
 </script>
 
 <a href="/watch/{sessionId}" class="block bg-white rounded-2xl border border-[#e8e8e8] shadow-sm hover:shadow-md transition-shadow overflow-hidden">
@@ -78,13 +85,9 @@
 						{#each row as cell, x}
 							{@const isPlayer = x === gs.playerPos.x && y === gs.playerPos.y}
 							<td style="width:{cellSize}px;height:{cellSize}px;font-size:{cellSize * 0.7}px"
-								class="text-center border-0
-								{cell.type === 'building' || cell.type === 'water' ? 'bg-gray-200' : 'bg-white'}
-								{cell.visited && !isPlayer ? 'opacity-50' : ''}">
+								class="text-center border-0 {cellColorClass(cell.type)} {cell.visited && !isPlayer ? 'opacity-50' : ''}">
 								{#if isPlayer}
 									{gs.gameOver ? '💥' : '🚗'}
-								{:else if cellSize >= 8 && cell.type !== 'road'}
-									{cellEmoji[cell.type] ?? ''}
 								{/if}
 							</td>
 						{/each}
@@ -121,7 +124,7 @@
 				></div>
 			</div>
 			<div class="flex gap-3 text-xs text-gray-400 mt-1">
-				<span>🌳 {gs.score}</span>
+				<span>Parks {gs.score}</span>
 				<span>📍 {gs.totalMoves}</span>
 			</div>
 		{/if}

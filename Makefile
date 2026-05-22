@@ -231,13 +231,18 @@ status:
 	@echo "   Checking for embedded ngrok in server logs:"
 	@if curl -s http://localhost:8080/api >/dev/null 2>&1; then \
 		echo "   🔍 Found tesla-road-trip server on port 8080 (may have embedded ngrok)"; \
-		echo "   Testing known ngrok domain: https://frog-able-inherently.ngrok-free.app"; \
-		if curl -s https://frog-able-inherently.ngrok-free.app/api >/dev/null 2>&1; then \
-			echo "   ✅ ngrok tunnel responds: https://frog-able-inherently.ngrok-free.app"; \
-			echo "      Public API: https://frog-able-inherently.ngrok-free.app/api"; \
-			echo "      Public UI: https://frog-able-inherently.ngrok-free.app"; \
+		NGROK_DOMAIN=$$(grep NGROK_DOMAIN .env 2>/dev/null | cut -d= -f2); \
+		if [ -n "$$NGROK_DOMAIN" ]; then \
+			echo "   Testing ngrok domain: https://$$NGROK_DOMAIN"; \
+			if curl -s https://$$NGROK_DOMAIN/api >/dev/null 2>&1; then \
+				echo "   ✅ ngrok tunnel responds: https://$$NGROK_DOMAIN"; \
+				echo "      Public API: https://$$NGROK_DOMAIN/api"; \
+				echo "      Public UI: https://$$NGROK_DOMAIN"; \
+			else \
+				echo "   ❌ ngrok tunnel not responding: https://$$NGROK_DOMAIN"; \
+			fi; \
 		else \
-			echo "   ❌ ngrok tunnel not responding: https://frog-able-inherently.ngrok-free.app"; \
+			echo "   ℹ️  Set NGROK_DOMAIN in .env to test tunnel"; \
 		fi; \
 	fi
 	@echo ""
