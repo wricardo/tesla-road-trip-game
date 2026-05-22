@@ -44,6 +44,7 @@ func (fp *FilePersistence) Save(session *service.Session) error {
 
 	data := PersistedSessionData{
 		ID:             session.ID,
+		DisplayName:    session.DisplayName,
 		MapName:        configID,
 		CreatedAt:      session.CreatedAt,
 		LastAccessedAt: session.LastAccessedAt,
@@ -116,6 +117,7 @@ func (fp *FilePersistence) Load(id string) (*service.Session, error) {
 	// Create session
 	session := &service.Session{
 		ID:             data.ID,
+		DisplayName:    data.DisplayName,
 		Engine:         gameEngine,
 		Config:         gameConfig,
 		CreatedAt:      data.CreatedAt,

@@ -14,6 +14,7 @@ type GameService interface {
 	GetSession(ctx context.Context, sessionID string) (*SessionInfo, error)
 	ListSessions(ctx context.Context) ([]*SessionInfo, error)
 	DeleteSession(ctx context.Context, sessionID string) error
+	UpdateSessionDisplayName(ctx context.Context, sessionID, displayName string) (*SessionInfo, error)
 
 	// Game Operations
 	Move(ctx context.Context, sessionID, direction string, reset bool) (*MoveResult, error)
@@ -39,6 +40,7 @@ type SessionManager interface {
 	List() []*Session
 	Delete(id string) error
 	UpdateLastAccessed(id string) error
+	UpdateDisplayName(id, displayName string) error
 	Save(id string) error
 }
 
@@ -54,6 +56,7 @@ type ConfigManager interface {
 // Session represents an active game session
 type Session struct {
 	ID             string
+	DisplayName    string
 	Engine         *engine.GameEngine
 	Config         *engine.GameConfig
 	CreatedAt      time.Time

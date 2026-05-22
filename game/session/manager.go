@@ -196,6 +196,30 @@ func (m *Manager) DeleteFromMemory(id string) error {
 	return ErrSessionNotFound
 }
 
+// UpdateDisplayName sets the display name on a session and persists it
+func (m *Manager) UpdateDisplayName(id, displayName string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	session, exists := m.sessions[strings.ToLower(id)]
+	if !exists {
+		session, exists = m.sessions[id]
+		if !exists {
+			return ErrSessionNotFound
+		}
+	}
+
+	session.DisplayName = displayName
+
+	if m.persistence != nil {
+		if err := m.persistence.Save(session); err != nil {
+			fmt.Printf("Warning: Failed to persist session %s after display name update: %v\n", id, err)
+		}
+	}
+
+	return nil
+}
+
 // UpdateLastAccessed updates the last accessed time for a session
 func (m *Manager) UpdateLastAccessed(id string) error {
 	m.mu.Lock()

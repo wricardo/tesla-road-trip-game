@@ -197,6 +197,7 @@ type ComplexityRoot struct {
 		Move          func(childComplexity int, sessionID string, direction model.Direction, reset *bool) int
 		Reset         func(childComplexity int, sessionID string) int
 		UpdateMap     func(childComplexity int, name string, patch model.GameMapPatchInput) int
+		UpdateSession func(childComplexity int, id string, displayName string) int
 	}
 
 	Position struct {
@@ -216,6 +217,7 @@ type ComplexityRoot struct {
 
 	Session struct {
 		CreatedAt      func(childComplexity int) int
+		DisplayName    func(childComplexity int) int
 		GameMap        func(childComplexity int) int
 		GameState      func(childComplexity int) int
 		ID             func(childComplexity int) int
@@ -280,6 +282,7 @@ type ComplexityRoot struct {
 type MutationResolver interface {
 	CreateSession(ctx context.Context, mapID *string, mapName *string) (*model.Session, error)
 	DeleteSession(ctx context.Context, id string) (*model.DeleteSessionResult, error)
+	UpdateSession(ctx context.Context, id string, displayName string) (*model.Session, error)
 	Move(ctx context.Context, sessionID string, direction model.Direction, reset *bool) (*model.MoveResult, error)
 	BulkMove(ctx context.Context, sessionID string, moves []model.Direction, reset *bool) (*model.BulkMoveResult, error)
 	Reset(ctx context.Context, sessionID string) (*model.GameState, error)
@@ -1117,6 +1120,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Mutation.UpdateMap(childComplexity, args["name"].(string), args["patch"].(model.GameMapPatchInput)), true
 
+	case "Mutation.updateSession":
+		if e.complexity.Mutation.UpdateSession == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateSession_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateSession(childComplexity, args["id"].(string), args["displayName"].(string)), true
+
 	case "Position.x":
 		if e.complexity.Position.X == nil {
 			break
@@ -1216,6 +1231,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Session.CreatedAt(childComplexity), true
+
+	case "Session.displayName":
+		if e.complexity.Session.DisplayName == nil {
+			break
+		}
+
+		return e.complexity.Session.DisplayName(childComplexity), true
 
 	case "Session.gameMap":
 		if e.complexity.Session.GameMap == nil {
@@ -1626,6 +1648,7 @@ type Query {
 type Mutation {
   createSession(mapID: String, mapName: String): Session!
   deleteSession(id: ID!): DeleteSessionResult!
+  updateSession(id: ID!, displayName: String!): Session!
   move(sessionID: ID!, direction: Direction!, reset: Boolean = false): MoveResult!
   bulkMove(sessionID: ID!, moves: [Direction!]!, reset: Boolean = false): BulkMoveResult!
   reset(sessionID: ID!): GameState!
@@ -1663,6 +1686,7 @@ type UnifiedSession {
 
 type Session {
   id: ID!
+  displayName: String
   mapName: String!
   createdAt: String!
   lastAccessedAt: String!
@@ -2241,6 +2265,57 @@ func (ec *executionContext) field_Mutation_updateMap_argsPatch(
 	}
 
 	var zeroVal model.GameMapPatchInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateSession_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_updateSession_argsID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	arg1, err := ec.field_Mutation_updateSession_argsDisplayName(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["displayName"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_updateSession_argsID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["id"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+	if tmp, ok := rawArgs["id"]; ok {
+		return ec.unmarshalNID2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateSession_argsDisplayName(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["displayName"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("displayName"))
+	if tmp, ok := rawArgs["displayName"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
 	return zeroVal, nil
 }
 
@@ -7527,6 +7602,8 @@ func (ec *executionContext) fieldContext_Mutation_createSession(ctx context.Cont
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_Session_id(ctx, field)
+			case "displayName":
+				return ec.fieldContext_Session_displayName(ctx, field)
 			case "mapName":
 				return ec.fieldContext_Session_mapName(ctx, field)
 			case "createdAt":
@@ -7608,6 +7685,77 @@ func (ec *executionContext) fieldContext_Mutation_deleteSession(ctx context.Cont
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_deleteSession_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateSession(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_updateSession(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UpdateSession(rctx, fc.Args["id"].(string), fc.Args["displayName"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Session)
+	fc.Result = res
+	return ec.marshalNSession2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐSession(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateSession(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Session_id(ctx, field)
+			case "displayName":
+				return ec.fieldContext_Session_displayName(ctx, field)
+			case "mapName":
+				return ec.fieldContext_Session_mapName(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Session_createdAt(ctx, field)
+			case "lastAccessedAt":
+				return ec.fieldContext_Session_lastAccessedAt(ctx, field)
+			case "gameState":
+				return ec.fieldContext_Session_gameState(ctx, field)
+			case "gameMap":
+				return ec.fieldContext_Session_gameMap(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Session", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateSession_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -8158,6 +8306,8 @@ func (ec *executionContext) fieldContext_Query_session(ctx context.Context, fiel
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_Session_id(ctx, field)
+			case "displayName":
+				return ec.fieldContext_Session_displayName(ctx, field)
 			case "mapName":
 				return ec.fieldContext_Session_mapName(ctx, field)
 			case "createdAt":
@@ -8786,6 +8936,47 @@ func (ec *executionContext) fieldContext_Session_id(_ context.Context, field gra
 	return fc, nil
 }
 
+func (ec *executionContext) _Session_displayName(ctx context.Context, field graphql.CollectedField, obj *model.Session) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Session_displayName(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.DisplayName, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Session_displayName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Session",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Session_mapName(ctx context.Context, field graphql.CollectedField, obj *model.Session) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Session_mapName(ctx, field)
 	if err != nil {
@@ -9191,6 +9382,8 @@ func (ec *executionContext) fieldContext_SessionList_sessions(_ context.Context,
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_Session_id(ctx, field)
+			case "displayName":
+				return ec.fieldContext_Session_displayName(ctx, field)
 			case "mapName":
 				return ec.fieldContext_Session_mapName(ctx, field)
 			case "createdAt":
@@ -14004,6 +14197,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "updateSession":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateSession(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "move":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_move(ctx, field)
@@ -14326,6 +14526,8 @@ func (ec *executionContext) _Session(ctx context.Context, sel ast.SelectionSet, 
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "displayName":
+			out.Values[i] = ec._Session_displayName(ctx, field, obj)
 		case "mapName":
 			out.Values[i] = ec._Session_mapName(ctx, field, obj)
 			if out.Values[i] == graphql.Null {

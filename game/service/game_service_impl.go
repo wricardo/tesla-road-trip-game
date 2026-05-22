@@ -108,6 +108,7 @@ func (s *gameServiceImpl) GetSession(ctx context.Context, sessionID string) (*Se
 
 	return &SessionInfo{
 		ID:             session.ID,
+		DisplayName:    session.DisplayName,
 		MapName:        s.getMapID(session.Config.Name),
 		CreatedAt:      session.CreatedAt,
 		LastAccessedAt: session.LastAccessedAt,
@@ -127,6 +128,7 @@ func (s *gameServiceImpl) ListSessions(ctx context.Context) ([]*SessionInfo, err
 	for _, sess := range sessions {
 		result = append(result, &SessionInfo{
 			ID:             sess.ID,
+			DisplayName:    sess.DisplayName,
 			MapName:        s.getMapID(sess.Config.Name),
 			CreatedAt:      sess.CreatedAt,
 			LastAccessedAt: sess.LastAccessedAt,
@@ -144,6 +146,31 @@ func (s *gameServiceImpl) DeleteSession(ctx context.Context, sessionID string) e
 	defer s.mu.Unlock()
 
 	return s.sessions.Delete(sessionID)
+}
+
+// UpdateSessionDisplayName sets the display name for a session.
+func (s *gameServiceImpl) UpdateSessionDisplayName(ctx context.Context, sessionID, displayName string) (*SessionInfo, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if err := s.sessions.UpdateDisplayName(sessionID, displayName); err != nil {
+		return nil, fmt.Errorf("update display name: %w", err)
+	}
+
+	session, err := s.sessions.Get(sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("session not found after update: %w", err)
+	}
+
+	return &SessionInfo{
+		ID:             session.ID,
+		DisplayName:    session.DisplayName,
+		MapName:        s.getMapID(session.Config.Name),
+		CreatedAt:      session.CreatedAt,
+		LastAccessedAt: session.LastAccessedAt,
+		GameState:      session.Engine.GetState(),
+		GameMap:        session.Config,
+	}, nil
 }
 
 // Move executes a single move for a session

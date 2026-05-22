@@ -220,6 +220,7 @@ type Query struct {
 
 type Session struct {
 	ID             string     `json:"id"`
+	DisplayName    *string    `json:"displayName,omitempty"`
 	MapName        string     `json:"mapName"`
 	CreatedAt      string     `json:"createdAt"`
 	LastAccessedAt string     `json:"lastAccessedAt"`
