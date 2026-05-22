@@ -8,6 +8,7 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/joho/godotenv v1.5.1
 	github.com/mark3labs/mcp-go v0.39.1
+	github.com/toon-format/toon-go v0.0.0-20251202084852-7ca0e27c4e8c
 	github.com/vektah/gqlparser/v2 v2.5.26
 	golang.ngrok.com/ngrok v1.12.1
 )
@@ -30,7 +31,6 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/sosodev/duration v1.3.1 // indirect
 	github.com/spf13/cast v1.7.1 // indirect
-	github.com/toon-format/toon-go v0.0.0-20251202084852-7ca0e27c4e8c // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	go.uber.org/multierr v1.11.0 // indirect

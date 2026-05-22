@@ -85,6 +85,18 @@ type GameMapInput struct {
 	Messages          *MapMessagesInput   `json:"messages"`
 }
 
+type GameMapPatchInput struct {
+	Name              *string                `json:"name,omitempty"`
+	Description       *string                `json:"description,omitempty"`
+	GridSize          *int                   `json:"gridSize,omitempty"`
+	MaxBattery        *int                   `json:"maxBattery,omitempty"`
+	StartingBattery   *int                   `json:"startingBattery,omitempty"`
+	Layout            []string               `json:"layout,omitempty"`
+	Legend            []*LegendEntryInput    `json:"legend,omitempty"`
+	WallCrashEndsGame *bool                  `json:"wallCrashEndsGame,omitempty"`
+	Messages          *MapMessagesPatchInput `json:"messages,omitempty"`
+}
+
 type GameState struct {
 	Grid              [][]*Cell           `json:"grid"`
 	PlayerPos         *Position           `json:"playerPos"`
@@ -160,6 +172,20 @@ type MapMessagesInput struct {
 	CantMove           string `json:"cantMove"`
 	BatteryStatus      string `json:"batteryStatus"`
 	HitWall            string `json:"hitWall"`
+}
+
+type MapMessagesPatchInput struct {
+	Welcome            *string `json:"welcome,omitempty"`
+	HomeCharge         *string `json:"homeCharge,omitempty"`
+	SuperchargerCharge *string `json:"superchargerCharge,omitempty"`
+	ParkVisited        *string `json:"parkVisited,omitempty"`
+	ParkAlreadyVisited *string `json:"parkAlreadyVisited,omitempty"`
+	Victory            *string `json:"victory,omitempty"`
+	OutOfBattery       *string `json:"outOfBattery,omitempty"`
+	Stranded           *string `json:"stranded,omitempty"`
+	CantMove           *string `json:"cantMove,omitempty"`
+	BatteryStatus      *string `json:"batteryStatus,omitempty"`
+	HitWall            *string `json:"hitWall,omitempty"`
 }
 
 type MoveHistoryEntry struct {

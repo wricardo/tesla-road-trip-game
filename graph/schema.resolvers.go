@@ -97,6 +97,19 @@ func (r *mutationResolver) CreateMap(ctx context.Context, name string, mapArg mo
 	return toGameMap(cfg), nil
 }
 
+// UpdateMap is the resolver for the updateMap field.
+func (r *mutationResolver) UpdateMap(ctx context.Context, name string, patch model.GameMapPatchInput) (*model.GameMap, error) {
+	cfg, err := r.Service.LoadMap(ctx, name)
+	if err != nil {
+		return nil, fmt.Errorf("map %q not found: %w", name, err)
+	}
+	applyPatch(cfg, patch)
+	if err := r.Service.SaveMap(ctx, name, cfg); err != nil {
+		return nil, err
+	}
+	return toGameMap(cfg), nil
+}
+
 // Session is the resolver for the session field.
 func (r *queryResolver) Session(ctx context.Context, id string) (*model.Session, error) {
 	s, err := r.Service.GetSession(ctx, id)
@@ -263,40 +276,3 @@ func (r *Resolver) Subscription() generated.SubscriptionResolver { return &subsc
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
 type subscriptionResolver struct{ *Resolver }
-
-// !!! WARNING !!!
-// The code below was going to be deleted when updating resolvers. It has been copied here so you have
-// one last chance to move it out of harms way if you want. There are two reasons this happens:
-//  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
-//    it when you're done.
-//  - You have helper methods in this file. Move them out to keep these resolver files clean.
-/*
-	func (r *mutationResolver) CreateConfig(ctx context.Context, name string, config model.GameConfigInput) (*model.GameConfig, error) {
-	cfg := fromGameConfigInput(config)
-	if cfg.Name == "" {
-		cfg.Name = name
-	}
-	if err := r.Service.SaveConfig(ctx, name, cfg); err != nil {
-		return nil, err
-	}
-	return toGameConfig(cfg), nil
-}
-func (r *queryResolver) Configs(ctx context.Context) ([]*model.ConfigInfo, error) {
-	configs, err := r.Service.ListConfigs(ctx)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]*model.ConfigInfo, len(configs))
-	for i, c := range configs {
-		out[i] = toConfigInfo(c)
-	}
-	return out, nil
-}
-func (r *queryResolver) Config(ctx context.Context, name string) (*model.GameConfig, error) {
-	cfg, err := r.Service.LoadConfig(ctx, name)
-	if err != nil {
-		return nil, err
-	}
-	return toGameConfig(cfg), nil
-}
-*/

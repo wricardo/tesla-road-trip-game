@@ -20,6 +20,7 @@ type Mutation {
   bulkMove(sessionID: ID!, moves: [Direction!]!, reset: Boolean = false): BulkMoveResult!
   reset(sessionID: ID!): GameState!
   createMap(name: String!, map: GameMapInput!): GameMap!
+  updateMap(name: String!, patch: GameMapPatchInput!): GameMap!
 }
 
 enum Direction { UP DOWN LEFT RIGHT }
@@ -155,6 +156,33 @@ input MapMessagesInput {
   cantMove: String!
   batteryStatus: String!
   hitWall: String!
+}
+
+# Partial update input — all fields optional; omitted fields keep existing values.
+input GameMapPatchInput {
+  name: String
+  description: String
+  gridSize: Int
+  maxBattery: Int
+  startingBattery: Int
+  layout: [String!]
+  legend: [LegendEntryInput!]
+  wallCrashEndsGame: Boolean
+  messages: MapMessagesPatchInput
+}
+
+input MapMessagesPatchInput {
+  welcome: String
+  homeCharge: String
+  superchargerCharge: String
+  parkVisited: String
+  parkAlreadyVisited: String
+  victory: String
+  outOfBattery: String
+  stranded: String
+  cantMove: String
+  batteryStatus: String
+  hitWall: String
 }
 
 type MapInfo {
