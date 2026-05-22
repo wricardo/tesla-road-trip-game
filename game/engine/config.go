@@ -14,9 +14,7 @@ func ValidateGameConfig(config *GameConfig) error {
 	if config.Name == "" {
 		return fmt.Errorf("config validation: name is required")
 	}
-	if config.Description == "" {
-		return fmt.Errorf("config validation: description is required")
-	}
+	// Description is optional; blank descriptions are allowed for custom maps.
 
 	// Validate grid size
 	if config.GridSize < MinGridSize || config.GridSize > MaxGridSize {

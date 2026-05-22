@@ -1,17 +1,31 @@
 <script lang="ts">
 	import { getContextClient, gql } from '@urql/svelte';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 
 	type CellType = 'R' | 'H' | 'P' | 'S' | 'W' | 'B';
 
-	interface GridCell {
-		type: CellType;
-	}
-
 	interface Config {
-		mapId?: string;
+		mapId: string;
 		name: string;
 		description: string;
+	}
+
+	type LegendEntry = { key: CellType; value: string };
+
+	interface MapMessages {
+		welcome: string;
+		homeCharge: string;
+		superchargerCharge: string;
+		parkVisited: string;
+		parkAlreadyVisited: string;
+		victory: string;
+		outOfBattery: string;
+		stranded: string;
+		cantMove: string;
+		batteryStatus: string;
+		hitWall: string;
 	}
 
 	interface MapConfig {
@@ -21,19 +35,12 @@
 		maxBattery: number;
 		startingBattery: number;
 		layout: string[];
+		legend: LegendEntry[];
 		wallCrashEndsGame: boolean;
+		messages: MapMessages;
 	}
 
 	const client = getContextClient();
-
-	const cellIcons: Record<CellType, string> = {
-		R: '⬜',
-		H: '🏠',
-		P: '🌳',
-		S: '⚡',
-		W: '💧',
-		B: '🏢'
-	};
 
 	const cellLabels: Record<CellType, string> = {
 		R: 'Road',
@@ -42,6 +49,38 @@
 		S: 'Supercharger',
 		W: 'Water',
 		B: 'Building'
+	};
+
+	const cellClasses: Record<CellType, string> = {
+		R: 'bg-white',
+		H: 'bg-red-500 ring-1 ring-red-200',
+		P: 'bg-emerald-500',
+		S: 'bg-yellow-400',
+		W: 'bg-blue-400',
+		B: 'bg-slate-700'
+	};
+
+	const defaultLegend: LegendEntry[] = [
+		{ key: 'R', value: 'road' },
+		{ key: 'H', value: 'home' },
+		{ key: 'P', value: 'park' },
+		{ key: 'S', value: 'supercharger' },
+		{ key: 'W', value: 'water' },
+		{ key: 'B', value: 'building' }
+	];
+
+	const defaultMessages: MapMessages = {
+		welcome: 'Welcome! Drive your Tesla to collect parks. Watch your battery!',
+		homeCharge: 'Home sweet home! Battery fully charged!',
+		superchargerCharge: 'Supercharger! Battery fully charged!',
+		parkVisited: 'Park visited! Score: %d',
+		parkAlreadyVisited: 'Already visited this park',
+		victory: 'Victory! All %d parks visited!',
+		outOfBattery: 'Out of battery! Game Over!',
+		stranded: 'Stranded with no battery! Game Over!',
+		cantMove: "Can't move there!",
+		batteryStatus: 'Battery: %d/%d',
+		hitWall: 'You crashed into a wall! Game Over!'
 	};
 
 	let gridSize = $state(10);
@@ -66,11 +105,26 @@
 	let validationMessage = $state('');
 	let validationType = $state<'error' | 'warning' | 'success' | ''>('');
 	let isSaving = $state(false);
+	let isLoadingMap = $state(false);
 	let selectedConfigId = $state('');
+	let originalMapId = $state('');
+	let lastSavedMapId = $state('');
+	let hasSavedMap = $state(false);
+	const isEditMode = $derived(Boolean(originalMapId));
 
-	onMount(() => {
+	onMount(async () => {
 		initializeGrid(gridSize);
-		loadAvailableConfigs();
+		await loadAvailableConfigs();
+		const requestedMap = $page.url.searchParams.get('map');
+		if (requestedMap) {
+			if (configs.some((config) => config.mapId === requestedMap)) {
+				selectedConfigId = requestedMap;
+				await loadSelectedConfig();
+			} else {
+				validationType = 'error';
+				validationMessage = `Could not find map "${requestedMap}". Starting a new map instead.`;
+			}
+		}
 	});
 
 	function initializeGrid(size: number) {
@@ -128,12 +182,43 @@
 		currentTool = type;
 	}
 
-	function validateMap(): boolean {
+	function resetEditor() {
+		selectedConfigId = '';
+		originalMapId = '';
+		lastSavedMapId = '';
+		hasSavedMap = false;
+		mapName = '';
+		description = '';
+		maxBattery = 20;
+		startingBattery = 20;
+		wallCrashEndsGame = true;
+		currentTool = 'R';
+		initializeGrid(10);
+		validationMessage = '';
+		validationType = '';
+		goto('/editor', { replaceState: true, noScroll: true });
+	}
+
+	function mapExists(mapId: string) {
+		return configs.some((config) => config.mapId === mapId);
+	}
+
+	function saveAsNameChanged() {
+		return mapName.trim() !== '' && mapName.trim() !== originalMapId;
+	}
+
+	function validateMap(options: { saveAsNew?: boolean } = {}): boolean {
 		const errors: string[] = [];
 
 		if (parkCount === 0) errors.push('At least 1 park required');
 		if (homeCount === 0) errors.push('At least 1 home required');
 		if (!mapName.trim()) errors.push('Map name is required');
+		if (options.saveAsNew && isEditMode && !saveAsNameChanged()) {
+			errors.push('Change the map name before using Save as new');
+		}
+		if (options.saveAsNew && mapName.trim() !== originalMapId && mapExists(mapName.trim())) {
+			errors.push('A map with this name already exists');
+		}
 
 		if (errors.length > 0) {
 			validationType = 'error';
@@ -146,21 +231,23 @@
 		return true;
 	}
 
-	async function saveConfiguration() {
-		if (!validateMap()) return;
-
-		isSaving = true;
-
+	function buildMapConfig(): MapConfig {
 		const layout = gridData.map((row) => row.join(''));
-		const config: MapConfig = {
+		return {
 			name: mapName,
 			description,
 			gridSize,
 			maxBattery,
 			startingBattery,
 			layout,
+			legend: defaultLegend,
 			wallCrashEndsGame,
+			messages: defaultMessages
 		};
+	}
+
+	async function persistMap(targetMapId: string, successMessage: string) {
+		isSaving = true;
 
 		try {
 			const CREATE_MAP = gql`
@@ -171,22 +258,35 @@
 				}
 			`;
 
-			const result = await client.mutation(CREATE_MAP, { name: mapName, map: config }).toPromise();
+			const result = await client.mutation(CREATE_MAP, { name: targetMapId, map: buildMapConfig() }).toPromise();
 
 			if (result.error) throw result.error;
 
+			await loadAvailableConfigs();
+			selectedConfigId = targetMapId;
+			originalMapId = targetMapId;
+			lastSavedMapId = targetMapId;
+			hasSavedMap = true;
 			validationType = 'success';
-			validationMessage = '✅ Map saved successfully! Redirecting...';
-
-			setTimeout(() => {
-				window.location.href = '/';
-			}, 2000);
+			validationMessage = successMessage;
+			goto(`/editor?map=${encodeURIComponent(targetMapId)}`, { replaceState: true, noScroll: true });
 		} catch (error) {
 			validationType = 'error';
 			validationMessage = `❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}`;
 		} finally {
 			isSaving = false;
 		}
+	}
+
+	async function saveConfiguration() {
+		if (!validateMap()) return;
+		const targetMapId = isEditMode ? originalMapId : mapName.trim();
+		await persistMap(targetMapId, isEditMode ? 'Map updated successfully.' : 'Map saved successfully.');
+	}
+
+	async function saveAsNew() {
+		if (!validateMap({ saveAsNew: true })) return;
+		await persistMap(mapName.trim(), 'New map saved successfully.');
 	}
 
 	async function loadAvailableConfigs() {
@@ -201,7 +301,7 @@
 				}
 			`;
 
-			const result = await client.query(MAPS_QUERY, {}).toPromise();
+			const result = await client.query(MAPS_QUERY, {}, { requestPolicy: 'network-only' }).toPromise();
 			if (result.data?.maps) {
 				configs = result.data.maps;
 			}
@@ -212,16 +312,12 @@
 
 	async function loadSelectedConfig() {
 		if (!selectedConfigId) {
-			mapName = '';
-			description = '';
-			maxBattery = 20;
-			startingBattery = 20;
-			wallCrashEndsGame = true;
-			initializeGrid(10);
-			validationMessage = '';
+			resetEditor();
 			return;
 		}
 
+		isLoadingMap = true;
+		hasSavedMap = false;
 		try {
 			const MAP_QUERY = gql`
 				query GetMap($name: String!) {
@@ -237,10 +333,11 @@
 				}
 			`;
 
-			const result = await client.query(MAP_QUERY, { name: selectedConfigId }).toPromise();
+			const result = await client.query(MAP_QUERY, { name: selectedConfigId }, { requestPolicy: 'network-only' }).toPromise();
 			if (result.error) throw result.error;
 
 			const map = result.data?.map;
+			if (!map) throw new Error('Map not found');
 			mapName = map.name;
 			description = map.description;
 			maxBattery = map.maxBattery;
@@ -249,13 +346,19 @@
 			gridSize = map.gridSize;
 
 			gridData = map.layout.map((row: string) => row.split('') as CellType[]);
+			originalMapId = selectedConfigId;
+			lastSavedMapId = selectedConfigId;
 			updateStats();
 
 			validationType = 'success';
-			validationMessage = '✅ Map loaded for editing';
+			validationMessage = `Loaded ${map.name} for editing.`;
+			goto(`/editor?map=${encodeURIComponent(selectedConfigId)}`, { replaceState: true, noScroll: true });
 		} catch (error) {
+			originalMapId = '';
 			validationType = 'error';
-			validationMessage = `❌ Error loading map: ${error instanceof Error ? error.message : 'Unknown error'}`;
+			validationMessage = `Error loading map: ${error instanceof Error ? error.message : 'Unknown error'}`;
+		} finally {
+			isLoadingMap = false;
 		}
 	}
 </script>
@@ -264,51 +367,77 @@
 	<title>Map Editor — Tesla Road Trip</title>
 </svelte:head>
 
-<div class="min-h-screen bg-gray-50 flex flex-col">
-	<!-- Header -->
-	<div class="bg-gradient-to-r from-[#667eea] to-[#764ba2] text-white px-6 py-8">
-		<div class="max-w-7xl mx-auto">
-			<h1 class="text-3xl font-light">🗺️ Map Editor</h1>
-			<p class="text-sm text-blue-100 mt-2">Create and edit game maps • Click cells to paint • Validate and save</p>
+<div class="bg-white border-b border-[#e8e8e8]">
+	<div class="max-w-7xl mx-auto px-6 py-12 lg:py-16">
+		<p class="text-xs font-bold uppercase tracking-widest text-red-500 mb-4">🗺️ Map editor</p>
+		<div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+			<div>
+				<h1 class="text-4xl lg:text-5xl font-light text-[#171a20] tracking-tight mb-4">
+					{isEditMode ? `Edit ${mapName || originalMapId}` : 'Design a road trip map'}
+				</h1>
+				<p class="text-lg text-gray-500 font-light max-w-2xl">
+					{isEditMode
+						? `Editing map ID ${originalMapId}. Save changes updates this map; Save as new creates a separate copy.`
+						: 'Paint the grid, configure battery rules, validate required tiles, and save a custom map for new sessions.'}
+				</p>
+			</div>
+			<div class="flex flex-wrap gap-3">
+				<button type="button" onclick={resetEditor} class="border border-gray-200 bg-white text-[#393c41] text-sm px-5 py-3 rounded-full hover:border-gray-400 transition-colors">New map</button>
+				<a href="/maps" class="bg-[#393c41] text-white text-sm px-5 py-3 rounded-full hover:bg-black transition-colors">View maps</a>
+			</div>
 		</div>
 	</div>
+</div>
 
-	<!-- Main Content -->
-	<div class="flex-1 max-w-7xl mx-auto w-full px-4 py-8 grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6">
-		<!-- Grid Editor Section -->
-		<div class="bg-white rounded-2xl border border-[#e8e8e8] shadow-sm p-6 flex flex-col">
-			<div class="overflow-x-auto mb-6">
-				<table class="border-collapse">
-					<tbody>
-						{#each gridData as row, rowIdx}
-							<tr>
-								{#each row as cell, colIdx}
-									<td
-										onclick={() => paintCell(rowIdx, colIdx)}
-										class="w-8 h-8 border border-gray-200 text-center text-sm cursor-pointer hover:bg-gray-100 transition-colors"
-										role="button"
-										tabindex="0"
-										onkeydown={(e) => e.key === 'Enter' && paintCell(rowIdx, colIdx)}
-									>
-										{cellIcons[cell]}
-									</td>
-								{/each}
-							</tr>
-						{/each}
-					</tbody>
-				</table>
+<div class="max-w-7xl mx-auto px-6 py-10">
+	<div class="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6 items-start">
+		<section class="bg-white rounded-2xl border border-[#e8e8e8] shadow-sm p-6">
+			<div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+				<div>
+					<h2 class="text-xl font-light text-[#393c41]">Grid layout</h2>
+					<p class="text-sm text-gray-400 mt-0.5">{isLoadingMap ? 'Loading selected map…' : 'Click or press Enter on cells to paint with the selected terrain.'}</p>
+				</div>
+				<div class="flex flex-wrap gap-2">
+					{#if isEditMode}
+						<span class="shrink-0 text-[11px] text-gray-500 bg-[#f7f7f7] rounded-full px-2 py-1">Editing {originalMapId}</span>
+					{/if}
+					<span class="shrink-0 text-[11px] text-gray-400 bg-[#f7f7f7] rounded-full px-2 py-1">{gridSize}×{gridSize}</span>
+				</div>
 			</div>
 
-			<!-- Grid Controls -->
-			<div class="space-y-3 pt-4 border-t border-gray-200">
+			{#if isLoadingMap}
+				<div class="rounded-2xl bg-[#f7f7f7] border border-gray-100 p-8 mb-6 text-center text-sm text-gray-400">Loading map…</div>
+			{:else}
+			<div class="overflow-x-auto rounded-2xl bg-[#f7f7f7] p-3 border border-gray-100 mb-6">
+				<div class="grid gap-0.5 min-w-fit" style={`grid-template-columns: repeat(${gridSize}, 2rem);`} aria-label="Editable map grid">
+					{#each gridData as row, rowIdx}
+						{#each row as cell, colIdx}
+							<button
+								type="button"
+								onclick={() => paintCell(rowIdx, colIdx)}
+								class={`w-8 h-8 rounded-[3px] border border-white/70 text-xs cursor-pointer hover:ring-2 hover:ring-gray-300 focus:outline-none focus:ring-2 focus:ring-[#393c41] transition-all ${cellClasses[cell]}`}
+								aria-label={`${cellLabels[cell]} at row ${rowIdx + 1}, column ${colIdx + 1}`}
+								title={cellLabels[cell]}
+							>
+								<span class="sr-only">{cellLabels[cell]}</span>
+							</button>
+						{/each}
+					{/each}
+				</div>
+			</div>
+			{/if}
+
+			<div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-100">
 				<div>
-					<label class="text-sm font-medium text-gray-700 mb-2 block">Load Map:</label>
+					<label for="loadMap" class="text-xs font-semibold text-[#393c41] mb-1.5 block">Load map</label>
 					<select
+						id="loadMap"
 						bind:value={selectedConfigId}
 						onchange={loadSelectedConfig}
-						class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+						disabled={isLoadingMap || isSaving}
+						class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-gray-400 disabled:opacity-50"
 					>
-						<option value="">-- New Map --</option>
+						<option value="">New map</option>
 						{#each configs as config}
 							<option value={config.mapId}>{config.name}</option>
 						{/each}
@@ -316,12 +445,12 @@
 				</div>
 
 				<div>
-					<label for="gridSize" class="text-sm font-medium text-gray-700 mb-2 block">Grid Size:</label>
+					<label for="gridSize" class="text-xs font-semibold text-[#393c41] mb-1.5 block">Grid size</label>
 					<select
 						id="gridSize"
 						bind:value={gridSize}
 						onchange={resizeGrid}
-						class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+						class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-gray-400"
 					>
 						<option value="5">5×5</option>
 						<option value="8">8×8</option>
@@ -332,163 +461,109 @@
 						<option value="30">30×30</option>
 					</select>
 				</div>
-
-				<div class="grid grid-cols-3 gap-2">
-					<button
-						onclick={() => fillGrid('R')}
-						class="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-sm font-medium rounded-lg transition-colors"
-					>
-						Fill Roads
-					</button>
-					<button
-						onclick={() => fillGrid('B')}
-						class="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-sm font-medium rounded-lg transition-colors"
-					>
-						Fill Buildings
-					</button>
-					<button
-						onclick={clearGrid}
-						class="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-600 text-sm font-medium rounded-lg transition-colors"
-					>
-						Clear All
-					</button>
-				</div>
 			</div>
 
-			<!-- Validation Message -->
+			<div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-4">
+				<button type="button" onclick={() => fillGrid('R')} class="border border-gray-200 bg-white text-[#393c41] text-sm px-4 py-2.5 rounded-full hover:border-gray-400 transition-colors">Fill roads</button>
+				<button type="button" onclick={() => fillGrid('B')} class="border border-gray-200 bg-white text-[#393c41] text-sm px-4 py-2.5 rounded-full hover:border-gray-400 transition-colors">Fill buildings</button>
+				<button type="button" onclick={clearGrid} class="border border-red-200 bg-red-50 text-red-500 text-sm px-4 py-2.5 rounded-full hover:bg-red-100 transition-colors">Clear all</button>
+			</div>
+
 			{#if validationMessage}
 				<div
-					class={`mt-4 p-3 rounded-lg text-sm ${
+					class={`mt-4 px-5 py-4 rounded-2xl text-sm whitespace-pre-line ${
 						validationType === 'error'
-							? 'bg-red-50 border border-red-200 text-red-700'
+							? 'bg-red-50 border border-red-100 text-red-600'
 							: validationType === 'warning'
-							  ? 'bg-yellow-50 border border-yellow-200 text-yellow-700'
-							  : 'bg-green-50 border border-green-200 text-green-700'
+							  ? 'bg-yellow-50 border border-yellow-100 text-yellow-700'
+							  : 'bg-emerald-50 border border-emerald-100 text-emerald-700'
 					}`}
 				>
 					{validationMessage}
+					{#if hasSavedMap && validationType === 'success'}
+						<div class="mt-3 flex flex-wrap gap-2 whitespace-normal">
+							<a href={`/maps`} class="border border-emerald-200 bg-white/70 text-emerald-700 text-xs px-3 py-1.5 rounded-full hover:bg-white transition-colors">View maps</a>
+							<a href={`/?map=${lastSavedMapId}`} class="border border-emerald-200 bg-white/70 text-emerald-700 text-xs px-3 py-1.5 rounded-full hover:bg-white transition-colors">Create session</a>
+						</div>
+					{/if}
 				</div>
 			{/if}
-		</div>
+		</section>
 
-		<!-- Settings Panel -->
-		<div class="space-y-6">
-			<!-- Cell Palette -->
-			<div class="bg-white rounded-2xl border border-[#e8e8e8] shadow-sm p-6">
-				<h3 class="font-medium text-gray-900 mb-4">Cell Types</h3>
+		<aside class="space-y-6">
+			<section class="bg-white rounded-2xl border border-[#e8e8e8] shadow-sm p-6">
+				<h2 class="text-xl font-light text-[#393c41] mb-1">Cell palette</h2>
+				<p class="text-sm text-gray-400 mb-4">Selected: <span class="font-medium text-[#393c41]">{cellLabels[currentTool]}</span></p>
 				<div class="grid grid-cols-2 gap-2">
 					{#each Object.entries(cellLabels) as [type, label]}
 						<button
+							type="button"
 							onclick={() => selectCellType(type as CellType)}
-							class={`p-3 rounded-lg text-sm font-medium transition-all border-2 ${
+							class={`p-3 rounded-2xl text-sm font-medium transition-all border ${
 								currentTool === type
-									? 'border-blue-500 bg-blue-50 text-blue-700'
-									: 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+									? 'border-[#393c41] bg-[#f7f7f7] text-[#171a20] shadow-sm'
+									: 'border-gray-200 bg-white text-gray-500 hover:border-gray-400 hover:text-[#393c41]'
 							}`}
 						>
-							<div class="text-lg">{cellIcons[type as CellType]}</div>
-							<div class="text-xs mt-1">{label}</div>
+							<span class={`block h-7 w-7 rounded-md mx-auto mb-2 border border-white/70 ${cellClasses[type as CellType]}`}></span>
+							<span class="text-xs">{label}</span>
 						</button>
 					{/each}
 				</div>
-				<p class="text-xs text-gray-500 mt-3">Current: <strong>{cellLabels[currentTool]}</strong></p>
-			</div>
+			</section>
 
-			<!-- Statistics -->
-			<div class="bg-white rounded-2xl border border-[#e8e8e8] shadow-sm p-6">
-				<h3 class="font-medium text-gray-900 mb-4">Statistics</h3>
+			<section class="bg-white rounded-2xl border border-[#e8e8e8] shadow-sm p-6">
+				<h2 class="text-xl font-light text-[#393c41] mb-4">Map stats</h2>
 				<div class="grid grid-cols-2 gap-3">
-					<div class="p-3 bg-gray-50 rounded-lg">
-						<div class="text-xs text-gray-500 mb-1">Parks</div>
-						<div class="text-2xl font-bold text-gray-900">{parkCount}</div>
-					</div>
-					<div class="p-3 bg-gray-50 rounded-lg">
-						<div class="text-xs text-gray-500 mb-1">Homes</div>
-						<div class="text-2xl font-bold text-gray-900">{homeCount}</div>
-					</div>
-					<div class="p-3 bg-gray-50 rounded-lg">
-						<div class="text-xs text-gray-500 mb-1">Chargers</div>
-						<div class="text-2xl font-bold text-gray-900">{superchargerCount}</div>
-					</div>
-					<div class="p-3 bg-gray-50 rounded-lg">
-						<div class="text-xs text-gray-500 mb-1">Obstacles</div>
-						<div class="text-2xl font-bold text-gray-900">{obstacleCount}</div>
-					</div>
+					<div class="p-3 bg-[#f7f7f7] rounded-xl"><div class="text-xs text-gray-400 mb-1">Parks</div><div class="text-2xl font-light text-[#393c41]">{parkCount}</div></div>
+					<div class="p-3 bg-[#f7f7f7] rounded-xl"><div class="text-xs text-gray-400 mb-1">Homes</div><div class="text-2xl font-light text-[#393c41]">{homeCount}</div></div>
+					<div class="p-3 bg-[#f7f7f7] rounded-xl"><div class="text-xs text-gray-400 mb-1">Chargers</div><div class="text-2xl font-light text-[#393c41]">{superchargerCount}</div></div>
+					<div class="p-3 bg-[#f7f7f7] rounded-xl"><div class="text-xs text-gray-400 mb-1">Obstacles</div><div class="text-2xl font-light text-[#393c41]">{obstacleCount}</div></div>
 				</div>
-			</div>
+			</section>
 
-			<!-- Configuration -->
-			<div class="bg-white rounded-2xl border border-[#e8e8e8] shadow-sm p-6">
-				<h3 class="font-medium text-gray-900 mb-4">Configuration</h3>
+			<section class="bg-white rounded-2xl border border-[#e8e8e8] shadow-sm p-6">
+				<h2 class="text-xl font-light text-[#393c41] mb-1">{isEditMode ? 'Edit configuration' : 'Configuration'}</h2>
+				<p class="text-sm text-gray-400 mb-5">{isEditMode ? `Saving changes updates ${originalMapId}. Change the name and use Save as new to duplicate.` : 'Matches the GameMap schema used by saved maps.'}</p>
 				<div class="space-y-4">
 					<div>
-						<label for="mapName" class="block text-sm font-medium text-gray-700 mb-1">Map Name *</label>
-						<input
-							id="mapName"
-							bind:value={mapName}
-							type="text"
-							placeholder="e.g., custom_maze"
-							class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-						/>
-						<p class="text-xs text-gray-500 mt-1">Lowercase, use underscores</p>
+						<label for="mapName" class="block text-xs font-semibold text-[#393c41] mb-1.5">Map name *</label>
+						<input id="mapName" bind:value={mapName} type="text" placeholder="e.g., custom_maze" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-gray-400" />
+						<p class="text-xs text-gray-400 mt-1">Use a stable lowercase identifier with underscores.</p>
 					</div>
 
 					<div>
-						<label for="description" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-						<input
-							id="description"
-							bind:value={description}
-							type="text"
-							placeholder="e.g., A challenging maze layout"
-							class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-						/>
+						<label for="description" class="block text-xs font-semibold text-[#393c41] mb-1.5">Description</label>
+						<input id="description" bind:value={description} type="text" placeholder="e.g., A challenging maze layout" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-gray-400" />
 					</div>
 
 					<div class="grid grid-cols-2 gap-3">
 						<div>
-							<label for="maxBattery" class="block text-sm font-medium text-gray-700 mb-1">Max Battery</label>
-							<input
-								id="maxBattery"
-								bind:value={maxBattery}
-								type="number"
-								min="10"
-								max="100"
-								class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-							/>
+							<label for="maxBattery" class="block text-xs font-semibold text-[#393c41] mb-1.5">Max battery</label>
+							<input id="maxBattery" bind:value={maxBattery} type="number" min="10" max="100" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-gray-400" />
 						</div>
 
 						<div>
-							<label for="startingBattery" class="block text-sm font-medium text-gray-700 mb-1">Starting Battery</label>
-							<input
-								id="startingBattery"
-								bind:value={startingBattery}
-								type="number"
-								min="10"
-								max="100"
-								class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-							/>
+							<label for="startingBattery" class="block text-xs font-semibold text-[#393c41] mb-1.5">Starting battery</label>
+							<input id="startingBattery" bind:value={startingBattery} type="number" min="10" max="100" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-gray-400" />
 						</div>
 					</div>
 
-					<div class="flex items-center gap-2">
-						<input
-							id="wallCrash"
-							bind:checked={wallCrashEndsGame}
-							type="checkbox"
-							class="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
-						/>
-						<label for="wallCrash" class="text-sm text-gray-700">Wall collision ends game</label>
-					</div>
+					<label for="wallCrash" class="flex items-center gap-2 text-sm text-gray-500">
+						<input id="wallCrash" bind:checked={wallCrashEndsGame} type="checkbox" class="w-4 h-4 rounded border-gray-300 text-[#393c41] focus:ring-[#393c41]" />
+						Wall collision ends game
+					</label>
 
-					<button
-						onclick={saveConfiguration}
-						disabled={isSaving}
-						class="w-full px-4 py-2 mt-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium rounded-lg transition-colors"
-					>
-						{isSaving ? '💾 Saving...' : '💾 Save Map'}
+					<button onclick={saveConfiguration} disabled={isSaving || isLoadingMap} class="w-full bg-[#393c41] text-white text-sm px-4 py-3 rounded-full hover:bg-black transition-colors disabled:opacity-50 mt-2">
+						{isSaving ? 'Saving…' : isEditMode ? 'Save changes' : 'Save map'}
 					</button>
+					{#if isEditMode}
+						<button type="button" onclick={saveAsNew} disabled={isSaving || isLoadingMap} class="w-full border border-gray-200 bg-white text-[#393c41] text-sm px-4 py-3 rounded-full hover:border-gray-400 transition-colors disabled:opacity-50">
+							Save as new
+						</button>
+					{/if}
 				</div>
-			</div>
-		</div>
+			</section>
+		</aside>
 	</div>
 </div>

@@ -147,9 +147,12 @@
 							<span class="inline-flex items-center gap-1"><span class="h-2.5 w-2.5 rounded-sm bg-slate-700"></span>Blocked</span>
 							<span class="inline-flex items-center gap-1"><span class="h-2.5 w-2.5 rounded-sm bg-blue-400"></span>Water</span>
 						</div>
-						<div class="flex items-center justify-between text-xs text-gray-400">
+						<div class="flex items-center justify-between gap-3 text-xs text-gray-400">
 							<span>Battery {map.maxBattery}</span>
-							<a href={`/?map=${map.mapId}`} class="font-medium text-[#393c41] hover:text-black transition-colors">Use map →</a>
+							<div class="flex items-center gap-3">
+								<a href={`/editor?map=${map.mapId}`} class="font-medium text-gray-500 hover:text-[#393c41] transition-colors">Edit</a>
+								<a href={`/?map=${map.mapId}`} class="font-medium text-[#393c41] hover:text-black transition-colors">Use map →</a>
+							</div>
 						</div>
 					</div>
 				</article>

@@ -5,7 +5,6 @@
   "type": "object",
   "required": [
     "name",
-    "description",
     "grid_size",
     "max_battery",
     "starting_battery",
@@ -22,8 +21,7 @@
     },
     "description": {
       "type": "string",
-      "description": "Description of the game difficulty/mode",
-      "minLength": 1,
+      "description": "Optional description of the game difficulty/mode",
       "maxLength": 500
     },
     "grid_size": {
