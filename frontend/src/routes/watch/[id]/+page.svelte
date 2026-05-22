@@ -31,11 +31,12 @@
 
 	const SESSION_QUERY = `
 		query Session($id: ID!) {
-			session(id: $id) { id mapName }
+			session(id: $id) { id displayName mapName }
 		}
 	`;
 
 	const sessionQuery = queryStore({ client, query: gql(SESSION_QUERY), variables: { id: sessionId } });
+	const sessionDisplayName = $derived($sessionQuery.data?.session?.displayName ?? null);
 
 	// Initial load via query
 	const initialQuery = queryStore({
@@ -266,7 +267,7 @@ Directions: UP DOWN LEFT RIGHT. Grid coordinates are grid[y][x].`);
 </script>
 
 <svelte:head>
-	<title>{sessionId} — Tesla Road Trip</title>
+	<title>{sessionDisplayName ?? sessionId} — Tesla Road Trip</title>
 </svelte:head>
 
 <div class="max-w-[1900px] mx-auto px-3 sm:px-4 py-4 lg:py-6">
@@ -284,11 +285,20 @@ Directions: UP DOWN LEFT RIGHT. Grid coordinates are grid[y][x].`);
 							{/if}
 						</div>
 						<div class="mt-1 flex items-center gap-2">
-							<button
-								onclick={() => navigator.clipboard.writeText(sessionId)}
-								class="font-mono text-lg leading-none text-gray-800 hover:text-blue-600 transition-colors"
-								title="Copy session ID"
-							>{sessionId}</button>
+							{#if sessionDisplayName}
+								<span class="text-lg leading-none text-gray-800 font-medium">{sessionDisplayName}</span>
+								<button
+									onclick={() => navigator.clipboard.writeText(sessionId)}
+									class="font-mono text-sm leading-none text-gray-400 hover:text-blue-600 transition-colors"
+									title="Copy session ID"
+								>({sessionId})</button>
+							{:else}
+								<button
+									onclick={() => navigator.clipboard.writeText(sessionId)}
+									class="font-mono text-lg leading-none text-gray-800 hover:text-blue-600 transition-colors"
+									title="Copy session ID"
+								>{sessionId}</button>
+							{/if}
 						</div>
 					</div>
 
