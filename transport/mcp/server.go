@@ -159,6 +159,65 @@ func (s *Server) registerTools() {
 		Description: "List available game maps/configs.",
 		InputSchema: mcp.ToolInputSchema{Type: "object", Properties: map[string]interface{}{}},
 	}, s.handleListMaps)
+
+	s.mcpServer.AddTool(mcp.Tool{
+		Name:        "get_map",
+		Description: "Get full map details including layout, battery settings, and messages.",
+		InputSchema: mcp.ToolInputSchema{
+			Type:     "object",
+			Required: []string{"name"},
+			Properties: map[string]interface{}{
+				"name": map[string]interface{}{"type": "string", "description": "Map name/ID"},
+			},
+		},
+	}, s.handleGetMap)
+
+	s.mcpServer.AddTool(mcp.Tool{
+		Name:        "create_map",
+		Description: "Create a new map. Layout rows are strings of R/H/P/S/W/B characters. Requires at least one P (park) and one H (home).",
+		InputSchema: mcp.ToolInputSchema{
+			Type:     "object",
+			Required: []string{"name", "grid_size", "max_battery", "starting_battery", "layout"},
+			Properties: map[string]interface{}{
+				"name":                 map[string]interface{}{"type": "string", "description": "Unique map ID (lowercase, underscores)"},
+				"description":          map[string]interface{}{"type": "string", "description": "Short description"},
+				"grid_size":            map[string]interface{}{"type": "integer", "description": "Grid dimension (e.g. 10 for 10x10)"},
+				"max_battery":          map[string]interface{}{"type": "integer", "description": "Maximum battery capacity"},
+				"starting_battery":     map[string]interface{}{"type": "integer", "description": "Battery at game start"},
+				"layout":               map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Grid rows, one string of cell chars per row"},
+				"wall_crash_ends_game": map[string]interface{}{"type": "boolean", "description": "Whether hitting a wall ends the game"},
+			},
+		},
+	}, s.handleCreateMap)
+
+	s.mcpServer.AddTool(mcp.Tool{
+		Name:        "update_map",
+		Description: "Partially update an existing map. Only provided fields are changed; omitted fields keep their current values.",
+		InputSchema: mcp.ToolInputSchema{
+			Type:     "object",
+			Required: []string{"name"},
+			Properties: map[string]interface{}{
+				"name":                 map[string]interface{}{"type": "string", "description": "Map name/ID to update"},
+				"description":          map[string]interface{}{"type": "string", "description": "New description"},
+				"max_battery":          map[string]interface{}{"type": "integer", "description": "New max battery"},
+				"starting_battery":     map[string]interface{}{"type": "integer", "description": "New starting battery"},
+				"layout":               map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "New grid layout rows"},
+				"wall_crash_ends_game": map[string]interface{}{"type": "boolean", "description": "Wall collision behaviour"},
+			},
+		},
+	}, s.handleUpdateMap)
+
+	s.mcpServer.AddTool(mcp.Tool{
+		Name:        "delete_map",
+		Description: "Permanently delete a map by name.",
+		InputSchema: mcp.ToolInputSchema{
+			Type:     "object",
+			Required: []string{"name"},
+			Properties: map[string]interface{}{
+				"name": map[string]interface{}{"type": "string", "description": "Map name/ID to delete"},
+			},
+		},
+	}, s.handleDeleteMap)
 }
 
 func str(req mcp.CallToolRequest, key string) string {
@@ -418,10 +477,93 @@ func (s *Server) handleListMaps(ctx context.Context, req mcp.CallToolRequest) (*
 	if err != nil {
 		return errResult(err)
 	}
-	// Also render a simple text summary
 	var sb strings.Builder
 	for _, m := range maps {
 		sb.WriteString(fmt.Sprintf("- %s\n", m.MapID))
 	}
 	return mcp.NewToolResultText(sb.String() + "\n" + toTOON(maps)), nil
+}
+
+func (s *Server) handleGetMap(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	name := str(req, "name")
+	if name == "" {
+		return errResult(fmt.Errorf("name is required"))
+	}
+	cfg, err := s.svc.LoadMap(ctx, name)
+	if err != nil {
+		return errResult(err)
+	}
+	return mcp.NewToolResultText(toTOON(cfg)), nil
+}
+
+func (s *Server) handleCreateMap(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	args := req.GetArguments()
+	name := str(req, "name")
+	if name == "" {
+		return errResult(fmt.Errorf("name is required"))
+	}
+	cfg := &engine.GameConfig{
+		Name:              name,
+		Description:       str(req, "description"),
+		GridSize:          intParam(req, "grid_size"),
+		MaxBattery:        intParam(req, "max_battery"),
+		StartingBattery:   intParam(req, "starting_battery"),
+		WallCrashEndsGame: boolParam(req, "wall_crash_ends_game"),
+		Legend:            map[string]string{"R": "road", "H": "home", "P": "park", "S": "supercharger", "W": "water", "B": "building"},
+	}
+	if rows, ok := args["layout"].([]interface{}); ok {
+		cfg.Layout = make([]string, len(rows))
+		for i, r := range rows {
+			cfg.Layout[i], _ = r.(string)
+		}
+	}
+	if err := s.svc.SaveMap(ctx, name, cfg); err != nil {
+		return errResult(err)
+	}
+	return mcp.NewToolResultText(fmt.Sprintf("map %q created", name)), nil
+}
+
+func (s *Server) handleUpdateMap(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	args := req.GetArguments()
+	name := str(req, "name")
+	if name == "" {
+		return errResult(fmt.Errorf("name is required"))
+	}
+	cfg, err := s.svc.LoadMap(ctx, name)
+	if err != nil {
+		return errResult(fmt.Errorf("map %q not found: %w", name, err))
+	}
+	if v, ok := args["description"].(string); ok {
+		cfg.Description = v
+	}
+	if v, ok := args["max_battery"].(float64); ok {
+		cfg.MaxBattery = int(v)
+	}
+	if v, ok := args["starting_battery"].(float64); ok {
+		cfg.StartingBattery = int(v)
+	}
+	if v, ok := args["wall_crash_ends_game"].(bool); ok {
+		cfg.WallCrashEndsGame = v
+	}
+	if rows, ok := args["layout"].([]interface{}); ok {
+		cfg.Layout = make([]string, len(rows))
+		for i, r := range rows {
+			cfg.Layout[i], _ = r.(string)
+		}
+	}
+	if err := s.svc.SaveMap(ctx, name, cfg); err != nil {
+		return errResult(err)
+	}
+	return mcp.NewToolResultText(fmt.Sprintf("map %q updated", name)), nil
+}
+
+func (s *Server) handleDeleteMap(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	name := str(req, "name")
+	if name == "" {
+		return errResult(fmt.Errorf("name is required"))
+	}
+	if err := s.svc.DeleteMap(ctx, name); err != nil {
+		return errResult(err)
+	}
+	return mcp.NewToolResultText(fmt.Sprintf("map %q deleted", name)), nil
 }

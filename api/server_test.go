@@ -150,6 +150,8 @@ func (m *MockGameService) SaveMap(ctx context.Context, configName string, config
 	return nil
 }
 
+func (m *MockGameService) DeleteMap(ctx context.Context, configName string) error { return nil }
+
 // Test helpers
 func setupTestServer(mockService *MockGameService) *Server {
 	hub := websocket.NewHub()

@@ -187,6 +187,11 @@ func (m *MockConfigManager) SaveConfig(name string, config *engine.GameConfig) e
 	return nil
 }
 
+func (m *MockConfigManager) DeleteConfig(name string) error {
+	delete(m.configs, name)
+	return nil
+}
+
 // Test cases
 func TestGameService_CreateSession(t *testing.T) {
 	ctx := context.Background()

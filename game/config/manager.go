@@ -224,6 +224,25 @@ func (m *Manager) SaveConfig(name string, config *engine.GameConfig) error {
 }
 
 // createMinimalConfig creates a minimal valid configuration
+// DeleteConfig removes a map config file and evicts it from cache.
+func (m *Manager) DeleteConfig(name string) error {
+	filename := name
+	if !strings.HasSuffix(filename, ".json") {
+		filename = name + ".json"
+	}
+	configPath := filepath.Join(m.configDir, filename)
+	if err := os.Remove(configPath); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("map %q not found", name)
+		}
+		return fmt.Errorf("failed to delete map: %w", err)
+	}
+	m.mu.Lock()
+	delete(m.configs, name)
+	m.mu.Unlock()
+	return nil
+}
+
 func (m *Manager) createMinimalConfig() *engine.GameConfig {
 	return &engine.GameConfig{
 		Name:            "default",

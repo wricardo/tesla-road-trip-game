@@ -28,6 +28,7 @@ type GameService interface {
 	ListMaps(ctx context.Context) ([]*MapInfo, error)
 	LoadMap(ctx context.Context, mapName string) (*engine.GameConfig, error)
 	SaveMap(ctx context.Context, mapName string, config *engine.GameConfig) error
+	DeleteMap(ctx context.Context, mapName string) error
 }
 
 // SessionManager defines session storage operations
@@ -47,6 +48,7 @@ type ConfigManager interface {
 	ListConfigs() ([]*MapInfo, error)
 	GetDefault() *engine.GameConfig
 	SaveConfig(name string, config *engine.GameConfig) error
+	DeleteConfig(name string) error
 }
 
 // Session represents an active game session
