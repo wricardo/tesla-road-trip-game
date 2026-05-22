@@ -65,7 +65,6 @@ GraphQL endpoint:       POST {{.BaseURL}}/graphql
 GraphQL subscriptions: ws(s)://<host>/graphql
 Playground:             GET  {{.BaseURL}}/playground
 Introspection:          enabled — query __schema/__type or use Playground docs
-Full API reference:     docs/graphql.md in the repository
 GraphQL CLI client:     https://github.com/wricardo/gqlcli — open-source CLI for querying this API
 
 ---
