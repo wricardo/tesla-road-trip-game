@@ -27,11 +27,11 @@ func TestConstants(t *testing.T) {
 func TestInitializeServices(t *testing.T) {
 	// Test with default config directory
 	originalConfigDir := *configDir
-	*configDir = "configs"
+	*configDir = "maps"
 	defer func() { *configDir = originalConfigDir }()
 
 	// Create config directory if it doesn't exist for test
-	if _, err := os.Stat("configs"); os.IsNotExist(err) {
+	if _, err := os.Stat("maps"); os.IsNotExist(err) {
 		t.Skip("Skipping test - configs directory not found")
 	}
 
@@ -80,7 +80,7 @@ func TestFlagDefaults(t *testing.T) {
 func TestServiceInitialization(t *testing.T) {
 	// Test that we can initialize services without panicking
 	originalConfigDir := *configDir
-	*configDir = "configs"
+	*configDir = "maps"
 	defer func() { *configDir = originalConfigDir }()
 
 	defer func() {
@@ -90,7 +90,7 @@ func TestServiceInitialization(t *testing.T) {
 	}()
 
 	// Create config directory if it doesn't exist for test
-	if _, err := os.Stat("configs"); os.IsNotExist(err) {
+	if _, err := os.Stat("maps"); os.IsNotExist(err) {
 		t.Skip("Skipping test - configs directory not found")
 	}
 

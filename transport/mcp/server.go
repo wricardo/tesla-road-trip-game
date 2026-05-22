@@ -1,0 +1,427 @@
+package mcp
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+
+	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/server"
+	"github.com/toon-format/toon-go"
+	"github.com/wricardo/tesla-road-trip-game/game/engine"
+	"github.com/wricardo/tesla-road-trip-game/game/service"
+)
+
+// Server is an MCP server backed directly by GameService.
+type Server struct {
+	svc       service.GameService
+	mcpServer *server.MCPServer
+}
+
+// NewServer creates an MCP server that calls GameService directly.
+func NewServer(svc service.GameService) *Server {
+	s := &Server{svc: svc}
+	s.mcpServer = server.NewMCPServer(
+		"Tesla Road Trip Game",
+		"2.0.0",
+		server.WithToolCapabilities(true),
+		server.WithInstructions(`Tesla Road Trip Game MCP Interface.
+Visit all parks (P) to win. Battery depletes 1 per move. H/S restore battery.
+Tools: game_state, move, bulk_move, reset_game, move_history, create_session, get_session, list_sessions, list_maps.`),
+	)
+	s.registerTools()
+	return s
+}
+
+// Handler returns an http.Handler serving MCP over Streamable HTTP transport.
+func (s *Server) Handler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "failed to read body", http.StatusBadRequest)
+			return
+		}
+		defer r.Body.Close()
+
+		result := s.mcpServer.HandleMessage(r.Context(), body)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(result)
+	})
+}
+
+func (s *Server) registerTools() {
+	s.mcpServer.AddTool(mcp.Tool{
+		Name:        "game_state",
+		Description: "Get current game state for a session.",
+		InputSchema: mcp.ToolInputSchema{
+			Type:     "object",
+			Required: []string{"session_id"},
+			Properties: map[string]interface{}{
+				"session_id": map[string]interface{}{"type": "string", "description": "Session ID"},
+			},
+		},
+	}, s.handleGameState)
+
+	s.mcpServer.AddTool(mcp.Tool{
+		Name:        "move",
+		Description: "Move the Tesla one step. Direction: up/down/left/right.",
+		InputSchema: mcp.ToolInputSchema{
+			Type:     "object",
+			Required: []string{"session_id", "direction"},
+			Properties: map[string]interface{}{
+				"session_id": map[string]interface{}{"type": "string"},
+				"direction":  map[string]interface{}{"type": "string", "enum": []string{"up", "down", "left", "right"}},
+				"reset":      map[string]interface{}{"type": "boolean", "description": "Reset before moving"},
+				"intent":     map[string]interface{}{"type": "string", "description": "Explain reasoning"},
+			},
+		},
+	}, s.handleMove)
+
+	s.mcpServer.AddTool(mcp.Tool{
+		Name:        "bulk_move",
+		Description: "Execute multiple moves at once. Each move: up/down/left/right.",
+		InputSchema: mcp.ToolInputSchema{
+			Type:     "object",
+			Required: []string{"session_id", "moves"},
+			Properties: map[string]interface{}{
+				"session_id": map[string]interface{}{"type": "string"},
+				"moves":      map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}},
+				"reset":      map[string]interface{}{"type": "boolean"},
+				"intent":     map[string]interface{}{"type": "string"},
+			},
+		},
+	}, s.handleBulkMove)
+
+	s.mcpServer.AddTool(mcp.Tool{
+		Name:        "reset_game",
+		Description: "Reset session to initial state.",
+		InputSchema: mcp.ToolInputSchema{
+			Type:     "object",
+			Required: []string{"session_id"},
+			Properties: map[string]interface{}{
+				"session_id": map[string]interface{}{"type": "string"},
+			},
+		},
+	}, s.handleReset)
+
+	s.mcpServer.AddTool(mcp.Tool{
+		Name:        "move_history",
+		Description: "Get move history for a session.",
+		InputSchema: mcp.ToolInputSchema{
+			Type:     "object",
+			Required: []string{"session_id"},
+			Properties: map[string]interface{}{
+				"session_id": map[string]interface{}{"type": "string"},
+				"limit":      map[string]interface{}{"type": "integer"},
+			},
+		},
+	}, s.handleMoveHistory)
+
+	s.mcpServer.AddTool(mcp.Tool{
+		Name:        "create_session",
+		Description: "Create a new game session.",
+		InputSchema: mcp.ToolInputSchema{
+			Type:     "object",
+			Required: []string{"map_name"},
+			Properties: map[string]interface{}{
+				"map_name": map[string]interface{}{"type": "string", "description": "Map/config name (e.g. easy, medium, hard)"},
+			},
+		},
+	}, s.handleCreateSession)
+
+	s.mcpServer.AddTool(mcp.Tool{
+		Name:        "get_session",
+		Description: "Get session details.",
+		InputSchema: mcp.ToolInputSchema{
+			Type:     "object",
+			Required: []string{"session_id"},
+			Properties: map[string]interface{}{
+				"session_id": map[string]interface{}{"type": "string"},
+			},
+		},
+	}, s.handleGetSession)
+
+	s.mcpServer.AddTool(mcp.Tool{
+		Name:        "list_sessions",
+		Description: "List all active game sessions.",
+		InputSchema: mcp.ToolInputSchema{Type: "object", Properties: map[string]interface{}{}},
+	}, s.handleListSessions)
+
+	s.mcpServer.AddTool(mcp.Tool{
+		Name:        "list_maps",
+		Description: "List available game maps/configs.",
+		InputSchema: mcp.ToolInputSchema{Type: "object", Properties: map[string]interface{}{}},
+	}, s.handleListMaps)
+}
+
+func str(req mcp.CallToolRequest, key string) string {
+	v, _ := req.GetArguments()[key].(string)
+	return v
+}
+
+func boolParam(req mcp.CallToolRequest, key string) bool {
+	v, _ := req.GetArguments()[key].(bool)
+	return v
+}
+
+func intParam(req mcp.CallToolRequest, key string) int {
+	v, ok := req.GetArguments()[key].(float64)
+	if ok {
+		return int(v)
+	}
+	return 0
+}
+
+func extractResponseOptions(req mcp.CallToolRequest) *service.ResponseOptions {
+	args := req.GetArguments()
+	opts := &service.ResponseOptions{}
+
+	// IncludeGrid - defaults to false for game_state (user must explicitly request)
+	if grid, ok := args["grid"].(bool); ok {
+		opts.IncludeGrid = grid
+	}
+
+	// Minimal response
+	if minimal, ok := args["minimal"].(bool); ok {
+		opts.Minimal = minimal
+	}
+
+	// Include metadata/map
+	if metadata, ok := args["metadata"].(bool); ok {
+		opts.IncludeGameMap = metadata
+	}
+
+	// Include history
+	if history, ok := args["history"].(bool); ok {
+		opts.IncludeHistory = history
+	}
+
+	// History limit
+	if limit, ok := args["history_limit"].(float64); ok {
+		opts.HistoryLimit = int(limit)
+	} else {
+		opts.HistoryLimit = 10 // Default
+	}
+
+	return opts
+}
+
+func extractSessionListOptions(req mcp.CallToolRequest) *service.SessionListOptions {
+	args := req.GetArguments()
+	opts := &service.SessionListOptions{}
+
+	if includeMaps, ok := args["include_maps"].(bool); ok {
+		opts.IncludeMaps = includeMaps
+	}
+
+	return opts
+}
+
+// filterGameState removes fields based on options
+func filterGameState(state *engine.GameState, opts *service.ResponseOptions) *engine.GameState {
+	if opts == nil {
+		return state
+	}
+
+	if opts.Minimal || !opts.IncludeGrid {
+		// Copy and remove grid
+		stateCopy := *state
+		stateCopy.Grid = nil
+		return &stateCopy
+	}
+
+	return state
+}
+
+// filterSessionInfo removes fields based on options
+func filterSessionInfo(info *service.SessionInfo, opts *service.ResponseOptions) *service.SessionInfo {
+	if opts == nil {
+		return info
+	}
+
+	infoCopy := *info
+
+	// Don't include GameState by default
+	infoCopy.GameState = nil
+
+	// Filter grid if GameState was requested
+	if opts.IncludeGameState && infoCopy.GameState != nil {
+		if !opts.IncludeGrid {
+			stateCopy := *infoCopy.GameState
+			stateCopy.Grid = nil
+			infoCopy.GameState = &stateCopy
+		}
+	}
+
+	return &infoCopy
+}
+
+// filterMoveResult removes fields based on options
+func filterMoveResult(result *service.MoveResult, opts *service.ResponseOptions) *service.MoveResult {
+	if opts == nil {
+		return result
+	}
+
+	resultCopy := *result
+
+	if opts.Minimal {
+		// Keep only essential fields
+		resultCopy.GameState = nil
+	} else if !opts.IncludeGrid && resultCopy.GameState != nil {
+		// Remove grid
+		stateCopy := *resultCopy.GameState
+		stateCopy.Grid = nil
+		resultCopy.GameState = &stateCopy
+	}
+
+	return &resultCopy
+}
+
+// filterBulkMoveResult removes fields based on options
+func filterBulkMoveResult(result *service.BulkMoveResult, opts *service.ResponseOptions) *service.BulkMoveResult {
+	if opts == nil {
+		return result
+	}
+
+	resultCopy := *result
+
+	if opts.Minimal {
+		// Keep only essential fields
+		resultCopy.GameState = nil
+	} else if !opts.IncludeGrid && resultCopy.GameState != nil {
+		// Remove grid
+		stateCopy := *resultCopy.GameState
+		stateCopy.Grid = nil
+		resultCopy.GameState = &stateCopy
+	}
+
+	return &resultCopy
+}
+
+func toTOON(v any) string {
+	// Convert to JSON-compatible format first (handles custom types)
+	jsonBytes, _ := json.Marshal(v)
+	var data any
+	json.Unmarshal(jsonBytes, &data)
+
+	// Then marshal to TOON
+	s, err := toon.MarshalString(data)
+	if err != nil {
+		return fmt.Sprintf("error: failed to marshal TOON: %v", err)
+	}
+	return s
+}
+
+func errResult(err error) (*mcp.CallToolResult, error) {
+	return mcp.NewToolResultText(fmt.Sprintf("error: %v", err)), nil
+}
+
+func (s *Server) handleGameState(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	state, err := s.svc.GetGameState(ctx, str(req, "session_id"))
+	if err != nil {
+		return errResult(err)
+	}
+	opts := extractResponseOptions(req)
+	filteredState := filterGameState(state, opts)
+	return mcp.NewToolResultText(toTOON(filteredState)), nil
+}
+
+func (s *Server) handleMove(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	result, err := s.svc.Move(ctx, str(req, "session_id"), str(req, "direction"), boolParam(req, "reset"))
+	if err != nil {
+		return errResult(err)
+	}
+	opts := extractResponseOptions(req)
+	filteredResult := filterMoveResult(result, opts)
+	return mcp.NewToolResultText(toTOON(filteredResult)), nil
+}
+
+func (s *Server) handleBulkMove(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	raw, _ := req.GetArguments()["moves"].([]interface{})
+	moves := make([]string, 0, len(raw))
+	for _, m := range raw {
+		if mv, ok := m.(string); ok {
+			moves = append(moves, mv)
+		}
+	}
+	result, err := s.svc.BulkMove(ctx, str(req, "session_id"), moves, boolParam(req, "reset"))
+	if err != nil {
+		return errResult(err)
+	}
+	opts := extractResponseOptions(req)
+	filteredResult := filterBulkMoveResult(result, opts)
+	return mcp.NewToolResultText(toTOON(filteredResult)), nil
+}
+
+func (s *Server) handleReset(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	state, err := s.svc.Reset(ctx, str(req, "session_id"))
+	if err != nil {
+		return errResult(err)
+	}
+	return mcp.NewToolResultText(toTOON(state)), nil
+}
+
+func (s *Server) handleMoveHistory(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	opts := service.HistoryOptions{}
+	if l, ok := req.GetArguments()["limit"].(float64); ok {
+		opts.Limit = int(l)
+	}
+	history, err := s.svc.GetMoveHistory(ctx, str(req, "session_id"), opts)
+	if err != nil {
+		return errResult(err)
+	}
+	return mcp.NewToolResultText(toTOON(history)), nil
+}
+
+func (s *Server) handleCreateSession(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	session, err := s.svc.CreateSession(ctx, str(req, "map_name"))
+	if err != nil {
+		return errResult(err)
+	}
+	return mcp.NewToolResultText(toTOON(session)), nil
+}
+
+func (s *Server) handleGetSession(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	session, err := s.svc.GetSession(ctx, str(req, "session_id"))
+	if err != nil {
+		return errResult(err)
+	}
+	opts := extractResponseOptions(req)
+	filteredSession := filterSessionInfo(session, opts)
+	return mcp.NewToolResultText(toTOON(filteredSession)), nil
+}
+
+func (s *Server) handleListSessions(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	sessions, err := s.svc.ListSessions(ctx)
+	if err != nil {
+		return errResult(err)
+	}
+	// Filter out GameState from list_sessions (just lists sessions)
+	filtered := make([]*service.SessionInfo, 0, len(sessions))
+	for _, sess := range sessions {
+		sessCopy := *sess
+		sessCopy.GameState = nil
+		filtered = append(filtered, &sessCopy)
+	}
+	return mcp.NewToolResultText(toTOON(filtered)), nil
+}
+
+func (s *Server) handleListMaps(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	maps, err := s.svc.ListMaps(ctx)
+	if err != nil {
+		return errResult(err)
+	}
+	// Also render a simple text summary
+	var sb strings.Builder
+	for _, m := range maps {
+		sb.WriteString(fmt.Sprintf("- %s\n", m.MapID))
+	}
+	return mcp.NewToolResultText(sb.String() + "\n" + toTOON(maps)), nil
+}

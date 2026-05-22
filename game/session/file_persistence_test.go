@@ -21,7 +21,7 @@ func TestFilePersistence(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Create config manager
-	configManager, err := config.NewManager("../../configs")
+	configManager, err := config.NewManager("../../maps")
 	if err != nil {
 		t.Fatalf("Failed to create config manager: %v", err)
 	}
@@ -186,7 +186,7 @@ func TestFilePersistenceFileStructure(t *testing.T) {
 	}
 	defer os.RemoveAll(tempDir)
 
-	configManager, err := config.NewManager("../../configs")
+	configManager, err := config.NewManager("../../maps")
 	if err != nil {
 		t.Fatalf("Failed to create config manager: %v", err)
 	}

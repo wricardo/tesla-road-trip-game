@@ -12,8 +12,8 @@ type SessionInfo struct {
 	MapName        string             `json:"map_name"`
 	CreatedAt      time.Time          `json:"created_at"`
 	LastAccessedAt time.Time          `json:"last_accessed_at"`
-	GameState      *engine.GameState  `json:"game_state"`
-	GameMap        *engine.GameConfig `json:"game_map"`
+	GameState      *engine.GameState  `json:"game_state,omitempty"`      // Omitted by default (use ResponseOptions.IncludeGameState)
+	GameMap        *engine.GameConfig `json:"game_map,omitempty"`        // Included by default on get_session, omitted on list_sessions
 }
 
 // MoveResult contains the result of a move operation
@@ -101,6 +101,21 @@ type HistoryOptions struct {
 	Page  int    `json:"page"`
 	Limit int    `json:"limit"`
 	Order string `json:"order"` // "asc" or "desc"
+}
+
+// ResponseOptions controls what's included in responses to save tokens
+type ResponseOptions struct {
+	IncludeGameState bool // Include game state in session/move responses (default: false for session, true for moves)
+	IncludeGameMap   bool // Include map config (default: false for moves, true for session/game_state)
+	IncludeGrid      bool // Include grid in game state (default: false - only show grid when explicitly requested)
+	IncludeHistory   bool // Include move history (default: false)
+	HistoryLimit     int  // Max history items to return (default: 10)
+	Minimal          bool // Minimal response: only position, battery, score, events (default: false)
+}
+
+// SessionListOptions controls list_sessions response
+type SessionListOptions struct {
+	IncludeMaps bool // Include full game_map for each session (default: false)
 }
 
 // HistoryResponse contains paginated move history

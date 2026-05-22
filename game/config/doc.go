@@ -8,7 +8,7 @@
 //
 // Configuration Format:
 //
-// Game configurations are stored as JSON files in the configs directory.
+// Game configurations are stored as JSON files in the maps directory.
 // Each configuration defines:
 //   - Grid layout using character mapping (R=road, H=home, P=park, etc.)
 //   - Battery parameters (max capacity, starting amount)
@@ -25,7 +25,7 @@
 //
 // Usage:
 //
-//	manager := config.NewManager("configs")
+//	manager := config.NewManager("maps")
 //
 //	// Load specific configuration
 //	gameConfig, err := manager.LoadConfig("easy")
