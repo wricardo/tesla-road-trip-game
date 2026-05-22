@@ -75,27 +75,29 @@ func (s *SystematicStrategy) planCollectionOrder(state *GameState) {
 		return
 	}
 
-	// Build distance matrix once (optimization: use Manhattan for initial estimate)
-	distMatrix := make(map[Position]map[Position]int)
+	// Build BFS distance matrix (accurate for mazes, not Manhattan).
 	allPositions := []Position{state.PlayerPos}
 	for _, park := range s.allParks {
 		allPositions = append(allPositions, park.Pos)
 	}
-
-	// Cache distances
+	distMatrix := make(map[Position]map[Position]int)
 	for _, from := range allPositions {
 		distMatrix[from] = make(map[Position]int)
 		for _, to := range allPositions {
 			if from == to {
 				distMatrix[from][to] = 0
 			} else {
-				// Use Manhattan as fast heuristic, BFS only when needed
-				distMatrix[from][to] = s.manhattanDistance(from, to)
+				p := s.BFS(from, to, state)
+				if p != nil {
+					distMatrix[from][to] = len(p)
+				} else {
+					distMatrix[from][to] = math.MaxInt32 / 2
+				}
 			}
 		}
 	}
 
-	// Nearest-neighbor with battery awareness
+	// Nearest-neighbor ordering by true BFS distance.
 	remaining := make(map[int]bool)
 	for i := range s.allParks {
 		remaining[i] = true
@@ -103,29 +105,15 @@ func (s *SystematicStrategy) planCollectionOrder(state *GameState) {
 
 	s.collectionOrder = make([]Position, 0, len(s.allParks))
 	currentPos := state.PlayerPos
-	currentBattery := state.MaxBattery
 
-	// Build route considering battery constraints
 	for len(remaining) > 0 {
 		nearestIdx := -1
-		minScore := math.MaxFloat64
+		minDist := math.MaxInt32
 
 		for idx := range remaining {
-			parkPos := s.allParks[idx].Pos
-			dist := distMatrix[currentPos][parkPos]
-
-			// Calculate score: distance + charging penalty
-			score := float64(dist)
-
-			// If we'd need to charge, add penalty
-			if currentBattery < dist+5 {
-				// Find nearest charger
-				chargerDist := s.findNearestChargerDistance(currentPos)
-				score += float64(chargerDist) * 1.5 // Penalty for detour
-			}
-
-			if score < minScore {
-				minScore = score
+			d := distMatrix[currentPos][s.allParks[idx].Pos]
+			if d < minDist {
+				minDist = d
 				nearestIdx = idx
 			}
 		}
@@ -135,22 +123,23 @@ func (s *SystematicStrategy) planCollectionOrder(state *GameState) {
 			break
 		}
 
-		parkPos := s.allParks[nearestIdx].Pos
-		dist := distMatrix[currentPos][parkPos]
-
-		// Simulate battery usage
-		if currentBattery < dist+5 {
-			// Would need to charge
-			currentBattery = state.MaxBattery - dist
-		} else {
-			currentBattery -= dist
-		}
-
-		// Add to route
-		s.collectionOrder = append(s.collectionOrder, parkPos)
-		currentPos = parkPos
+		s.collectionOrder = append(s.collectionOrder, s.allParks[nearestIdx].Pos)
+		currentPos = s.allParks[nearestIdx].Pos
 		delete(remaining, nearestIdx)
 	}
+
+	// Post-process: move parks with high escape cost (> maxBattery*2/3) to end.
+	// These parks are easiest to collect last (no escape needed from final park).
+	threshold := state.MaxBattery * 2 / 3
+	var hardParks, easyParks []Position
+	for _, pos := range s.collectionOrder {
+		if s.bfsNearestChargerDistStatic(pos, state) > threshold {
+			hardParks = append(hardParks, pos)
+		} else {
+			easyParks = append(easyParks, pos)
+		}
+	}
+	s.collectionOrder = append(easyParks, hardParks...)
 
 	log.Printf("📋 Planned collection order: %d parks", len(s.collectionOrder))
 	for i, pos := range s.collectionOrder {
@@ -257,37 +246,83 @@ func (s *SystematicStrategy) NextMove(state *GameState) string {
 		return s.NextMove(state)
 	}
 
-	pathLen := len(path)
+	// Simulate the path, accounting for mid-route charger restores.
+	batteryAtPark := s.batteryAfterPath(state.PlayerPos, path, state, state.Battery)
+	if batteryAtPark < 0 {
+		// Run out of battery on the way — charge first
+		return s.goCharge(state)
+	}
 
-	// Battery check: can we reach park AND escape to nearest charger from park?
-	// Use BFS from target to get accurate escape distance (not Manhattan).
+	// Can we escape from the park to a charger with the battery we'll have?
 	escapeLen := s.bfsNearestChargerDist(*s.currentTarget, state)
-	tripCost := pathLen + escapeLen
-
-	if state.Battery < pathLen {
-		// Can't even reach the park — charge first
-		return s.goCharge(state)
-	}
-	if tripCost <= state.MaxBattery && state.Battery < tripCost {
-		// Trip fits in one charge but we don't have enough — charge first
-		return s.goCharge(state)
-	}
-	// If tripCost > maxBattery the route needs mid-trip charging; just go and
-	// let the low-battery guard below catch it on the way.
-	if state.Battery < state.MaxBattery/3 && !isOnCharger {
+	if batteryAtPark < escapeLen {
+		// If this is the last uncollected park, no escape needed — just reach it.
+		uncollected := 0
+		for _, p := range s.allParks {
+			if !state.VisitedParks[p.ID] {
+				uncollected++
+			}
+		}
+		if uncollected == 1 {
+			return path[0]
+		}
+		// Already at max battery: route via charger nearest to destination.
+		if state.Battery >= state.MaxBattery {
+			return s.routeViaChargerNearDest(state)
+		}
 		return s.goCharge(state)
 	}
 
 	return path[0]
 }
 
-// goCharge routes to the nearest reachable charger and commits to it.
+// routeViaChargerNearDest navigates to the charger nearest to the current target,
+// then from there we will have maxBattery to attempt the final leg.
+func (s *SystematicStrategy) routeViaChargerNearDest(state *GameState) string {
+	if s.currentTarget == nil {
+		return s.goCharge(state)
+	}
+	// Find charger with shortest BFS distance from destination.
+	var best *Position
+	minFromDest := math.MaxInt32
+	for _, cp := range s.allChargers {
+		p := s.BFS(*s.currentTarget, cp, state)
+		if p != nil && len(p) < minFromDest {
+			minFromDest = len(p)
+			c := cp
+			best = &c
+		}
+	}
+	if best == nil || *best == state.PlayerPos {
+		// Fallback: just go (might die, but no better option)
+		path := s.BFS(state.PlayerPos, *s.currentTarget, state)
+		if path != nil && len(path) > 0 {
+			return path[0]
+		}
+		return s.exploreMove(state)
+	}
+	log.Printf("🔋 Via-dest charger (%d,%d) battery=%d/%d", best.X, best.Y, state.Battery, state.MaxBattery)
+	s.chargingTarget = best
+	path := s.BFS(state.PlayerPos, *best, state)
+	if path != nil && len(path) > 0 && state.Battery >= len(path) {
+		return path[0]
+	}
+	// Can't reach that charger either — just go for the park directly
+	path = s.BFS(state.PlayerPos, *s.currentTarget, state)
+	if path != nil && len(path) > 0 {
+		return path[0]
+	}
+	return s.exploreMove(state)
+}
+
+// goCharge routes to the nearest reachable charger (that is not the current cell).
 func (s *SystematicStrategy) goCharge(state *GameState) string {
 	var nearest *Position
 	minDist := math.MaxInt32
 	for _, cp := range s.allChargers {
 		p := s.BFS(state.PlayerPos, cp, state)
-		if p != nil && len(p) < minDist && state.Battery >= len(p) {
+		// Require len > 0 so we never "charge" at current position (infinite loop).
+		if p != nil && len(p) > 0 && len(p) < minDist && state.Battery >= len(p) {
 			minDist = len(p)
 			c := cp
 			nearest = &c
@@ -304,6 +339,31 @@ func (s *SystematicStrategy) goCharge(state *GameState) string {
 		return path[0]
 	}
 	return s.exploreMove(state)
+}
+
+// batteryAfterPath simulates walking path from start, accounting for charger restores.
+// Returns battery level at destination, or -1 if battery dies before the end.
+func (s *SystematicStrategy) batteryAfterPath(start Position, path []string, state *GameState, startBattery int) int {
+	battery := startBattery
+	pos := start
+	for _, dir := range path {
+		if battery <= 0 {
+			return -1
+		}
+		pos = s.getNewPosition(pos, dir)
+		battery--
+		cellType := state.Grid[pos.Y][pos.X].Type
+		if cellType == "home" || cellType == "supercharger" {
+			battery = state.MaxBattery
+		}
+	}
+	return battery
+}
+
+// bfsNearestChargerDistStatic is like bfsNearestChargerDist but callable during planning
+// (same implementation, separate name for clarity).
+func (s *SystematicStrategy) bfsNearestChargerDistStatic(pos Position, state *GameState) int {
+	return s.bfsNearestChargerDist(pos, state)
 }
 
 // bfsNearestChargerDist returns the BFS distance from pos to the nearest charger.

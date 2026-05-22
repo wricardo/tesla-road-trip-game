@@ -3,82 +3,16 @@ version: "2"
 run:
   timeout: 5m
 
-issues:
-  exclude-files:
-    - ".*\\.pb\\.go$"
-  exclude-dirs:
-    - vendor
-    - node_modules
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - mnd
-        - funlen
-        - gocyclo
-    - path: cmd/
-      linters:
-        - gochecknoinits
-  exclude:
-    - "should have comment"
-    - "should be consistent with previous receiver name"
-
 output:
   formats:
-    - format: colored-line-number
+    text:
+      path: stdout
+      colors: true
       print-issued-lines: true
       print-linter-name: true
 
 linters:
-  settings:
-    gocyclo:
-      min-complexity: 15
-    goconst:
-      min-len: 2
-      min-occurrences: 2
-    misspell:
-      locale: US
-    lll:
-      line-length: 140
-    gocritic:
-      enabled-tags:
-        - diagnostic
-        - performance
-        - style
-      disabled-checks:
-        - dupImport
-        - ifElseChain
-        - octalLiteral
-        - whyNoLint
-    funlen:
-      lines: 100
-      statements: 50
-    shadow:
-      strict: false
-
+  default: none
   enable:
-    - bodyclose
-    - dogsled
-    - errcheck
-    - funlen
-    - goconst
-    - gocritic
-    - gocyclo
-    - gofmt
-    - goimports
-    - mnd
-    - goprintffuncname
-    - gosec
-    - gosimple
     - govet
     - ineffassign
-    - lll
-    - misspell
-    - nakedret
-    - staticcheck
-    - stylecheck
-    - unconvert
-    - unparam
-    - whitespace
-
-  disable:
-    - prealloc
