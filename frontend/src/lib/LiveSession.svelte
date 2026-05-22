@@ -45,7 +45,7 @@
 	$effect(() => {
 		const WS_URL = typeof window !== 'undefined'
 			? `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/graphql`
-			: 'ws://localhost:8000/graphql';
+			: 'ws://localhost:8080/graphql';
 		const wsClient = createWsClient({ url: WS_URL });
 		const unsub = wsClient.subscribe(
 			{ query: SESSION_SUBSCRIPTION, variables: { sessionID: sessionId } },

@@ -221,7 +221,7 @@
 		// initial state via fetch
 		const graphqlUrl = typeof window !== 'undefined'
 			? `${window.location.origin}/graphql`
-			: 'http://localhost:8000/graphql';
+			: 'http://localhost:8080/graphql';
 		try {
 			const res = await fetch(graphqlUrl, {
 				method: 'POST',
@@ -236,7 +236,7 @@
 		// live updates via WS
 		const WS_URL = typeof window !== 'undefined'
 			? `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/graphql`
-			: 'ws://localhost:8000/graphql';
+			: 'ws://localhost:8080/graphql';
 		const wsc = createWsClient({ url: WS_URL });
 		const unsub = wsc.subscribe(
 			{ query: SESSION_SUBSCRIPTION, variables: { sessionID: id } },

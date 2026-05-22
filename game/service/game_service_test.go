@@ -93,6 +93,15 @@ func (m *MockSessionManager) Save(id string) error {
 	return nil
 }
 
+func (m *MockSessionManager) UpdateDisplayName(id, displayName string) error {
+	session, exists := m.sessions[id]
+	if !exists {
+		return errors.New("session not found")
+	}
+	session.DisplayName = displayName
+	return nil
+}
+
 // MockConfigManager implements service.ConfigManager for testing
 type MockConfigManager struct {
 	configs map[string]*engine.GameConfig

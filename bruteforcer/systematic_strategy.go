@@ -174,62 +174,21 @@ func (s *SystematicStrategy) NextMove(state *GameState) string {
 	s.visitedCells[state.PlayerPos]++
 
 	cellType := state.Grid[state.PlayerPos.Y][state.PlayerPos.X].Type
-	isOnCharger := (cellType == "home" || cellType == "supercharger")
+	isOnCharger := cellType == "home" || cellType == "supercharger"
 
-	// Check if we've reached charger and have sufficient charge
-	if s.chargingTarget != nil && isOnCharger {
-		if state.Battery >= state.MaxBattery-1 {
-			log.Printf("⚡ Fully charged: %d/%d", state.Battery, state.MaxBattery)
-			s.chargingTarget = nil
-			s.needsCharge = false
-		}
-		// Don't clear charging target until we're on a charger and full
+	// On charger: game already restored battery — always clear charge state
+	if isOnCharger {
+		s.chargingTarget = nil
+		s.needsCharge = false
 	}
 
-	// If we're in charging mode, commit to reaching the charger
+	// Committed to a charger: navigate there
 	if s.chargingTarget != nil {
-		if isOnCharger {
-			// On charger but not full - wiggle to charge
-			for _, dir := range []string{"up", "down", "left", "right"} {
-				newPos := s.getNewPosition(state.PlayerPos, dir)
-				if s.isValidPosition(newPos, state) {
-					return dir
-				}
-			}
-		} else {
-			// Still navigating to charger
-			path := s.BFS(state.PlayerPos, *s.chargingTarget, state)
-			if path != nil && len(path) > 0 {
-				return path[0]
-			}
-			// Path failed, clear and recompute
-			s.chargingTarget = nil
+		path := s.BFS(state.PlayerPos, *s.chargingTarget, state)
+		if path != nil && len(path) > 0 {
+			return path[0]
 		}
-	}
-
-	// Check if we need to charge
-	batteryLow := state.Battery < (state.MaxBattery / 3)
-	if (batteryLow || s.needsCharge) && !isOnCharger && s.chargingTarget == nil {
-		// Find nearest charger and commit to it
-		var nearestCharger *Position
-		minDist := 999999
-		for _, chargerPos := range s.allChargers {
-			path := s.BFS(state.PlayerPos, chargerPos, state)
-			if path != nil && len(path) < minDist && state.Battery >= len(path) {
-				minDist = len(path)
-				cp := chargerPos
-				nearestCharger = &cp
-			}
-		}
-		if nearestCharger != nil {
-			log.Printf("🔋 Going to charger (%d,%d) - Battery: %d/%d",
-				nearestCharger.X, nearestCharger.Y, state.Battery, state.MaxBattery)
-			s.chargingTarget = nearestCharger
-			return s.NextMove(state) // Recurse with charging target set
-		} else {
-			log.Printf("❌ No reachable charger!")
-			return ""
-		}
+		s.chargingTarget = nil // path failed, replan
 	}
 
 	// Track progress
@@ -242,128 +201,124 @@ func (s *SystematicStrategy) NextMove(state *GameState) string {
 		s.stuckCount++
 	}
 
-	// Update target if current was collected
+	// Clear collected target
 	if s.currentTarget != nil {
-		parkID := s.parkMap[*s.currentTarget]
-		if state.VisitedParks[parkID] {
-			log.Printf("✅ Collected %s", parkID)
+		if state.VisitedParks[s.parkMap[*s.currentTarget]] {
+			log.Printf("✅ Collected %s", s.parkMap[*s.currentTarget])
 			s.currentTarget = nil
 			s.targetIndex++
 			s.stuckCount = 0
-
-			// CRITICAL: After collecting park, check if we can still reach a charger
-			// If battery is below 50%, proactively charge to avoid getting stranded
-			nearestChargerDist := 999999
-			for _, chargerPos := range s.allChargers {
-				path := s.BFS(state.PlayerPos, chargerPos, state)
-				if path != nil && len(path) < nearestChargerDist {
-					nearestChargerDist = len(path)
-				}
-			}
-
-			if state.Battery <= nearestChargerDist+2 || state.Battery < (state.MaxBattery/2) {
-				log.Printf("⚡ Post-park charge needed: %d battery, charger %d away", state.Battery, nearestChargerDist)
-				s.needsCharge = true
-				return s.NextMove(state)
-			}
 		}
 	}
 
-	// Select next target from planned order
+	// Select next target
 	if s.currentTarget == nil {
 		for s.targetIndex < len(s.collectionOrder) {
 			pos := s.collectionOrder[s.targetIndex]
-			parkID := s.parkMap[pos]
-
-			if !state.VisitedParks[parkID] {
+			if !state.VisitedParks[s.parkMap[pos]] {
 				s.currentTarget = &pos
-				log.Printf("🎯 %s (%d,%d)", parkID, pos.X, pos.Y)
+				log.Printf("🎯 %s (%d,%d)", s.parkMap[pos], pos.X, pos.Y)
 				break
 			}
 			s.targetIndex++
 		}
 	}
-
-	// No more targets - try to find ANY remaining unvisited park
+	// Fallback: any unvisited park reachable by BFS
 	if s.currentTarget == nil {
-		for _, parkInfo := range s.allParks {
-			if !state.VisitedParks[parkInfo.ID] {
-				path := s.BFS(state.PlayerPos, parkInfo.Pos, state)
-				if path != nil {
-					s.currentTarget = &parkInfo.Pos
-					log.Printf("🔄 Trying previously skipped park %s at (%d,%d)",
-						parkInfo.ID, parkInfo.Pos.X, parkInfo.Pos.Y)
+		for _, p := range s.allParks {
+			if !state.VisitedParks[p.ID] {
+				if path := s.BFS(state.PlayerPos, p.Pos, state); path != nil {
+					pos := p.Pos
+					s.currentTarget = &pos
+					log.Printf("🔄 Fallback target %s (%d,%d)", p.ID, pos.X, pos.Y)
 					break
 				}
 			}
 		}
 	}
-
-	// Still no target - game should be won or unwinnable
 	if s.currentTarget == nil {
 		return ""
 	}
 
-	// Try to find path to current target
-	path := s.BFS(state.PlayerPos, *s.currentTarget, state)
-
-	// If no path found, skip this park
-	if path == nil {
-		log.Printf("⚠️  No path to park at (%d,%d) - skipping", s.currentTarget.X, s.currentTarget.Y)
-		s.currentTarget = nil
-		s.targetIndex++
-		return s.NextMove(state) // Try next park
-	}
-
-	// If stuck on same park for too long, skip it
 	if s.stuckCount > 200 {
-		log.Printf("⚠️  Stuck on park at (%d,%d) for %d moves - skipping",
-			s.currentTarget.X, s.currentTarget.Y, s.stuckCount)
+		log.Printf("⚠️ Stuck %d moves, exploring", s.stuckCount)
 		s.currentTarget = nil
 		s.targetIndex++
 		s.stuckCount = 0
-		return s.NextMove(state) // Try next park
-	}
-
-	// Battery check: ensure we can reach target AND get to a charger from there
-	pathLength := len(path)
-
-	// Find nearest charger from target position
-	nearestChargerFromTarget := 999999
-	for _, chargerPos := range s.allChargers {
-		dist := s.manhattanDistance(*s.currentTarget, chargerPos)
-		if dist < nearestChargerFromTarget {
-			nearestChargerFromTarget = dist
-		}
-	}
-
-	// Need: path to target + distance to charger from target + buffer
-	requiredBattery := pathLength + nearestChargerFromTarget + 3
-
-	// If this exceeds max, we'll have to find intermediate charger during journey
-	if requiredBattery > state.MaxBattery {
-		requiredBattery = pathLength + 3
-	}
-
-	// Only charge if we need more AND we're not already near full
-	if state.Battery < requiredBattery && state.Battery < (state.MaxBattery - 2) {
-		log.Printf("⚠️  Battery: %d < %d needed (%d to target + %d escape)",
-			state.Battery, requiredBattery, pathLength, nearestChargerFromTarget)
-		s.needsCharge = true
-		return s.NextMove(state)
-	}
-
-	// Return first move in path
-	if len(path) > 0 {
-		return path[0]
-	}
-
-	// Stuck - try exploration
-	if s.stuckCount > 100 {
 		return s.exploreMove(state)
 	}
 
-	return ""
+	// Path to target
+	path := s.BFS(state.PlayerPos, *s.currentTarget, state)
+	if path == nil {
+		log.Printf("⚠️ No path to (%d,%d), skipping", s.currentTarget.X, s.currentTarget.Y)
+		s.currentTarget = nil
+		s.targetIndex++
+		return s.NextMove(state)
+	}
+
+	pathLen := len(path)
+
+	// Battery check: can we reach park AND escape to nearest charger from park?
+	// Use BFS from target to get accurate escape distance (not Manhattan).
+	escapeLen := s.bfsNearestChargerDist(*s.currentTarget, state)
+	tripCost := pathLen + escapeLen
+
+	if state.Battery < pathLen {
+		// Can't even reach the park — charge first
+		return s.goCharge(state)
+	}
+	if tripCost <= state.MaxBattery && state.Battery < tripCost {
+		// Trip fits in one charge but we don't have enough — charge first
+		return s.goCharge(state)
+	}
+	// If tripCost > maxBattery the route needs mid-trip charging; just go and
+	// let the low-battery guard below catch it on the way.
+	if state.Battery < state.MaxBattery/3 && !isOnCharger {
+		return s.goCharge(state)
+	}
+
+	return path[0]
+}
+
+// goCharge routes to the nearest reachable charger and commits to it.
+func (s *SystematicStrategy) goCharge(state *GameState) string {
+	var nearest *Position
+	minDist := math.MaxInt32
+	for _, cp := range s.allChargers {
+		p := s.BFS(state.PlayerPos, cp, state)
+		if p != nil && len(p) < minDist && state.Battery >= len(p) {
+			minDist = len(p)
+			c := cp
+			nearest = &c
+		}
+	}
+	if nearest == nil {
+		log.Printf("❌ No reachable charger from (%d,%d) battery=%d", state.PlayerPos.X, state.PlayerPos.Y, state.Battery)
+		return s.exploreMove(state)
+	}
+	log.Printf("🔋 Charging at (%d,%d) battery=%d/%d", nearest.X, nearest.Y, state.Battery, state.MaxBattery)
+	s.chargingTarget = nearest
+	path := s.BFS(state.PlayerPos, *nearest, state)
+	if path != nil && len(path) > 0 {
+		return path[0]
+	}
+	return s.exploreMove(state)
+}
+
+// bfsNearestChargerDist returns the BFS distance from pos to the nearest charger.
+func (s *SystematicStrategy) bfsNearestChargerDist(pos Position, state *GameState) int {
+	min := math.MaxInt32
+	for _, cp := range s.allChargers {
+		p := s.BFS(pos, cp, state)
+		if p != nil && len(p) < min {
+			min = len(p)
+		}
+	}
+	if min == math.MaxInt32 {
+		return 0
+	}
+	return min
 }
 
 // NextMoves returns up to maxMoves planned moves for efficient bulk execution

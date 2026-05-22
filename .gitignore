@@ -55,6 +55,9 @@ settings.local.json
 .claude/*.local.md
 *.html
 
+# Browser/Playwright screenshots captured by MCP tools
+.playwright-mcp/
+
 # Beads / Dolt files (added by bd init)
 .dolt/
 *.db
