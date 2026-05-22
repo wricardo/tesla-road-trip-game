@@ -49,7 +49,7 @@ done
 # Function to build and run the server
 build_and_run() {
     echo -e "${YELLOW}Building server...${NC}"
-    if go build -o statefullgame .; then
+    if go build -o tesla-road-trip .; then
         echo -e "${GREEN}✓ Build successful${NC}"
 
         # Kill existing server if running
@@ -65,7 +65,7 @@ build_and_run() {
 
         # Start new server
         echo -e "${GREEN}Starting server on port $PORT${NC}"
-        ./statefullgame -port $PORT &
+        ./tesla-road-trip -port $PORT &
 
         SERVER_PID=$!
         echo $SERVER_PID > .dev-server.pid
@@ -102,7 +102,7 @@ if [ "$WATCH" = true ]; then
     # Check if fswatch is available
     if command -v fswatch >/dev/null 2>&1; then
         # Use fswatch if available (macOS)
-        fswatch -o --exclude='.*\.log$' --exclude='.*\.pid$' --exclude='statefullgame$' . | while read; do
+        fswatch -o --exclude='.*\.log$' --exclude='.*\.pid$' --exclude='tesla-road-trip$' . | while read; do
             echo -e "${YELLOW}Files changed, reloading...${NC}"
             build_and_run
         done

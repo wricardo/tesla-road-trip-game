@@ -56,19 +56,19 @@ make run
 make dev-watch
 
 # Or use the binary directly
-./statefullgame
+./tesla-road-trip
 
 # Custom port
-./statefullgame -port 9090
+./tesla-road-trip -port 9090
 
 # Enable ngrok tunnel for public access
-./statefullgame --ngrok
+./tesla-road-trip --ngrok
 
 # With ngrok auth token (or set NGROK_AUTHTOKEN env var)
-./statefullgame --ngrok --ngrok-auth "your-auth-token"
+./tesla-road-trip --ngrok --ngrok-auth "your-auth-token"
 
 # With custom ngrok domain
-./statefullgame --ngrok --ngrok-domain "your-domain.ngrok-free.app"
+./tesla-road-trip --ngrok --ngrok-domain "your-domain.ngrok-free.app"
 ```
 
 #### Server Options
@@ -88,12 +88,12 @@ The server includes built-in ngrok support for exposing your local game server t
 ```bash
 # Basic ngrok usage (requires NGROK_AUTHTOKEN env var or --ngrok-auth flag)
 export NGROK_AUTHTOKEN="your-auth-token"
-./statefullgame --ngrok
+./tesla-road-trip --ngrok
 
 # Or use a .env file (recommended)
 cp .env.example .env
 # Edit .env with your credentials
-./statefullgame  # Automatically loads .env file
+./tesla-road-trip  # Automatically loads .env file
 
 # Output will show both local and ngrok URLs:
 # Loaded environment variables from .env file
@@ -415,7 +415,7 @@ make fmt && make lint && make vet && make test
 ### Project Structure
 
 ```
-statefullgame/
+tesla-road-trip/
 ├── .github/workflows/     # CI/CD pipeline configuration
 ├── .golangci.yml          # Linter configuration
 ├── Makefile              # Development automation

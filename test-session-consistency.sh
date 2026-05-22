@@ -11,7 +11,7 @@ echo
 echo "1. Checking if HTTP server is running..."
 if ! curl -s http://localhost:8080/api/sessions > /dev/null; then
     echo "❌ HTTP server not running on localhost:8080"
-    echo "Please start it with: ./statefullgame serve"
+    echo "Please start it with: ./tesla-road-trip serve"
     exit 1
 fi
 echo "✅ HTTP server is running"
@@ -41,7 +41,7 @@ echo "   Starting MCP server with HTTP proxy mode (3 second test)..."
 
 # Test that MCP proxy mode connects and would see the sessions
 export GAME_HTTP_SERVER=http://localhost:8080
-timeout 3s ./statefullgame mcp > /tmp/mcp_test.log 2>&1 &
+timeout 3s ./tesla-road-trip mcp > /tmp/mcp_test.log 2>&1 &
 MCP_PID=$!
 sleep 1
 
@@ -84,11 +84,11 @@ echo "- MCP tools will see the same sessions as HTTP API and web UI"
 echo
 echo "USAGE:"
 echo "  # HTTP proxy mode (shared sessions):"
-echo "  GAME_HTTP_SERVER=http://localhost:8080 ./statefullgame mcp"
-echo "  ./statefullgame mcp -s http://localhost:8080"
+echo "  GAME_HTTP_SERVER=http://localhost:8080 ./tesla-road-trip mcp"
+echo "  ./tesla-road-trip mcp -s http://localhost:8080"
 echo
 echo "  # Embedded mode (local sessions):"
-echo "  ./statefullgame mcp"
+echo "  ./tesla-road-trip mcp"
 
 # Cleanup
 rm -f /tmp/mcp_test.log

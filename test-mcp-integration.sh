@@ -7,8 +7,8 @@ echo "🎮 Tesla Road Trip Game - MCP Integration Test"
 echo "=============================================="
 
 # Check if servers are built
-if [ ! -f "./statefullgame" ]; then
-    echo "❌ Building statefullgame..."
+if [ ! -f "./tesla-road-trip" ]; then
+    echo "❌ Building tesla-road-trip..."
     go build
     if [ $? -ne 0 ]; then
         echo "❌ Build failed"
@@ -17,7 +17,7 @@ if [ ! -f "./statefullgame" ]; then
 fi
 
 echo "✅ Starting HTTP server on port 8080..."
-./statefullgame serve -p 8080 &
+./tesla-road-trip serve -p 8080 &
 HTTP_PID=$!
 
 # Wait a moment for server to start
@@ -44,11 +44,11 @@ echo ""
 echo "📋 Usage Examples:"
 echo ""
 echo "1. Start MCP server (in another terminal):"
-echo "   ./statefullgame mcp"
+echo "   ./tesla-road-trip mcp"
 echo ""
 echo "2. Test with different HTTP server:"
-echo "   ./statefullgame serve -p 9090  # Terminal 1"
-echo "   ./statefullgame mcp -s http://localhost:9090  # Terminal 2"
+echo "   ./tesla-road-trip serve -p 9090  # Terminal 1"
+echo "   ./tesla-road-trip mcp -s http://localhost:9090  # Terminal 2"
 echo ""
 echo "3. Compare protocols:"
 echo "   # HTTP API"
@@ -71,4 +71,4 @@ echo "🧪 Integration Test Complete!"
 echo "HTTP server running on PID $HTTP_PID"
 echo ""
 echo "To stop HTTP server: kill $HTTP_PID"
-echo "To start MCP server: ./statefullgame mcp"
+echo "To start MCP server: ./tesla-road-trip mcp"
