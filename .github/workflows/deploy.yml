@@ -82,7 +82,15 @@ jobs:
               -C /opt/tesla-road-trip-game
             sudo chown -R ubuntu:ubuntu /opt/tesla-road-trip-game
             chmod +x /opt/tesla-road-trip-game/tesla-road-trip
-            mkdir -p /opt/tesla-road-trip-game/sessions
+            sudo mkdir -p /opt/tesla-road-trip-game/sessions
+            sudo chown -R ubuntu:ubuntu /opt/tesla-road-trip-game/sessions
+            sudo mkdir -p /etc/systemd/system/tesla-road-trip-game.service.d
+            printf "%s\n" \
+              "[Service]" \
+              "WorkingDirectory=/opt/tesla-road-trip-game" \
+              "Environment=SESSIONS_DIR=/opt/tesla-road-trip-game/sessions" \
+              | sudo tee /etc/systemd/system/tesla-road-trip-game.service.d/persistence.conf >/dev/null
+            sudo systemctl daemon-reload
             sudo systemctl restart tesla-road-trip-game.service
             systemctl is-active tesla-road-trip-game.service
           '
