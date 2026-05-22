@@ -3,9 +3,11 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -14,6 +16,26 @@ import (
 	"github.com/wricardo/tesla-road-trip-game/game/engine"
 	"github.com/wricardo/tesla-road-trip-game/game/service"
 )
+
+// mcpHTTPRequestKey is the context key for the incoming *http.Request.
+type mcpHTTPRequestKey struct{}
+
+// checkAdminKey returns an error if ADMIN_API_KEY is set and the request's
+// X-Admin-Key header does not match. No-ops when ADMIN_API_KEY is unset.
+func checkAdminKey(ctx context.Context) error {
+	required := os.Getenv("ADMIN_API_KEY")
+	if required == "" {
+		return nil
+	}
+	r, _ := ctx.Value(mcpHTTPRequestKey{}).(*http.Request)
+	if r == nil {
+		return errors.New("admin operation requires X-Admin-Key header")
+	}
+	if r.Header.Get("X-Admin-Key") != required {
+		return errors.New("forbidden: invalid or missing X-Admin-Key")
+	}
+	return nil
+}
 
 // Server is an MCP server backed directly by GameService.
 type Server struct {
@@ -50,7 +72,8 @@ func (s *Server) Handler() http.Handler {
 		}
 		defer r.Body.Close()
 
-		result := s.mcpServer.HandleMessage(r.Context(), body)
+		ctx := context.WithValue(r.Context(), mcpHTTPRequestKey{}, r)
+		result := s.mcpServer.HandleMessage(ctx, body)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(result)
 	})
@@ -497,6 +520,9 @@ func (s *Server) handleGetMap(ctx context.Context, req mcp.CallToolRequest) (*mc
 }
 
 func (s *Server) handleCreateMap(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	if err := checkAdminKey(ctx); err != nil {
+		return errResult(err)
+	}
 	args := req.GetArguments()
 	name := str(req, "name")
 	if name == "" {
@@ -524,6 +550,9 @@ func (s *Server) handleCreateMap(ctx context.Context, req mcp.CallToolRequest) (
 }
 
 func (s *Server) handleUpdateMap(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	if err := checkAdminKey(ctx); err != nil {
+		return errResult(err)
+	}
 	args := req.GetArguments()
 	name := str(req, "name")
 	if name == "" {
@@ -558,6 +587,9 @@ func (s *Server) handleUpdateMap(ctx context.Context, req mcp.CallToolRequest) (
 }
 
 func (s *Server) handleDeleteMap(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	if err := checkAdminKey(ctx); err != nil {
+		return errResult(err)
+	}
 	name := str(req, "name")
 	if name == "" {
 		return errResult(fmt.Errorf("name is required"))

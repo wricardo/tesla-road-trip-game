@@ -63,10 +63,11 @@ var llmsTxtTemplate = template.Must(template.New("llms").Parse(`# Tesla Road Tri
 Grid-based navigation game. Control a Tesla, collect all parks, manage battery. Win by visiting every park.
 
 GraphQL endpoint:       POST {{.BaseURL}}/graphql
-GraphQL subscriptions: ws(s)://<host>/graphql
+GraphQL subscriptions:  ws(s)://<host>/graphql
 Playground:             GET  {{.BaseURL}}/playground
+MCP endpoint:           POST {{.BaseURL}}/mcp  (Streamable HTTP transport)
 Introspection:          enabled — query __schema/__type or use Playground docs
-GraphQL CLI client:     https://github.com/wricardo/gqlcli — open-source CLI for querying this API
+GraphQL CLI client:     https://github.com/wricardo/gqlcli
 
 ---
 
@@ -109,7 +110,7 @@ mutation {
 
 ` + "```" + `graphql
 query {
-  gameState(sessionID: "abcd") {
+  gameState(sessionID: "SESSION_ID") {
     playerPos { x y }
     battery
     maxBattery
@@ -125,41 +126,38 @@ query {
 }
 ` + "```" + `
 
-` + "`" + `localView3x3` + "`" + ` returns a 3-row ASCII snapshot centered on the player — useful for quick spatial awareness without reading the full grid.
+` + "`" + `localView3x3` + "`" + ` — 3-row ASCII snapshot centered on the player. Quick spatial awareness without parsing the full grid.
+` + "`" + `batteryRisk` + "`" + ` — one of: ` + "`" + `SAFE` + "`" + `, ` + "`" + `LOW` + "`" + `, ` + "`" + `CAUTION` + "`" + `, ` + "`" + `DANGER` + "`" + `, ` + "`" + `CRITICAL` + "`" + `, ` + "`" + `WARNING` + "`" + `, ` + "`" + `UNKNOWN` + "`" + `.
 
-` + "`" + `batteryRisk` + "`" + ` is one of: ` + "`" + `SAFE` + "`" + `, ` + "`" + `LOW` + "`" + `, ` + "`" + `CAUTION` + "`" + `, ` + "`" + `DANGER` + "`" + `, ` + "`" + `CRITICAL` + "`" + `, ` + "`" + `WARNING` + "`" + `, or ` + "`" + `UNKNOWN` + "`" + `.
-
-### 4. Move
+### 4. Move (single)
 
 ` + "```" + `graphql
 mutation {
-  move(sessionID: "abcd", direction: RIGHT) {
+  move(sessionID: "SESSION_ID", direction: RIGHT) {
     success
     message
-    gameState {
-      playerPos { x y }
-      battery
-      victory
-      gameOver
-    }
+    gameState { playerPos { x y } battery victory gameOver }
     attemptedTo { x y tileChar tileType passable }
+    step { tileType charged park batteryAfter victory }
   }
 }
 ` + "```" + `
 
 Directions: ` + "`" + `UP` + "`" + ` ` + "`" + `DOWN` + "`" + ` ` + "`" + `LEFT` + "`" + ` ` + "`" + `RIGHT` + "`" + `
-
-Optional ` + "`" + `reset: true` + "`" + ` resets the game before executing the move.
+Optional ` + "`" + `reset: true` + "`" + ` resets before executing.
 
 ### 5. Bulk move (sequence)
 
 ` + "```" + `graphql
 mutation {
-  bulkMove(sessionID: "abcd", moves: [UP, UP, RIGHT, RIGHT, DOWN]) {
+  bulkMove(sessionID: "SESSION_ID", moves: [UP, UP, RIGHT, RIGHT, DOWN]) {
     movesExecuted
+    requestedMoves
     success
     stoppedReason
     stopReasonCode
+    truncated
+    limit
     startPos { x y }
     endPos { x y }
     startBattery
@@ -190,41 +188,244 @@ mutation {
 }
 ` + "```" + `
 
-Bulk moves stop early on: wall collision (if ` + "`" + `wallCrashEndsGame=true` + "`" + `), battery depletion, or victory.
-Check ` + "`" + `stoppedReason` + "`" + ` / ` + "`" + `stopReasonCode` + "`" + ` to understand why execution halted.
+Stops early on: wall collision (if ` + "`" + `wallCrashEndsGame=true` + "`" + `), battery depletion, or victory.
+Max 50 moves per call. Check ` + "`" + `stoppedReason` + "`" + ` / ` + "`" + `stopReasonCode` + "`" + ` / ` + "`" + `truncated` + "`" + ` before continuing.
+Optional ` + "`" + `reset: true` + "`" + ` resets before executing.
 
-### 5a. Execute a long route — reset + chained bulkMoves in one request
+### 5a. Long route — reset + chained bulkMoves in one request
 
-GraphQL aliases let you execute multiple mutation fields serially in one request. Use this to reset and execute a full route in one round trip:
+GraphQL aliases execute mutation fields serially. Reset and run a full route in one round trip:
 
 ` + "```" + `graphql
 mutation {
-  reset(sessionID: "abcd") { battery score }
+  reset(sessionID: "SESSION_ID") { battery score }
 
-  c1: bulkMove(sessionID: "abcd", moves: [LEFT,LEFT,UP,UP,RIGHT,RIGHT,RIGHT,UP,UP]) {
+  c1: bulkMove(sessionID: "SESSION_ID", moves: [LEFT,LEFT,UP,UP,RIGHT,RIGHT,RIGHT,UP,UP]) {
     movesExecuted success stoppedReason
     gameState { playerPos { x y } battery victory gameOver }
   }
 
-  c2: bulkMove(sessionID: "abcd", moves: [RIGHT,RIGHT,DOWN,DOWN,LEFT,LEFT,LEFT,DOWN]) {
+  c2: bulkMove(sessionID: "SESSION_ID", moves: [RIGHT,RIGHT,DOWN,DOWN,LEFT,LEFT,LEFT,DOWN]) {
     movesExecuted success stoppedReason
     gameState { playerPos { x y } battery victory gameOver }
   }
 }
 ` + "```" + `
 
-Each ` + "`" + `bulkMove` + "`" + ` alias (c1, c2, c3 …) resumes from where the previous left off. Send at most 50 moves per ` + "`" + `bulkMove` + "`" + ` call. Check ` + "`" + `stoppedReason` + "`" + ` on each response; if execution stops, use that response's ` + "`" + `gameState` + "`" + ` as the current state for the next request.
+Each alias resumes from where the previous left off. Check ` + "`" + `stoppedReason` + "`" + ` on each segment.
 
 ### 6. Reset session
 
 ` + "```" + `graphql
 mutation {
-  reset(sessionID: "abcd") {
+  reset(sessionID: "SESSION_ID") {
     playerPos { x y }
     battery
+    maxBattery
     score
     gameOver
     victory
+    message
+  }
+}
+` + "```" + `
+
+---
+
+## All Queries
+
+` + "```" + `graphql
+# Single session
+query {
+  session(id: "SESSION_ID") {
+    id mapName createdAt lastAccessedAt
+    gameState { playerPos { x y } battery score victory gameOver }
+    gameMap { name gridSize maxBattery }
+  }
+}
+
+# All sessions (sort: CREATED|ACCESSED, order: ASC|DESC)
+query {
+  sessions(sort: ACCESSED, order: DESC, limit: 20) {
+    count total
+    sessions { id mapName lastAccessedAt gameState { victory gameOver score battery } }
+  }
+}
+
+# Sessions grouped by map
+query {
+  unifiedSessions(mapName: "easy") {
+    mapName count
+    sessions {
+      sessionId createdAt lastAccessedAt
+      gameState { playerPos { x y } battery score victory gameOver }
+      gameMap { name gridSize maxBattery }
+    }
+  }
+}
+
+# Full game state
+query { gameState(sessionID: "SESSION_ID") { ... } }
+
+# Move history (paginated)
+query {
+  history(sessionID: "SESSION_ID", page: 1, limit: 20, order: DESC) {
+    totalMoves totalPages hasNext hasPrevious page pageSize
+    moves {
+      moveNumber action battery success timestamp
+      fromPosition { x y }
+      toPosition { x y }
+    }
+  }
+}
+
+# Map list
+query {
+  maps { mapId name description gridSize maxBattery }
+}
+
+# Full map details
+query {
+  map(name: "easy") {
+    name description gridSize maxBattery startingBattery
+    wallCrashEndsGame
+    layout
+    legend { key value }
+    messages {
+      welcome homeCharge superchargerCharge parkVisited
+      victory outOfBattery stranded cantMove hitWall
+    }
+  }
+}
+` + "```" + `
+
+---
+
+## All Mutations
+
+` + "```" + `graphql
+# Create session (use mapID or mapName)
+mutation { createSession(mapID: "easy") { id mapName gameState { battery playerPos { x y } } } }
+
+# Delete session
+mutation { deleteSession(id: "SESSION_ID") { message } }
+
+# Move (single)
+mutation { move(sessionID: "SESSION_ID", direction: UP) { success message gameState { battery victory gameOver playerPos { x y } } } }
+
+# Bulk move
+mutation { bulkMove(sessionID: "SESSION_ID", moves: [UP, RIGHT, DOWN]) { movesExecuted success stoppedReason victory gameOver gameState { battery playerPos { x y } } } }
+
+# Reset
+mutation { reset(sessionID: "SESSION_ID") { battery score victory gameOver playerPos { x y } } }
+
+# Create map
+mutation {
+  createMap(name: "mymap", map: {
+    name: "My Map"
+    description: "Custom map"
+    gridSize: 10
+    maxBattery: 20
+    startingBattery: 20
+    wallCrashEndsGame: true
+    layout: [
+      "BBBBBBBBBB",
+      "BRRRRRRRRB",
+      "BRPRRRRPRB",
+      "BRRRHRRRRB",
+      "BSRRRRRRRB",
+      "BRRRRRRRRB",
+      "BRPRRRRPRB",
+      "BRRRRRRRRB",
+      "BRRRRRRRRB",
+      "BBBBBBBBBB"
+    ]
+    legend: [
+      { key: "R", value: "road" }
+      { key: "H", value: "home" }
+      { key: "P", value: "park" }
+      { key: "S", value: "supercharger" }
+      { key: "B", value: "building" }
+      { key: "W", value: "water" }
+    ]
+    messages: {
+      welcome: "Welcome!" homeCharge: "Charged!" superchargerCharge: "Supercharged!"
+      parkVisited: "Park %d!" parkAlreadyVisited: "Already visited"
+      victory: "Victory! %d parks!" outOfBattery: "Out of battery!"
+      stranded: "Stranded!" cantMove: "Can't move there!" batteryStatus: "Battery: %d/%d"
+      hitWall: "Hit wall!"
+    }
+  }) { name gridSize maxBattery }
+}
+
+# Update map (partial — omitted fields unchanged)
+mutation {
+  updateMap(name: "mymap", patch: {
+    description: "Updated description"
+    maxBattery: 25
+    startingBattery: 25
+  }) { name description maxBattery startingBattery }
+}
+` + "```" + `
+
+---
+
+## Subscriptions
+
+` + "```" + `graphql
+# Real-time updates for a session (WebSocket)
+subscription {
+  sessionUpdated(sessionID: "SESSION_ID") {
+    battery maxBattery score victory gameOver totalMoves message mapName
+    playerPos { x y }
+    grid { type visited id }
+    currentMoves { fromPosition { x y } toPosition { x y } success }
+  }
+}
+
+# Lobby updates (any session change)
+subscription {
+  lobbyUpdated {
+    battery score victory gameOver mapName playerPos { x y }
+  }
+}
+` + "```" + `
+
+WebSocket URL: ` + "`" + `ws://<host>/graphql` + "`" + ` (` + "`" + `wss://` + "`" + ` over TLS). Uses graphql-ws protocol.
+
+---
+
+## MCP (Model Context Protocol)
+
+MCP endpoint: ` + "`" + `{{.BaseURL}}/mcp` + "`" + ` (Streamable HTTP transport)
+
+Available tools:
+
+| tool            | description                                         |
+|-----------------|-----------------------------------------------------|
+| game_state      | Get current game state for a session                |
+| move            | Move one step (direction: up/down/left/right)       |
+| bulk_move       | Execute multiple moves at once                      |
+| reset_game      | Reset session to initial state                      |
+| move_history    | Get paginated move history for a session            |
+| create_session  | Create a new game session                           |
+| get_session     | Get session details                                 |
+| list_sessions   | List all active sessions                            |
+| list_maps       | List available maps                                 |
+| get_map         | Get full map details (layout, battery, messages)    |
+| create_map      | Create a new map                                    |
+| update_map      | Partially update a map (omitted fields unchanged)   |
+| delete_map      | Permanently delete a map                            |
+
+To use MCP in Claude Code, add to ` + "`" + `mcp.json` + "`" + `:
+
+` + "```" + `json
+{
+  "mcpServers": {
+    "tesla-game": {
+      "type": "http",
+      "url": "{{.BaseURL}}/mcp"
+    }
   }
 }
 ` + "```" + `
@@ -233,78 +434,37 @@ mutation {
 
 ## Grid Cell Types
 
-| char | type         | passable | effect                    |
-|------|--------------|----------|---------------------------|
-| R    | road         | yes      | none                      |
-| H    | home         | yes      | charges battery to max    |
-| S    | supercharger | yes      | charges battery to max    |
-| P    | park         | yes      | collect to score / win    |
-| B    | building     | no       | impassable obstacle       |
-| W    | water        | no       | impassable obstacle       |
+| char | type         | passable | effect                 |
+|------|--------------|----------|------------------------|
+| R    | road         | yes      | none                   |
+| H    | home         | yes      | charges battery to max |
+| S    | supercharger | yes      | charges battery to max |
+| P    | park         | yes      | collect to score / win |
+| B    | building     | no       | impassable             |
+| W    | water        | no       | impassable             |
 
-Grid is returned as ` + "`" + `grid: [[Cell]]` + "`" + ` — row-major, ` + "`" + `grid[y][x]` + "`" + `.
-` + "`" + `Cell.type` + "`" + ` uses the names above. ` + "`" + `Cell.id` + "`" + ` is a coordinate string.
-
-The objective is complete when ` + "`" + `victory: true` + "`" + ` appears in ` + "`" + `gameState` + "`" + `.
+Grid: ` + "`" + `grid[y][x]` + "`" + ` (row-major). ` + "`" + `Cell.type` + "`" + ` uses names above. ` + "`" + `Cell.id` + "`" + ` is a coordinate string.
+Victory when ` + "`" + `victory: true` + "`" + ` — all parks collected.
 
 ---
 
 ## Battery
 
 - Each move costs 1 battery.
-- Stepping on H or S restores battery to ` + "`" + `maxBattery` + "`" + `.
-- Reaching ` + "`" + `battery: 0` + "`" + ` ends the game (` + "`" + `gameOver: true` + "`" + `, ` + "`" + `gameOverCode: "battery"` + "`" + `).
-- ` + "`" + `batteryRisk` + "`" + ` summarizes the current battery status for clients.
+- H or S restores to ` + "`" + `maxBattery` + "`" + `.
+- ` + "`" + `battery: 0` + "`" + ` → ` + "`" + `gameOver: true` + "`" + `, ` + "`" + `gameOverCode: "battery"` + "`" + `.
+- ` + "`" + `batteryRisk` + "`" + ` summarizes current risk level.
 
 ---
 
-## Session Management
+## Usage Notes
 
-` + "```" + `graphql
-# List all sessions
-query {
-  sessions {
-    count
-    sessions { id mapName lastAccessedAt gameState { victory gameOver score } }
-  }
-}
-
-# Delete a session
-mutation {
-  deleteSession(id: "abcd") { message }
-}
-` + "```" + `
-
----
-
-## Move History
-
-` + "```" + `graphql
-query {
-  history(sessionID: "abcd", page: 1, limit: 20, order: DESC) {
-    totalMoves
-    totalPages
-    hasNext
-    moves {
-      moveNumber action
-      fromPosition { x y }
-      toPosition { x y }
-      battery success timestamp
-    }
-  }
-}
-` + "```" + `
-
----
-
-## API Usage Notes
-
-1. Use GraphQL introspection (` + "`" + `__schema` + "`" + ` / ` + "`" + `__type` + "`" + `) or the Playground Docs panel to inspect fields before building queries.
-2. Use ` + "`" + `maps` + "`" + ` to choose a map, then ` + "`" + `createSession` + "`" + ` to start a playable session.
-3. Use ` + "`" + `gameState` + "`" + ` for the current session snapshot. Request only the fields you need.
-4. Use ` + "`" + `move` + "`" + ` for one direction or ` + "`" + `bulkMove` + "`" + ` for a sequence. ` + "`" + `bulkMove` + "`" + ` accepts at most 50 moves per call and reports truncation.
-5. After mutations, read ` + "`" + `success` + "`" + `, ` + "`" + `message` + "`" + `, ` + "`" + `gameOver` + "`" + `, ` + "`" + `victory` + "`" + `, and any stop/attempt fields before making another request.
-6. Use ` + "`" + `sessions` + "`" + `, ` + "`" + `history` + "`" + `, ` + "`" + `reset` + "`" + `, and ` + "`" + `deleteSession` + "`" + ` to manage session lifecycle.
+1. Use ` + "`" + `maps` + "`" + ` to pick a map → ` + "`" + `createSession` + "`" + ` to start.
+2. Use ` + "`" + `gameState` + "`" + ` for snapshots; request only fields you need.
+3. Prefer ` + "`" + `bulkMove` + "`" + ` over repeated ` + "`" + `move` + "`" + ` calls — max 50 moves per call.
+4. After mutations: check ` + "`" + `success` + "`" + `, ` + "`" + `gameOver` + "`" + `, ` + "`" + `victory` + "`" + `, ` + "`" + `stoppedReason` + "`" + `, ` + "`" + `batteryRisk` + "`" + `.
+5. Chain ` + "`" + `bulkMove` + "`" + ` aliases in one mutation request for long routes.
+6. Introspection enabled — use Playground at ` + "`" + `{{.BaseURL}}/playground` + "`" + ` to explore schema.
 `))
 
 // getConfigDirDefault returns the default configuration directory.
@@ -314,6 +474,30 @@ func getConfigDirDefault() string {
 		return configDir
 	}
 	return "maps"
+}
+
+// envBool reads an env var as a boolean. Returns defaultVal if the var is unset.
+// Recognized true values: "true", "1", "yes". Everything else is false.
+func envBool(key string, defaultVal bool) bool {
+	v := os.Getenv(key)
+	if v == "" {
+		return defaultVal
+	}
+	switch v {
+	case "true", "1", "yes":
+		return true
+	default:
+		return false
+	}
+}
+
+// withHTTPRequest is middleware that stores the *http.Request in context so
+// GraphQL resolvers can read headers (e.g. X-Admin-Key).
+func withHTTPRequest(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), graph.HTTPRequestKey{}, r)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }
 
 func init() {
@@ -407,19 +591,35 @@ func runHTTPServer(gameService service.GameService) {
 	// Create main router.
 	mainRouter := http.NewServeMux()
 
+	// Feature gates from environment variables.
+	// All default to enabled to preserve backward compatibility.
+	introspectionEnabled := envBool("GRAPHQL_INTROSPECTION", true)
+	playgroundEnabled := envBool("GRAPHQL_PLAYGROUND", true)
+	mcpEnabled := envBool("MCP_ENABLED", true)
+
 	// GraphQL is the public game API.
 	graphqlResolver := graph.NewResolver(gameService, hub)
 	gqlSrv := handler.New(generated.NewExecutableSchema(generated.Config{Resolvers: graphqlResolver}))
-	gqlSrv.Use(extension.Introspection{})
+	if introspectionEnabled {
+		gqlSrv.Use(extension.Introspection{})
+		log.Println("GraphQL introspection: enabled (set GRAPHQL_INTROSPECTION=false to disable)")
+	} else {
+		log.Println("GraphQL introspection: disabled")
+	}
 	gqlSrv.AddTransport(transport.POST{})
 	gqlSrv.AddTransport(transport.GET{})
 	gqlSrv.AddTransport(transport.Options{})
 	gqlSrv.AddTransport(&transport.Websocket{
 		KeepAlivePingInterval: 10 * time.Second,
-		Upgrader: websocket.DefaultUpgrader(),
+		Upgrader:              websocket.DefaultUpgrader(),
 	})
-	mainRouter.Handle("/graphql", gqlSrv)
-	mainRouter.Handle("/playground", playground.Handler("GraphQL playground", "/graphql"))
+	mainRouter.Handle("/graphql", withHTTPRequest(gqlSrv))
+	if playgroundEnabled {
+		mainRouter.Handle("/playground", playground.Handler("GraphQL playground", "/graphql"))
+		log.Println("GraphQL playground: enabled (set GRAPHQL_PLAYGROUND=false to disable)")
+	} else {
+		log.Println("GraphQL playground: disabled")
+	}
 
 	// /llms.txt — rendered from template so the server URL is always correct.
 	baseURL := *publicURL
@@ -437,8 +637,13 @@ func runHTTPServer(gameService service.GameService) {
 	})
 
 	// MCP HTTP endpoint (Streamable HTTP transport).
-	mcpSrv := mcptransport.NewServer(gameService)
-	mainRouter.Handle("/mcp", mcpSrv.Handler())
+	if mcpEnabled {
+		mcpSrv := mcptransport.NewServer(gameService)
+		mainRouter.Handle("/mcp", mcpSrv.Handler())
+		log.Println("MCP endpoint: enabled at /mcp (set MCP_ENABLED=false to disable)")
+	} else {
+		log.Println("MCP endpoint: disabled")
+	}
 
 	// Mount static UI and WebSocket routes at root.
 	mainRouter.Handle("/", apiServer)

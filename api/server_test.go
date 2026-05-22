@@ -45,9 +45,9 @@ func (m *MockGameService) CreateSession(ctx context.Context, configName string) 
 		return m.CreateSessionFunc(ctx, configName)
 	}
 	return &service.SessionInfo{
-		ID:         "test-session",
-		MapName: configName,
-		CreatedAt:  time.Now(),
+		ID:        "test-session",
+		MapName:   configName,
+		CreatedAt: time.Now(),
 	}, nil
 }
 
@@ -56,9 +56,9 @@ func (m *MockGameService) GetSession(ctx context.Context, sessionID string) (*se
 		return m.GetSessionFunc(ctx, sessionID)
 	}
 	return &service.SessionInfo{
-		ID:         sessionID,
-		MapName: "test-config",
-		CreatedAt:  time.Now(),
+		ID:        sessionID,
+		MapName:   "test-config",
+		CreatedAt: time.Now(),
 	}, nil
 }
 
@@ -152,6 +152,10 @@ func (m *MockGameService) SaveMap(ctx context.Context, configName string, config
 
 func (m *MockGameService) DeleteMap(ctx context.Context, configName string) error { return nil }
 
+func (m *MockGameService) UpdateSessionDisplayName(ctx context.Context, sessionID, displayName string) (*service.SessionInfo, error) {
+	return nil, nil
+}
+
 // Test helpers
 func setupTestServer(mockService *MockGameService) *Server {
 	hub := websocket.NewHub()
@@ -192,7 +196,7 @@ func TestCreateSession(t *testing.T) {
 				m.CreateSessionFunc = func(ctx context.Context, configName string) (*service.SessionInfo, error) {
 					return &service.SessionInfo{
 						ID:             "sess-123",
-						MapName:     "default",
+						MapName:        "default",
 						CreatedAt:      time.Now(),
 						LastAccessedAt: time.Now(),
 					}, nil
@@ -216,9 +220,9 @@ func TestCreateSession(t *testing.T) {
 						t.Errorf("Expected config name 'easy', got %s", configName)
 					}
 					return &service.SessionInfo{
-						ID:         "sess-456",
-						MapName: configName,
-						CreatedAt:  time.Now(),
+						ID:        "sess-456",
+						MapName:   configName,
+						CreatedAt: time.Now(),
 					}, nil
 				}
 			},
@@ -379,9 +383,9 @@ func TestGetSession(t *testing.T) {
 						return nil, fmt.Errorf("session not found")
 					}
 					return &service.SessionInfo{
-						ID:         sessionID,
-						MapName: "test-config",
-						CreatedAt:  time.Now(),
+						ID:        sessionID,
+						MapName:   "test-config",
+						CreatedAt: time.Now(),
 					}, nil
 				}
 			},
@@ -1162,7 +1166,7 @@ func TestUnifiedSessions(t *testing.T) {
 				m.ListSessionsFunc = func(ctx context.Context) ([]*service.SessionInfo, error) {
 					return []*service.SessionInfo{
 						{
-							ID:         "sess-1",
+							ID:      "sess-1",
 							MapName: "easy",
 							GameState: &engine.GameState{
 								Battery: 80,
@@ -1172,7 +1176,7 @@ func TestUnifiedSessions(t *testing.T) {
 							},
 						},
 						{
-							ID:         "sess-2",
+							ID:      "sess-2",
 							MapName: "easy",
 							GameState: &engine.GameState{
 								Battery: 60,
@@ -1204,16 +1208,16 @@ func TestUnifiedSessions(t *testing.T) {
 				m.GetSessionFunc = func(ctx context.Context, sessionID string) (*service.SessionInfo, error) {
 					if sessionID == "sess-1" {
 						return &service.SessionInfo{
-							ID:         "sess-1",
-							MapName: "easy",
-							GameState:  &engine.GameState{},
+							ID:        "sess-1",
+							MapName:   "easy",
+							GameState: &engine.GameState{},
 						}, nil
 					}
 					if sessionID == "sess-3" {
 						return &service.SessionInfo{
-							ID:         "sess-3",
-							MapName: "hard",
-							GameState:  &engine.GameState{},
+							ID:        "sess-3",
+							MapName:   "hard",
+							GameState: &engine.GameState{},
 						}, nil
 					}
 					return nil, fmt.Errorf("not found")
@@ -1307,7 +1311,7 @@ func TestWebSocket(t *testing.T) {
 			setupMock: func(m *MockGameService) {
 				m.GetSessionFunc = func(ctx context.Context, sessionID string) (*service.SessionInfo, error) {
 					return &service.SessionInfo{
-						ID:         sessionID,
+						ID:      sessionID,
 						MapName: "test",
 					}, nil
 				}

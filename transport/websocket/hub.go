@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -26,17 +28,54 @@ const (
 	maxMessageSize = 512
 )
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-	CheckOrigin: func(r *http.Request) bool {
-		return true
-	},
+// newUpgraderFromEnv builds a WebSocket upgrader whose CheckOrigin respects
+// the ALLOWED_ORIGINS environment variable.
+//
+// ALLOWED_ORIGINS: comma-separated list of allowed origins (e.g.
+// "http://localhost:5173,https://myapp.example.com").
+// Empty or "*" → allow all origins (development default).
+func newUpgraderFromEnv() websocket.Upgrader {
+	var allowed []string
+	raw := os.Getenv("ALLOWED_ORIGINS")
+	if raw != "" && raw != "*" {
+		for _, o := range strings.Split(raw, ",") {
+			if o = strings.TrimSpace(o); o != "" {
+				allowed = append(allowed, o)
+			}
+		}
+	}
+	return websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+		CheckOrigin:     makeCheckOrigin(allowed),
+	}
 }
 
-// DefaultUpgrader returns the package-level upgrader for use by gqlgen transport.
+// makeCheckOrigin returns a CheckOrigin func that allows all origins when
+// allowed is empty, or performs exact-match against the allowed list otherwise.
+// Non-browser requests (no Origin header) are always allowed.
+func makeCheckOrigin(allowed []string) func(*http.Request) bool {
+	return func(r *http.Request) bool {
+		if len(allowed) == 0 {
+			return true
+		}
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			return true // non-browser client, allow
+		}
+		for _, a := range allowed {
+			if a == origin {
+				return true
+			}
+		}
+		log.Printf("WebSocket: rejected origin %q (not in ALLOWED_ORIGINS)", origin)
+		return false
+	}
+}
+
+// DefaultUpgrader returns a WebSocket upgrader configured from ALLOWED_ORIGINS env.
 func DefaultUpgrader() websocket.Upgrader {
-	return upgrader
+	return newUpgraderFromEnv()
 }
 
 // Message represents a WebSocket message
@@ -57,6 +96,8 @@ type Client struct {
 
 // Hub maintains the set of active clients and broadcasts messages
 type Hub struct {
+	upgrader websocket.Upgrader
+
 	// Registered clients by session ID
 	sessions map[string]map[*Client]bool
 
@@ -70,20 +111,21 @@ type Hub struct {
 	unregister chan *Client
 
 	// GraphQL subscription channels per session
-	mu             sync.RWMutex
-	sessionSubs    map[string]map[chan *engine.GameState]bool
-	lobbySubs      map[chan *engine.GameState]bool
+	mu          sync.RWMutex
+	sessionSubs map[string]map[chan *engine.GameState]bool
+	lobbySubs   map[chan *engine.GameState]bool
 }
 
-// NewHub creates a new WebSocket hub
+// NewHub creates a new WebSocket hub with origin policy from ALLOWED_ORIGINS env.
 func NewHub() *Hub {
 	return &Hub{
+		upgrader:    newUpgraderFromEnv(),
 		sessions:    make(map[string]map[*Client]bool),
 		broadcast:   make(chan *Message),
 		sessionSubs: make(map[string]map[chan *engine.GameState]bool),
 		lobbySubs:   make(map[chan *engine.GameState]bool),
-		register:   make(chan *Client),
-		unregister: make(chan *Client),
+		register:    make(chan *Client),
+		unregister:  make(chan *Client),
 	}
 }
 
@@ -105,7 +147,7 @@ func (h *Hub) Run() {
 
 // ServeWS handles WebSocket requests from clients
 func (h *Hub) ServeWS(w http.ResponseWriter, r *http.Request, sessionID string) {
-	conn, err := upgrader.Upgrade(w, r, nil)
+	conn, err := h.upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("WebSocket upgrade failed: %v", err)
 		return

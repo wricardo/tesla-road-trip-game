@@ -96,6 +96,9 @@ func (r *mutationResolver) Reset(ctx context.Context, sessionID string) (*model.
 
 // CreateMap is the resolver for the createMap field.
 func (r *mutationResolver) CreateMap(ctx context.Context, name string, mapArg model.GameMapInput) (*model.GameMap, error) {
+	if err := checkAdminKey(ctx); err != nil {
+		return nil, err
+	}
 	cfg := fromGameMapInput(mapArg)
 	if cfg.Name == "" {
 		cfg.Name = name
@@ -108,6 +111,9 @@ func (r *mutationResolver) CreateMap(ctx context.Context, name string, mapArg mo
 
 // UpdateMap is the resolver for the updateMap field.
 func (r *mutationResolver) UpdateMap(ctx context.Context, name string, patch model.GameMapPatchInput) (*model.GameMap, error) {
+	if err := checkAdminKey(ctx); err != nil {
+		return nil, err
+	}
 	cfg, err := r.Service.LoadMap(ctx, name)
 	if err != nil {
 		return nil, fmt.Errorf("map %q not found: %w", name, err)

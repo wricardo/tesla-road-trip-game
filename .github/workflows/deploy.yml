@@ -1,6 +1,7 @@
+---
 name: Deploy
 
-on:
+"on":
   push:
     branches: [main]
 
@@ -10,57 +11,68 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - uses: actions/setup-go@v5
-      with:
-        go-version-file: go.mod
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
 
-    - uses: actions/setup-node@v4
-      with:
-        node-version: 20
-        cache: npm
-        cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
-    - name: Build frontend
-      run: |
-        npm --prefix frontend ci
-        npm --prefix frontend run build
+      - name: Build frontend
+        run: |
+          npm --prefix frontend ci
+          npm --prefix frontend run build
 
-    - name: Build binary (linux/arm64)
-      run: GOOS=linux GOARCH=arm64 go build -o /tmp/tesla-road-trip .
+      - name: Build binary (linux/arm64)
+        run: GOOS=linux GOARCH=arm64 go build -o /tmp/tesla-road-trip .
 
-    - name: Package
-      run: |
-        mkdir -p /tmp/tesla-deploy/frontend /tmp/tesla-deploy/sessions
-        cp /tmp/tesla-road-trip /tmp/tesla-deploy/tesla-road-trip
-        cp -r configs /tmp/tesla-deploy/configs
-        cp -r frontend/build /tmp/tesla-deploy/frontend/build
-        tar czf /tmp/deploy.tgz -C /tmp/tesla-deploy .
+      - name: Package
+        run: |
+          mkdir -p /tmp/tesla-deploy/frontend /tmp/tesla-deploy/sessions
+          cp /tmp/tesla-road-trip /tmp/tesla-deploy/tesla-road-trip
+          cp -r maps /tmp/tesla-deploy/maps
+          cp -r frontend/build /tmp/tesla-deploy/frontend/build
+          tar czf /tmp/deploy.tgz -C /tmp/tesla-deploy .
 
-    - name: Upload to EC2
-      env:
-        EC2_HOST: ${{ secrets.EC2_HOST }}
-        EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
-      run: |
-        echo "$EC2_SSH_KEY" > /tmp/deploy_key
-        chmod 600 /tmp/deploy_key
-        scp -o StrictHostKeyChecking=no -i /tmp/deploy_key \
-          /tmp/deploy.tgz ubuntu@$EC2_HOST:/tmp/tesla-road-trip-game-deploy.tgz
+      # Setup SSH once — used by both Upload and Install steps.
+      # EC2_KNOWN_HOST: run `ssh-keyscan -H <host>` on a trusted network
+      # and store the output line as a GitHub Actions secret.
+      - name: Setup SSH
+        env:
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_KNOWN_HOST: ${{ secrets.EC2_KNOWN_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$EC2_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          echo "$EC2_KNOWN_HOST" >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
 
-    - name: Install and restart
-      env:
-        EC2_HOST: ${{ secrets.EC2_HOST }}
-        EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
-      run: |
-        echo "$EC2_SSH_KEY" > /tmp/deploy_key
-        chmod 600 /tmp/deploy_key
-        ssh -o StrictHostKeyChecking=no -i /tmp/deploy_key ubuntu@$EC2_HOST '
-          sudo mkdir -p /opt/tesla-road-trip-game
-          sudo tar xzf /tmp/tesla-road-trip-game-deploy.tgz -C /opt/tesla-road-trip-game
-          sudo chown -R ubuntu:ubuntu /opt/tesla-road-trip-game
-          chmod +x /opt/tesla-road-trip-game/tesla-road-trip
-          mkdir -p /opt/tesla-road-trip-game/sessions
-          sudo systemctl restart tesla-road-trip-game.service
-          systemctl is-active tesla-road-trip-game.service
-        '
+      - name: Upload to EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          scp -o BatchMode=yes -i ~/.ssh/deploy_key \
+            /tmp/deploy.tgz \
+            ubuntu@"$EC2_HOST":/tmp/tesla-road-trip-game-deploy.tgz
+
+      - name: Install and restart
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          ssh -o BatchMode=yes -i ~/.ssh/deploy_key \
+            ubuntu@"$EC2_HOST" '
+            sudo mkdir -p /opt/tesla-road-trip-game
+            sudo tar xzf /tmp/tesla-road-trip-game-deploy.tgz \
+              -C /opt/tesla-road-trip-game
+            sudo chown -R ubuntu:ubuntu /opt/tesla-road-trip-game
+            chmod +x /opt/tesla-road-trip-game/tesla-road-trip
+            mkdir -p /opt/tesla-road-trip-game/sessions
+            sudo systemctl restart tesla-road-trip-game.service
+            systemctl is-active tesla-road-trip-game.service
+          '
