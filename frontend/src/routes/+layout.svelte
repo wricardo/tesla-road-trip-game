@@ -32,6 +32,7 @@
 		<nav class="flex items-center gap-6 text-sm text-gray-500">
 			<a href="/" class="hover:text-[#393c41] transition-colors">Home</a>
 			<a href="/maps" class="hover:text-[#393c41] transition-colors">Maps</a>
+			<a href="/editor" class="hover:text-[#393c41] transition-colors">Editor</a>
 			<a href="/lobby" class="hover:text-[#393c41] transition-colors">Sessions</a>
 			<a href="/multi" class="hover:text-[#393c41] transition-colors">Multi Session</a>
 			<a href="/admin" class="hover:text-[#393c41] transition-colors">Admin</a>
@@ -54,9 +55,9 @@
 				<div class="flex flex-col gap-1.5">
 					<a href="/" class="hover:text-gray-600 transition-colors">Home / Create session</a>
 					<a href="/maps" class="hover:text-gray-600 transition-colors">Maps</a>
+					<a href="/editor" class="hover:text-gray-600 transition-colors">Map editor</a>
 					<a href="/lobby" class="hover:text-gray-600 transition-colors">Live sessions</a>
 					<a href="/multi" class="hover:text-gray-600 transition-colors">Multi-watch</a>
-					<a href="/admin" class="hover:text-gray-600 transition-colors">Admin</a>
 				</div>
 			</div>
 			<div>
