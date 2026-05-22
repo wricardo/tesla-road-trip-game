@@ -167,9 +167,16 @@ Directions: UP DOWN LEFT RIGHT. Grid coordinates are grid[y][x].`);
 		setTimeout(() => promptCopied = false, 2000);
 	}
 
-	const cellEmoji: Record<string, string> = {
-		home: '🏠', park: '🌳', supercharger: '⚡', water: '💧', building: '🏢'
-	};
+	function cellColorClass(type: string): string {
+		switch (type) {
+			case 'home': return 'bg-red-500 border-red-200';
+			case 'park': return 'bg-emerald-500 border-emerald-200';
+			case 'supercharger': return 'bg-yellow-400 border-yellow-200';
+			case 'water': return 'bg-blue-400 border-blue-200';
+			case 'building': return 'bg-slate-700 border-slate-600';
+			default: return 'bg-white border-gray-50';
+		}
+	}
 
 	$effect(() => {
 		const moves = gameState?.currentMoves?.filter((move) => move.success) ?? [];
@@ -310,14 +317,13 @@ Directions: UP DOWN LEFT RIGHT. Grid coordinates are grid[y][x].`);
 									{@const isPlayer = displayPlayerPos && x === displayPlayerPos.x && y === displayPlayerPos.y}
 									{@const isTrail = visible && trailKeys.has(`${x},${y}`)}
 									<td class="game-cell text-center border transition-colors
-										{!visible ? 'bg-gray-900 border-gray-900' : cell.type === 'building' || cell.type === 'water' ? 'bg-gray-100 border-gray-50' : isTrail && !isPlayer ? 'bg-sky-50 border-sky-100' : 'bg-white border-gray-50'}
+										{!visible ? 'bg-gray-900 border-gray-900' : cellColorClass(cell.type)}
+										{visible && isTrail && !isPlayer ? 'ring-2 ring-inset ring-sky-300' : ''}
 										{visible && cell.visited && !isPlayer ? 'opacity-60' : ''}">
 										{#if isPlayer}
 											{gameState.victory ? '🚗' : gameState.gameOver ? '💥' : '🚗'}
-										{:else if visible && cell.type !== 'road'}
-											{cellEmoji[cell.type] ?? ''}
 										{:else if isTrail}
-											<span class="text-sky-400 leading-none">•</span>
+											<span class="text-sky-500 leading-none">•</span>
 										{/if}
 									</td>
 								{/each}

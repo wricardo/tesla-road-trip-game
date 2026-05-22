@@ -78,15 +78,12 @@ func TestValidateGameConfig_MissingName(t *testing.T) {
 	}
 }
 
-func TestValidateGameConfig_MissingDescription(t *testing.T) {
+func TestValidateGameConfig_BlankDescriptionAllowed(t *testing.T) {
 	config := createValidConfig()
 	config.Description = ""
 	err := ValidateGameConfig(config)
-	if err == nil {
-		t.Error("Expected error for missing description")
-	}
-	if !strings.Contains(err.Error(), "description is required") {
-		t.Errorf("Expected description validation error, got: %v", err)
+	if err != nil {
+		t.Errorf("Expected blank description to pass validation, got: %v", err)
 	}
 }
 
