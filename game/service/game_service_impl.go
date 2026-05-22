@@ -612,6 +612,11 @@ func (s *gameServiceImpl) SaveMap(ctx context.Context, mapName string, config *e
 	return s.configs.SaveConfig(mapName, config)
 }
 
+// DeleteMap removes a map configuration from disk
+func (s *gameServiceImpl) DeleteMap(ctx context.Context, mapName string) error {
+	return s.configs.DeleteConfig(mapName)
+}
+
 // extractMoveEvents generates events from a move
 func (s *gameServiceImpl) extractMoveEvents(sess *Session, prevPos, newPos engine.Position, direction string) []GameEvent {
 	events := []GameEvent{}
