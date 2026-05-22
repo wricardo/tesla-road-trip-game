@@ -368,22 +368,17 @@
 </svelte:head>
 
 <div class="bg-white border-b border-[#e8e8e8]">
-	<div class="max-w-7xl mx-auto px-6 py-12 lg:py-16">
-		<p class="text-xs font-bold uppercase tracking-widest text-red-500 mb-4">🗺️ Map editor</p>
-		<div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+	<div class="max-w-7xl mx-auto px-6 py-4">
+		<div class="flex items-center justify-between gap-4">
 			<div>
-				<h1 class="text-4xl lg:text-5xl font-light text-[#171a20] tracking-tight mb-4">
+				<p class="text-xs font-bold uppercase tracking-widest text-red-500 mb-1">🗺️ Map editor</p>
+				<h1 class="text-xl font-light text-[#171a20] tracking-tight">
 					{isEditMode ? `Edit ${mapName || originalMapId}` : 'Design a road trip map'}
 				</h1>
-				<p class="text-lg text-gray-500 font-light max-w-2xl">
-					{isEditMode
-						? `Editing map ID ${originalMapId}. Save changes updates this map; Save as new creates a separate copy.`
-						: 'Paint the grid, configure battery rules, validate required tiles, and save a custom map for new sessions.'}
-				</p>
 			</div>
 			<div class="flex flex-wrap gap-3">
-				<button type="button" onclick={resetEditor} class="border border-gray-200 bg-white text-[#393c41] text-sm px-5 py-3 rounded-full hover:border-gray-400 transition-colors">New map</button>
-				<a href="/maps" class="bg-[#393c41] text-white text-sm px-5 py-3 rounded-full hover:bg-black transition-colors">View maps</a>
+				<button type="button" onclick={resetEditor} class="border border-gray-200 bg-white text-[#393c41] text-sm px-4 py-2 rounded-full hover:border-gray-400 transition-colors">New map</button>
+				<a href="/maps" class="bg-[#393c41] text-white text-sm px-4 py-2 rounded-full hover:bg-black transition-colors">View maps</a>
 			</div>
 		</div>
 	</div>
@@ -427,24 +422,8 @@
 			</div>
 			{/if}
 
-			<div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-100">
-				<div>
-					<label for="loadMap" class="text-xs font-semibold text-[#393c41] mb-1.5 block">Load map</label>
-					<select
-						id="loadMap"
-						bind:value={selectedConfigId}
-						onchange={loadSelectedConfig}
-						disabled={isLoadingMap || isSaving}
-						class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-gray-400 disabled:opacity-50"
-					>
-						<option value="">New map</option>
-						{#each configs as config}
-							<option value={config.mapId}>{config.name}</option>
-						{/each}
-					</select>
-				</div>
-
-				<div>
+			<div class="flex items-center gap-4 pt-4 border-t border-gray-100">
+				<div class="w-40">
 					<label for="gridSize" class="text-xs font-semibold text-[#393c41] mb-1.5 block">Grid size</label>
 					<select
 						id="gridSize"
@@ -461,12 +440,16 @@
 						<option value="30">30×30</option>
 					</select>
 				</div>
+				<div class="flex-1 flex justify-end">
+					<button type="button" onclick={clearGrid} class="border border-red-200 bg-red-50 text-red-500 text-sm px-4 py-2.5 rounded-full hover:bg-red-100 transition-colors">Clear all</button>
+				</div>
 			</div>
 
-			<div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-4">
-				<button type="button" onclick={() => fillGrid('R')} class="border border-gray-200 bg-white text-[#393c41] text-sm px-4 py-2.5 rounded-full hover:border-gray-400 transition-colors">Fill roads</button>
-				<button type="button" onclick={() => fillGrid('B')} class="border border-gray-200 bg-white text-[#393c41] text-sm px-4 py-2.5 rounded-full hover:border-gray-400 transition-colors">Fill buildings</button>
-				<button type="button" onclick={clearGrid} class="border border-red-200 bg-red-50 text-red-500 text-sm px-4 py-2.5 rounded-full hover:bg-red-100 transition-colors">Clear all</button>
+			<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t border-gray-100">
+				<div class="p-3 bg-[#f7f7f7] rounded-xl"><div class="text-xs text-gray-400 mb-1">Parks</div><div class="text-2xl font-light text-[#393c41]">{parkCount}</div></div>
+				<div class="p-3 bg-[#f7f7f7] rounded-xl"><div class="text-xs text-gray-400 mb-1">Homes</div><div class="text-2xl font-light text-[#393c41]">{homeCount}</div></div>
+				<div class="p-3 bg-[#f7f7f7] rounded-xl"><div class="text-xs text-gray-400 mb-1">Chargers</div><div class="text-2xl font-light text-[#393c41]">{superchargerCount}</div></div>
+				<div class="p-3 bg-[#f7f7f7] rounded-xl"><div class="text-xs text-gray-400 mb-1">Obstacles</div><div class="text-2xl font-light text-[#393c41]">{obstacleCount}</div></div>
 			</div>
 
 			{#if validationMessage}
@@ -509,16 +492,6 @@
 							<span class="text-xs">{label}</span>
 						</button>
 					{/each}
-				</div>
-			</section>
-
-			<section class="bg-white rounded-2xl border border-[#e8e8e8] shadow-sm p-6">
-				<h2 class="text-xl font-light text-[#393c41] mb-4">Map stats</h2>
-				<div class="grid grid-cols-2 gap-3">
-					<div class="p-3 bg-[#f7f7f7] rounded-xl"><div class="text-xs text-gray-400 mb-1">Parks</div><div class="text-2xl font-light text-[#393c41]">{parkCount}</div></div>
-					<div class="p-3 bg-[#f7f7f7] rounded-xl"><div class="text-xs text-gray-400 mb-1">Homes</div><div class="text-2xl font-light text-[#393c41]">{homeCount}</div></div>
-					<div class="p-3 bg-[#f7f7f7] rounded-xl"><div class="text-xs text-gray-400 mb-1">Chargers</div><div class="text-2xl font-light text-[#393c41]">{superchargerCount}</div></div>
-					<div class="p-3 bg-[#f7f7f7] rounded-xl"><div class="text-xs text-gray-400 mb-1">Obstacles</div><div class="text-2xl font-light text-[#393c41]">{obstacleCount}</div></div>
 				</div>
 			</section>
 
