@@ -60,12 +60,11 @@
 			<div>
 				<h1 class="text-4xl lg:text-5xl font-light text-[#171a20] tracking-tight mb-4">Live Sessions</h1>
 				<p class="text-lg text-gray-500 font-light max-w-2xl">
-					Watch AI agents navigate the grid in real time, inspect their batteries and routes,
-					or open a session to copy the LLM prompt and drive it yourself.
+					Watch AI agents drive live, inspect battery usage and routes, or open a session to take control yourself.
 				</p>
 			</div>
 			<div class="flex flex-wrap gap-3">
-				<a href="/" class="bg-[#393c41] text-white text-sm px-5 py-3 rounded-full hover:bg-black transition-colors">+ Create from home</a>
+				<a href="/" class="bg-[#393c41] text-white text-sm px-5 py-3 rounded-full hover:bg-black transition-colors">+ Create</a>
 				<a href="/multi" class="border border-gray-200 bg-white text-[#393c41] text-sm px-5 py-3 rounded-full hover:border-gray-400 transition-colors">Multi-watch →</a>
 			</div>
 		</div>
@@ -75,8 +74,8 @@
 <div class="max-w-7xl mx-auto px-6 py-10">
 	<div class="flex items-center justify-between mb-6">
 		<div>
-			<h2 class="text-xl font-light text-[#393c41]">Active sessions</h2>
-			<p class="text-sm text-gray-400 mt-0.5">Updates every 10 seconds</p>
+			<h2 class="text-xl font-light text-[#393c41]">Active road trips</h2>
+			<p class="text-sm text-gray-400 mt-0.5">Auto-refreshes every 10 seconds</p>
 		</div>
 		<button
 			onclick={() => sessionsResult.reexecute?.({ requestPolicy: 'network-only' })}
@@ -93,16 +92,16 @@
 	{:else if sessions.length === 0}
 		<div class="flex flex-col items-center justify-center py-24 text-gray-400 bg-white rounded-2xl border border-[#e8e8e8]">
 			<span class="text-5xl mb-4">🚗</span>
-			<p class="text-lg font-light">No active sessions</p>
-			<p class="text-sm mt-2">Create one on the home page and point your AI at it.</p>
-			<a href="/" class="mt-6 bg-[#393c41] text-white text-sm px-5 py-3 rounded-full hover:bg-black transition-colors">Create a session</a>
+			<p class="text-lg font-light">No active road trips</p>
+			<p class="text-sm mt-2">Create a road trip, then watch your AI drive it live.</p>
+			<a href="/" class="mt-6 bg-[#393c41] text-white text-sm px-5 py-3 rounded-full hover:bg-black transition-colors">+ Create</a>
 		</div>
 	{:else}
 		<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
 			{#each sessions as s (s.id)}
 				<a href="/watch/{s.id}" class="block bg-white rounded-2xl shadow-sm border border-[#e8e8e8] p-5 hover:shadow-md transition-shadow">
 					<div class="flex items-center justify-between mb-3">
-						<span class="font-mono text-sm text-[#393c41]">{s.id}</span>
+						<span class="font-mono text-sm text-[#393c41]">Session {s.id}</span>
 						<span class="text-xs text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">{s.mapName}</span>
 					</div>
 					<div class="mb-3">
@@ -115,12 +114,13 @@
 						</div>
 					</div>
 					<div class="flex gap-4 text-xs text-gray-500">
-						<span>🌳 {s.score}</span>
+						<span>🌳 {s.score} parks</span>
 						<span>📍 {s.totalMoves} moves</span>
 						<span class="ml-auto {s.victory ? 'text-green-500' : s.gameOver ? 'text-red-500' : 'text-gray-400'}">
 							{s.victory ? '🏆 Won' : s.gameOver ? '💥 Crashed' : '🟢 Active'}
 						</span>
 					</div>
+					<div class="mt-4 text-right text-xs font-medium text-[#393c41]">Open →</div>
 				</a>
 			{/each}
 		</div>

@@ -10,7 +10,10 @@ help:
 	@echo "Building & Running:"
 	@echo "  build        - Build the game server binary"
 	@echo "  run          - Run the game server (default config)"
-	@echo "  dev          - Run in development mode"
+	@echo "  dev          - Run backend in development mode on port 8080"
+	@echo "  dev-backend  - Run backend on port 9090 for frontend live dev"
+	@echo "  frontend-dev - Run Svelte frontend with live reload on port 5173"
+	@echo "  dev-live     - Run backend + live frontend together"
 	@echo "  dev-watch    - Run with file watching (requires fswatch/inotifywait)"
 	@echo ""
 	@echo "Testing:"
@@ -70,6 +73,20 @@ run: build
 dev: build
 	@echo "Starting development server (Ctrl+C to stop)..."
 	./statefullgame -port 8080
+
+dev-backend:
+	@echo "Starting backend on http://localhost:9090 (Ctrl+C to stop)..."
+	go run . -port 9090
+
+frontend-dev:
+	@echo "Starting frontend on http://localhost:5173 (backend: http://localhost:9090)..."
+	cd frontend && npm run dev:local
+
+dev-live:
+	@echo "Starting backend on :9090 and frontend on :5173..."
+	@trap 'kill 0' INT TERM EXIT; \
+	go run . -port 9090 & \
+	cd frontend && npm run dev:local
 
 dev-watch:
 	@echo "Starting development server with file watching..."

@@ -5,6 +5,7 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
+		"dev:local": "PUBLIC_GRAPHQL_URL=http://localhost:9090/graphql PUBLIC_WS_URL=ws://localhost:9090/graphql vite dev --host 0.0.0.0 --port 5173",
 		"build": "vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
