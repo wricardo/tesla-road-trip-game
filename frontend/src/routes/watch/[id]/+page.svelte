@@ -107,6 +107,8 @@
 
 	const llmPrompt = $derived(`Use this GraphQL API to control an existing Tesla Road Trip game session.
 
+Goal: visit all parks without getting stranded or hitting a building.
+
 Session ID: ${sessionId}
 GraphQL endpoint: ${typeof window !== 'undefined' ? window.location.origin : ''}/graphql
 Playground: ${typeof window !== 'undefined' ? window.location.origin : ''}/playground
