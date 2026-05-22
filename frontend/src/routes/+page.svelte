@@ -2,7 +2,7 @@
 	import { getContextClient, queryStore, gql } from '@urql/svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
-	import { MAPS_QUERY, MAP_QUERY, CREATE_SESSION_MUTATION, UPDATE_SESSION_MUTATION } from '$lib/queries';
+	import { MAPS_QUERY, MAP_QUERY, CREATE_SESSION_MUTATION } from '$lib/queries';
 
 	type LegendEntry = { key: string; value: string };
 	type MapPreview = {
@@ -21,7 +21,6 @@
 
 	let showCreate = $state(false);
 	let selectedMap = $state($page.url.searchParams.get('map') ?? '');
-	let sessionName = $state('');
 	let createError = $state('');
 	let creating = $state(false);
 	let preview = $state<MapPreview | null>(null);
@@ -76,13 +75,7 @@
 		creating = false;
 		if (result.error) { createError = result.error.message; return; }
 		const id = result.data?.createSession?.id;
-		if (id) {
-			const name = sessionName.trim();
-			if (name) {
-				await client.mutation(gql(UPDATE_SESSION_MUTATION), { id, displayName: name }).toPromise();
-			}
-			goto(`/watch/${id}`);
-		}
+		if (id) goto(`/watch/${id}`);
 	}
 </script>
 
@@ -139,16 +132,6 @@
 					</select>
 				</div>
 
-				<div class="mb-4">
-					<label for="session-name" class="block text-xs font-semibold text-[#393c41] mb-1.5">Name <span class="font-normal text-gray-400">(optional)</span></label>
-					<input
-						id="session-name"
-						type="text"
-						bind:value={sessionName}
-						placeholder="e.g. Claude's first run"
-						class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-gray-400"
-					/>
-				</div>
 
 				<div class="mb-5 rounded-2xl border border-gray-200 bg-white p-3">
 					<div class="flex items-start justify-between gap-3 mb-3">
