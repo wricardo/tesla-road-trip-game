@@ -104,6 +104,76 @@ func fromGameMapInput(in model.GameMapInput) *engine.GameConfig {
 	return c
 }
 
+// applyPatch merges non-nil patch fields onto an existing GameConfig (in place).
+func applyPatch(cfg *engine.GameConfig, patch model.GameMapPatchInput) {
+	if patch.Name != nil {
+		cfg.Name = *patch.Name
+	}
+	if patch.Description != nil {
+		cfg.Description = *patch.Description
+	}
+	if patch.GridSize != nil {
+		cfg.GridSize = *patch.GridSize
+	}
+	if patch.MaxBattery != nil {
+		cfg.MaxBattery = *patch.MaxBattery
+	}
+	if patch.StartingBattery != nil {
+		cfg.StartingBattery = *patch.StartingBattery
+	}
+	if patch.Layout != nil {
+		cfg.Layout = patch.Layout
+	}
+	if patch.Legend != nil {
+		legend := make(map[string]string, len(patch.Legend))
+		for _, e := range patch.Legend {
+			if e != nil {
+				legend[e.Key] = e.Value
+			}
+		}
+		cfg.Legend = legend
+	}
+	if patch.WallCrashEndsGame != nil {
+		cfg.WallCrashEndsGame = *patch.WallCrashEndsGame
+	}
+	if patch.Messages != nil {
+		m := patch.Messages
+		if m.Welcome != nil {
+			cfg.Messages.Welcome = *m.Welcome
+		}
+		if m.HomeCharge != nil {
+			cfg.Messages.HomeCharge = *m.HomeCharge
+		}
+		if m.SuperchargerCharge != nil {
+			cfg.Messages.SuperchargerCharge = *m.SuperchargerCharge
+		}
+		if m.ParkVisited != nil {
+			cfg.Messages.ParkVisited = *m.ParkVisited
+		}
+		if m.ParkAlreadyVisited != nil {
+			cfg.Messages.ParkAlreadyVisited = *m.ParkAlreadyVisited
+		}
+		if m.Victory != nil {
+			cfg.Messages.Victory = *m.Victory
+		}
+		if m.OutOfBattery != nil {
+			cfg.Messages.OutOfBattery = *m.OutOfBattery
+		}
+		if m.Stranded != nil {
+			cfg.Messages.Stranded = *m.Stranded
+		}
+		if m.CantMove != nil {
+			cfg.Messages.CantMove = *m.CantMove
+		}
+		if m.BatteryStatus != nil {
+			cfg.Messages.BatteryStatus = *m.BatteryStatus
+		}
+		if m.HitWall != nil {
+			cfg.Messages.HitWall = *m.HitWall
+		}
+	}
+}
+
 func toMapInfo(c *service.MapInfo) *model.MapInfo {
 	if c == nil {
 		return nil

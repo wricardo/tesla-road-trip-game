@@ -196,6 +196,7 @@ type ComplexityRoot struct {
 		DeleteSession func(childComplexity int, id string) int
 		Move          func(childComplexity int, sessionID string, direction model.Direction, reset *bool) int
 		Reset         func(childComplexity int, sessionID string) int
+		UpdateMap     func(childComplexity int, name string, patch model.GameMapPatchInput) int
 	}
 
 	Position struct {
@@ -283,6 +284,7 @@ type MutationResolver interface {
 	BulkMove(ctx context.Context, sessionID string, moves []model.Direction, reset *bool) (*model.BulkMoveResult, error)
 	Reset(ctx context.Context, sessionID string) (*model.GameState, error)
 	CreateMap(ctx context.Context, name string, mapArg model.GameMapInput) (*model.GameMap, error)
+	UpdateMap(ctx context.Context, name string, patch model.GameMapPatchInput) (*model.GameMap, error)
 }
 type QueryResolver interface {
 	Session(ctx context.Context, id string) (*model.Session, error)
@@ -1103,6 +1105,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Mutation.Reset(childComplexity, args["sessionID"].(string)), true
 
+	case "Mutation.updateMap":
+		if e.complexity.Mutation.UpdateMap == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateMap_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateMap(childComplexity, args["name"].(string), args["patch"].(model.GameMapPatchInput)), true
+
 	case "Position.x":
 		if e.complexity.Position.X == nil {
 			break
@@ -1476,8 +1490,10 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	ec := executionContext{opCtx, e, 0, 0, make(chan graphql.DeferredResult)}
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
 		ec.unmarshalInputGameMapInput,
+		ec.unmarshalInputGameMapPatchInput,
 		ec.unmarshalInputLegendEntryInput,
 		ec.unmarshalInputMapMessagesInput,
+		ec.unmarshalInputMapMessagesPatchInput,
 	)
 	first := true
 
@@ -1614,6 +1630,7 @@ type Mutation {
   bulkMove(sessionID: ID!, moves: [Direction!]!, reset: Boolean = false): BulkMoveResult!
   reset(sessionID: ID!): GameState!
   createMap(name: String!, map: GameMapInput!): GameMap!
+  updateMap(name: String!, patch: GameMapPatchInput!): GameMap!
 }
 
 enum Direction { UP DOWN LEFT RIGHT }
@@ -1749,6 +1766,33 @@ input MapMessagesInput {
   cantMove: String!
   batteryStatus: String!
   hitWall: String!
+}
+
+# Partial update input — all fields optional; omitted fields keep existing values.
+input GameMapPatchInput {
+  name: String
+  description: String
+  gridSize: Int
+  maxBattery: Int
+  startingBattery: Int
+  layout: [String!]
+  legend: [LegendEntryInput!]
+  wallCrashEndsGame: Boolean
+  messages: MapMessagesPatchInput
+}
+
+input MapMessagesPatchInput {
+  welcome: String
+  homeCharge: String
+  superchargerCharge: String
+  parkVisited: String
+  parkAlreadyVisited: String
+  victory: String
+  outOfBattery: String
+  stranded: String
+  cantMove: String
+  batteryStatus: String
+  hitWall: String
 }
 
 type MapInfo {
@@ -2146,6 +2190,57 @@ func (ec *executionContext) field_Mutation_reset_argsSessionID(
 	}
 
 	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateMap_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_updateMap_argsName(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["name"] = arg0
+	arg1, err := ec.field_Mutation_updateMap_argsPatch(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["patch"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_updateMap_argsName(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["name"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+	if tmp, ok := rawArgs["name"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateMap_argsPatch(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (model.GameMapPatchInput, error) {
+	if _, ok := rawArgs["patch"]; !ok {
+		var zeroVal model.GameMapPatchInput
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("patch"))
+	if tmp, ok := rawArgs["patch"]; ok {
+		return ec.unmarshalNGameMapPatchInput2githubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐGameMapPatchInput(ctx, tmp)
+	}
+
+	var zeroVal model.GameMapPatchInput
 	return zeroVal, nil
 }
 
@@ -7859,6 +7954,81 @@ func (ec *executionContext) fieldContext_Mutation_createMap(ctx context.Context,
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_updateMap(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_updateMap(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UpdateMap(rctx, fc.Args["name"].(string), fc.Args["patch"].(model.GameMapPatchInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.GameMap)
+	fc.Result = res
+	return ec.marshalNGameMap2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐGameMap(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateMap(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "name":
+				return ec.fieldContext_GameMap_name(ctx, field)
+			case "description":
+				return ec.fieldContext_GameMap_description(ctx, field)
+			case "gridSize":
+				return ec.fieldContext_GameMap_gridSize(ctx, field)
+			case "maxBattery":
+				return ec.fieldContext_GameMap_maxBattery(ctx, field)
+			case "startingBattery":
+				return ec.fieldContext_GameMap_startingBattery(ctx, field)
+			case "layout":
+				return ec.fieldContext_GameMap_layout(ctx, field)
+			case "legend":
+				return ec.fieldContext_GameMap_legend(ctx, field)
+			case "wallCrashEndsGame":
+				return ec.fieldContext_GameMap_wallCrashEndsGame(ctx, field)
+			case "messages":
+				return ec.fieldContext_GameMap_messages(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type GameMap", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateMap_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Position_x(ctx context.Context, field graphql.CollectedField, obj *model.Position) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Position_x(ctx, field)
 	if err != nil {
@@ -12539,6 +12709,89 @@ func (ec *executionContext) unmarshalInputGameMapInput(ctx context.Context, obj 
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputGameMapPatchInput(ctx context.Context, obj any) (model.GameMapPatchInput, error) {
+	var it model.GameMapPatchInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"name", "description", "gridSize", "maxBattery", "startingBattery", "layout", "legend", "wallCrashEndsGame", "messages"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "description":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Description = data
+		case "gridSize":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("gridSize"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.GridSize = data
+		case "maxBattery":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("maxBattery"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MaxBattery = data
+		case "startingBattery":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("startingBattery"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.StartingBattery = data
+		case "layout":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("layout"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Layout = data
+		case "legend":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("legend"))
+			data, err := ec.unmarshalOLegendEntryInput2ᚕᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐLegendEntryInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Legend = data
+		case "wallCrashEndsGame":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("wallCrashEndsGame"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.WallCrashEndsGame = data
+		case "messages":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("messages"))
+			data, err := ec.unmarshalOMapMessagesPatchInput2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐMapMessagesPatchInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Messages = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputLegendEntryInput(ctx context.Context, obj any) (model.LegendEntryInput, error) {
 	var it model.LegendEntryInput
 	asMap := map[string]any{}
@@ -12660,6 +12913,103 @@ func (ec *executionContext) unmarshalInputMapMessagesInput(ctx context.Context, 
 		case "hitWall":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("hitWall"))
 			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.HitWall = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputMapMessagesPatchInput(ctx context.Context, obj any) (model.MapMessagesPatchInput, error) {
+	var it model.MapMessagesPatchInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"welcome", "homeCharge", "superchargerCharge", "parkVisited", "parkAlreadyVisited", "victory", "outOfBattery", "stranded", "cantMove", "batteryStatus", "hitWall"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "welcome":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("welcome"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Welcome = data
+		case "homeCharge":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("homeCharge"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.HomeCharge = data
+		case "superchargerCharge":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("superchargerCharge"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.SuperchargerCharge = data
+		case "parkVisited":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("parkVisited"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ParkVisited = data
+		case "parkAlreadyVisited":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("parkAlreadyVisited"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ParkAlreadyVisited = data
+		case "victory":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("victory"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Victory = data
+		case "outOfBattery":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("outOfBattery"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.OutOfBattery = data
+		case "stranded":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("stranded"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Stranded = data
+		case "cantMove":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("cantMove"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.CantMove = data
+		case "batteryStatus":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("batteryStatus"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.BatteryStatus = data
+		case "hitWall":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("hitWall"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -13678,6 +14028,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "createMap":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createMap(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateMap":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateMap(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -15012,6 +15369,11 @@ func (ec *executionContext) unmarshalNGameMapInput2githubᚗcomᚋwricardoᚋtes
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalNGameMapPatchInput2githubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐGameMapPatchInput(ctx context.Context, v any) (model.GameMapPatchInput, error) {
+	res, err := ec.unmarshalInputGameMapPatchInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) marshalNGameState2githubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐGameState(ctx context.Context, sel ast.SelectionSet, v model.GameState) graphql.Marshaler {
 	return ec._GameState(ctx, sel, &v)
 }
@@ -15949,6 +16311,32 @@ func (ec *executionContext) marshalOInt2ᚖint(ctx context.Context, sel ast.Sele
 	return res
 }
 
+func (ec *executionContext) unmarshalOLegendEntryInput2ᚕᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐLegendEntryInputᚄ(ctx context.Context, v any) ([]*model.LegendEntryInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*model.LegendEntryInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNLegendEntryInput2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐLegendEntryInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalOMapMessagesPatchInput2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐMapMessagesPatchInput(ctx context.Context, v any) (*model.MapMessagesPatchInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputMapMessagesPatchInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalOSessionSort2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐSessionSort(ctx context.Context, v any) (*model.SessionSort, error) {
 	if v == nil {
 		return nil, nil
@@ -15986,6 +16374,42 @@ func (ec *executionContext) marshalOStepInfo2ᚖgithubᚗcomᚋwricardoᚋtesla�
 		return graphql.Null
 	}
 	return ec._StepInfo(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOString2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]string, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNString2string(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalOString2ᚕstringᚄ(ctx context.Context, sel ast.SelectionSet, v []string) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNString2string(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalOString2ᚖstring(ctx context.Context, v any) (*string, error) {
