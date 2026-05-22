@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 
-	let { enabled = $bindable(false), radius = $bindable(3) } = $props();
+	let { enabled = $bindable(true), radius = $bindable(3) } = $props();
 
 	// persist in localStorage
 	$effect(() => {
@@ -9,7 +9,7 @@
 		const saved = localStorage.getItem('caveMode');
 		if (saved) {
 			const p = JSON.parse(saved);
-			enabled = p.enabled ?? false;
+			enabled = p.enabled ?? true;
 			radius = p.radius ?? 3;
 		}
 	});
@@ -26,7 +26,7 @@
 		<div class="w-8 h-4 bg-gray-200 peer-checked:bg-[#393c41] rounded-full relative transition-colors">
 			<span class="absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform peer-checked:translate-x-4 {enabled ? 'translate-x-4' : ''}"></span>
 		</div>
-		<span class="text-xs text-gray-500">Cave Mode</span>
+		<span class="text-xs text-gray-500">Fog Mode</span>
 	</label>
 
 	{#if enabled}

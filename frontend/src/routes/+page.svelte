@@ -1,16 +1,71 @@
 <script lang="ts">
 	import { getContextClient, queryStore, gql } from '@urql/svelte';
 	import { goto } from '$app/navigation';
-	import { MAPS_QUERY, CREATE_SESSION_MUTATION } from '$lib/queries';
+	import { page } from '$app/stores';
+	import { MAPS_QUERY, MAP_QUERY, CREATE_SESSION_MUTATION } from '$lib/queries';
+
+	type LegendEntry = { key: string; value: string };
+	type MapPreview = {
+		name: string;
+		description: string;
+		gridSize: number;
+		maxBattery: number;
+		startingBattery: number;
+		layout: string[];
+		legend: LegendEntry[];
+	};
 
 	const client = getContextClient();
 	const mapsResult = queryStore({ client, query: gql(MAPS_QUERY) });
 	const maps = $derived($mapsResult?.data?.maps ?? []);
 
 	let showCreate = $state(false);
-	let selectedMap = $state('');
+	let selectedMap = $state($page.url.searchParams.get('map') ?? '');
 	let createError = $state('');
 	let creating = $state(false);
+	let preview = $state<MapPreview | null>(null);
+	let previewError = $state('');
+	let previewLoading = $state(false);
+	const previewMapID = $derived(selectedMap || maps.find((m: { mapId: string }) => m.mapId === 'classic')?.mapId || maps[0]?.mapId || '');
+	let previewRequest = 0;
+
+	$effect(() => {
+		const mapID = previewMapID;
+		if (!mapID) {
+			preview = null;
+			previewError = '';
+			return;
+		}
+
+		const requestID = ++previewRequest;
+		previewLoading = true;
+		previewError = '';
+		client.query(gql(MAP_QUERY), { name: mapID }).toPromise().then((result) => {
+			if (requestID !== previewRequest) return;
+			previewLoading = false;
+			if (result.error) {
+				preview = null;
+				previewError = result.error.message;
+				return;
+			}
+			preview = result.data?.map ?? null;
+		});
+	});
+
+	function tileType(char: string, legend: LegendEntry[] = []) {
+		return legend.find((entry) => entry.key === char)?.value ?? 'road';
+	}
+
+	function tileClass(char: string, legend: LegendEntry[] = []) {
+		switch (tileType(char, legend)) {
+			case 'home': return 'bg-red-500 ring-2 ring-red-200';
+			case 'park': return 'bg-emerald-500';
+			case 'supercharger': return 'bg-yellow-400';
+			case 'water': return 'bg-blue-400';
+			case 'building': return 'bg-slate-700';
+			default: return 'bg-white';
+		}
+	}
 
 	async function createSession() {
 		if (creating) return;
@@ -75,6 +130,41 @@
 							<option value={m.mapId}>{m.name}</option>
 						{/each}
 					</select>
+				</div>
+
+				<div class="mb-5 rounded-2xl border border-gray-200 bg-white p-3">
+					<div class="flex items-start justify-between gap-3 mb-3">
+						<div>
+							<p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Map preview</p>
+							<p class="text-sm font-medium text-[#393c41]">{preview?.name ?? 'Loading map…'}</p>
+						</div>
+						{#if preview}
+							<span class="shrink-0 text-[11px] text-gray-400 bg-[#f7f7f7] rounded-full px-2 py-1">{preview.gridSize}×{preview.gridSize}</span>
+						{/if}
+					</div>
+
+					{#if previewLoading && !preview}
+						<div class="h-44 rounded-xl bg-[#f7f7f7] animate-pulse"></div>
+					{:else if previewError}
+						<p class="text-xs text-red-500">Could not load preview: {previewError}</p>
+					{:else if preview}
+						<div class="overflow-hidden rounded-xl bg-[#f7f7f7] p-2">
+							<div class="grid gap-0.5 aspect-square" style={`grid-template-columns: repeat(${preview.gridSize}, minmax(0, 1fr));`} aria-label={`Preview of ${preview.name}`}>
+								{#each preview.layout as row}
+									{#each row.split('') as char}
+										<div class={`aspect-square rounded-[2px] ${tileClass(char, preview.legend)}`} title={tileType(char, preview.legend)}></div>
+									{/each}
+								{/each}
+							</div>
+						</div>
+						<div class="mt-3 flex flex-wrap gap-2 text-[11px] text-gray-500">
+							<span class="inline-flex items-center gap-1"><span class="h-2.5 w-2.5 rounded-sm bg-red-500"></span>Home</span>
+							<span class="inline-flex items-center gap-1"><span class="h-2.5 w-2.5 rounded-sm bg-emerald-500"></span>Park</span>
+							<span class="inline-flex items-center gap-1"><span class="h-2.5 w-2.5 rounded-sm bg-yellow-400"></span>Charger</span>
+							<span class="inline-flex items-center gap-1"><span class="h-2.5 w-2.5 rounded-sm bg-slate-700"></span>Blocked</span>
+							<span class="inline-flex items-center gap-1"><span class="h-2.5 w-2.5 rounded-sm bg-blue-400"></span>Water</span>
+						</div>
+					{/if}
 				</div>
 
 				<button

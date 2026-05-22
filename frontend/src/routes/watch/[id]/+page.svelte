@@ -91,7 +91,7 @@
 		return () => unsubscribe();
 	});
 
-	let caveEnabled = $state(false);
+	let caveEnabled = $state(true);
 	let caveRadius = $state(3);
 
 	let promptCopied = $state(false);
@@ -297,25 +297,6 @@ Directions: UP DOWN LEFT RIGHT. Grid coordinates are grid[y][x].`);
 						<p class="text-sm text-gray-400 font-light">Loading…</p>
 					{/if}
 				</div>
-
-				{#if gameState}
-					<div class="mt-3 grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(16rem,20rem)] gap-3 items-start">
-						<div class="rounded-xl bg-gray-50/70 px-3 py-2">
-							<span class="text-[11px] uppercase tracking-widest text-gray-400 block mb-1">Events</span>
-							<div class="space-y-1 max-h-14 overflow-y-auto">
-								{#each messages as msg}
-									<p class="text-xs text-gray-600 font-light leading-snug">{msg}</p>
-								{:else}
-									<p class="text-xs text-gray-400 italic">Waiting for moves…</p>
-								{/each}
-							</div>
-						</div>
-						<div>
-							<CaveMode bind:enabled={caveEnabled} bind:radius={caveRadius} />
-							<p class="text-xs text-gray-400 mt-1">Viewer-only fog — does not affect the AI</p>
-						</div>
-					</div>
-				{/if}
 			</div>
 
 			<div class="p-3 sm:p-4 overflow-auto flex items-center justify-center board-pane">
@@ -368,16 +349,41 @@ Directions: UP DOWN LEFT RIGHT. Grid coordinates are grid[y][x].`);
 
 			<div class="flex items-center justify-between gap-x-4 text-xs text-gray-400 px-4 pb-3">
 				<span><span class="text-sky-400">•</span> movement trail{isAnimatingMoves ? ' · animating route…' : ''}</span>
-				<a href="/" class="hover:text-gray-600 transition-colors">← Back to lobby</a>
+				<a href="/lobby" class="hover:text-gray-600 transition-colors">← Back to sessions</a>
 			</div>
+
+			{#if gameState}
+				<div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)] gap-4 border-t border-gray-100 bg-gray-50/40 p-3 sm:p-4">
+					<div class="rounded-xl bg-white border border-gray-100 px-4 py-3">
+						<div class="flex items-center justify-between gap-3 mb-2">
+							<span class="text-[11px] uppercase tracking-widest text-gray-400">Event log</span>
+							<span class="text-[11px] text-gray-300">latest first</span>
+						</div>
+						<div class="space-y-1 max-h-28 overflow-y-auto">
+							{#each messages as msg}
+								<p class="text-xs text-gray-600 font-light leading-snug">{msg}</p>
+							{:else}
+								<p class="text-xs text-gray-400 italic">Waiting for moves…</p>
+							{/each}
+						</div>
+					</div>
+					<div>
+						<span class="text-[11px] uppercase tracking-widest text-gray-400 px-1">View options</span>
+						<CaveMode bind:enabled={caveEnabled} bind:radius={caveRadius} />
+						<p class="text-xs text-gray-400 mt-2 px-1">Fog Mode is viewer-only and does not affect the AI.</p>
+					</div>
+				</div>
+			{/if}
 		</section>
 
 		<!-- right: LLM prompt -->
 		<aside class="min-w-0 bg-white rounded-2xl border border-[#e8e8e8] p-4 shadow-sm lg:sticky lg:top-4">
-			<div class="flex items-center justify-between gap-3 mb-3">
-				<div>
+			<div class="flex items-start justify-between gap-3 mb-3">
+				<div class="min-w-0">
 					<span class="text-xs uppercase tracking-widest text-gray-400">Prompt for LLM</span>
-					<p class="text-xs text-gray-400 mt-1">Copy this into an AI chat to control session <code class="font-mono">{sessionId}</code>.</p>
+					<div class="mt-2 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-900">
+						<strong class="font-medium">Copy this into an AI chat</strong> to control session <code class="font-mono font-semibold">{sessionId}</code>.
+					</div>
 				</div>
 				<button
 					onclick={copyPrompt}

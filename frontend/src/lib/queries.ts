@@ -63,6 +63,20 @@ export const MAPS_QUERY = `
   }
 `;
 
+export const MAP_QUERY = `
+  query Map($name: String!) {
+    map(name: $name) {
+      name
+      description
+      gridSize
+      maxBattery
+      startingBattery
+      layout
+      legend { key value }
+    }
+  }
+`;
+
 export const CREATE_SESSION_MUTATION = `
   mutation CreateSession($mapID: String) {
     createSession(mapID: $mapID) {
