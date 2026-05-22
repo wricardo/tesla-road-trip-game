@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { getContextClient, queryStore, gql } from '@urql/svelte';
 	import { onMount } from 'svelte';
-	import { SESSIONS_QUERY } from '$lib/queries';
+	import { SESSIONS_QUERY, UPDATE_SESSION_MUTATION } from '$lib/queries';
 
 	const client = getContextClient();
 	const sessionsResult = queryStore({ client, query: gql(SESSIONS_QUERY) });
 
 	type SessionCard = {
 		id: string;
+		displayName: string | null;
 		mapName: string;
 		battery: number;
 		maxBattery: number;
@@ -18,6 +19,8 @@
 	};
 
 	let sessionMap = $state<Map<string, SessionCard>>(new Map());
+	let editingId = $state<string | null>(null);
+	let editValue = $state('');
 
 	$effect(() => {
 		const data = $sessionsResult?.data?.sessions?.sessions;
@@ -26,6 +29,7 @@
 		for (const s of data) {
 			m.set(s.id, {
 				id: s.id,
+				displayName: s.displayName ?? null,
 				mapName: s.mapName,
 				battery: s.gameState.battery,
 				maxBattery: s.gameState.maxBattery,
@@ -37,6 +41,26 @@
 		}
 		sessionMap = m;
 	});
+
+	function startEdit(s: SessionCard, e: MouseEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+		editingId = s.id;
+		editValue = s.displayName ?? '';
+	}
+
+	async function commitEdit(id: string, e: Event) {
+		e.preventDefault();
+		const name = editValue.trim();
+		if (name) {
+			await client.mutation(gql(UPDATE_SESSION_MUTATION), { id, displayName: name }).toPromise();
+			const s = sessionMap.get(id);
+			if (s) { s.displayName = name; sessionMap = new Map(sessionMap); }
+		}
+		editingId = null;
+	}
+
+	function cancelEdit() { editingId = null; }
 
 	let pollInterval: ReturnType<typeof setInterval>;
 	onMount(() => {
@@ -101,8 +125,26 @@
 			{#each sessions as s (s.id)}
 				<a href="/watch/{s.id}" class="block bg-white rounded-2xl shadow-sm border border-[#e8e8e8] p-5 hover:shadow-md transition-shadow">
 					<div class="flex items-center justify-between mb-3">
-						<span class="font-mono text-sm text-[#393c41]">Session {s.id}</span>
-						<span class="text-xs text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">{s.mapName}</span>
+						<div class="flex items-center gap-2 min-w-0">
+							{#if editingId === s.id}
+								<form onsubmit={(e) => commitEdit(s.id, e)} class="flex items-center gap-1">
+									<input
+										type="text"
+										bind:value={editValue}
+										onclick={(e) => e.stopPropagation()}
+										onkeydown={(e) => e.key === 'Escape' && cancelEdit()}
+										class="font-mono text-sm border-b border-gray-300 focus:border-[#393c41] outline-none px-1 w-32"
+										autofocus
+									/>
+									<button type="submit" onclick={(e) => e.stopPropagation()} class="text-xs text-green-600 hover:text-green-800">✓</button>
+									<button type="button" onclick={(e) => { e.stopPropagation(); cancelEdit(); }} class="text-xs text-gray-400 hover:text-gray-600">✕</button>
+								</form>
+							{:else}
+								<span class="font-mono text-sm text-[#393c41] truncate">{s.displayName ?? 'Session ' + s.id}</span>
+								<button onclick={(e) => startEdit(s, e)} class="text-gray-300 hover:text-gray-500 transition-colors flex-shrink-0" title="Rename">✎</button>
+							{/if}
+						</div>
+						<span class="text-xs text-gray-400 bg-gray-100 rounded-full px-2 py-0.5 flex-shrink-0">{s.mapName}</span>
 					</div>
 					<div class="mb-3">
 						<div class="flex justify-between text-xs text-gray-400 mb-1"><span>Battery</span><span>{s.battery}/{s.maxBattery}</span></div>

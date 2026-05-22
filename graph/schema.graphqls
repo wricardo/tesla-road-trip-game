@@ -16,6 +16,7 @@ type Query {
 type Mutation {
   createSession(mapID: String, mapName: String): Session!
   deleteSession(id: ID!): DeleteSessionResult!
+  updateSession(id: ID!, displayName: String!): Session!
   move(sessionID: ID!, direction: Direction!, reset: Boolean = false): MoveResult!
   bulkMove(sessionID: ID!, moves: [Direction!]!, reset: Boolean = false): BulkMoveResult!
   reset(sessionID: ID!): GameState!
@@ -53,6 +54,7 @@ type UnifiedSession {
 
 type Session {
   id: ID!
+  displayName: String
   mapName: String!
   createdAt: String!
   lastAccessedAt: String!

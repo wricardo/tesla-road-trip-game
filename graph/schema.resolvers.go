@@ -37,6 +37,15 @@ func (r *mutationResolver) DeleteSession(ctx context.Context, id string) (*model
 	return &model.DeleteSessionResult{Message: fmt.Sprintf("Session %s deleted", id)}, nil
 }
 
+// UpdateSession is the resolver for the updateSession field.
+func (r *mutationResolver) UpdateSession(ctx context.Context, id string, displayName string) (*model.Session, error) {
+	s, err := r.Service.UpdateSessionDisplayName(ctx, id, displayName)
+	if err != nil {
+		return nil, err
+	}
+	return toSession(s), nil
+}
+
 // Move is the resolver for the move field.
 func (r *mutationResolver) Move(ctx context.Context, sessionID string, direction model.Direction, reset *bool) (*model.MoveResult, error) {
 	resetValue := false

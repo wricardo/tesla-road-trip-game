@@ -9,6 +9,7 @@ import (
 // SessionInfo provides information about a game session
 type SessionInfo struct {
 	ID             string             `json:"id"`
+	DisplayName    string             `json:"display_name,omitempty"`
 	MapName        string             `json:"map_name"`
 	CreatedAt      time.Time          `json:"created_at"`
 	LastAccessedAt time.Time          `json:"last_accessed_at"`

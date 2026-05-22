@@ -18,7 +18,11 @@ func toSession(s *service.SessionInfo) *model.Session {
 	if s == nil {
 		return nil
 	}
-	return &model.Session{ID: s.ID, MapName: s.MapName, CreatedAt: timeString(s.CreatedAt), LastAccessedAt: timeString(s.LastAccessedAt), GameState: toGameState(s.GameState), GameMap: toGameMap(s.GameMap)}
+	var dn *string
+	if s.DisplayName != "" {
+		dn = &s.DisplayName
+	}
+	return &model.Session{ID: s.ID, DisplayName: dn, MapName: s.MapName, CreatedAt: timeString(s.CreatedAt), LastAccessedAt: timeString(s.LastAccessedAt), GameState: toGameState(s.GameState), GameMap: toGameMap(s.GameMap)}
 }
 
 func toUnifiedSession(s *service.SessionInfo) *model.UnifiedSession {

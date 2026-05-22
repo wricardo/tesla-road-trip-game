@@ -1,8 +1,19 @@
+export const UPDATE_SESSION_MUTATION = `
+  mutation UpdateSession($id: ID!, $displayName: String!) {
+    updateSession(id: $id, displayName: $displayName) {
+      id
+      displayName
+      mapName
+    }
+  }
+`;
+
 export const SESSIONS_QUERY = `
   query Sessions {
     sessions {
       sessions {
         id
+        displayName
         mapName
         gameState {
           battery

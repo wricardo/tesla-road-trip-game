@@ -29,6 +29,15 @@
 	const client = getContextClient();
 	const sessionId = $page.params.id ?? '';
 
+	const SESSION_QUERY = `
+		query Session($id: ID!) {
+			session(id: $id) { id displayName mapName }
+		}
+	`;
+
+	const sessionQuery = queryStore({ client, query: gql(SESSION_QUERY), variables: { id: sessionId } });
+	const sessionDisplayName = $derived($sessionQuery.data?.session?.displayName ?? null);
+
 	// Initial load via query
 	const initialQuery = queryStore({
 		client,
@@ -247,7 +256,7 @@ Directions: UP DOWN LEFT RIGHT. Grid coordinates are grid[y][x].`);
 </script>
 
 <svelte:head>
-	<title>{sessionId} — Tesla Road Trip</title>
+	<title>{sessionDisplayName ?? sessionId} — Tesla Road Trip</title>
 </svelte:head>
 
 <div class="max-w-[1900px] mx-auto px-3 sm:px-4 py-4 lg:py-6">
@@ -264,11 +273,22 @@ Directions: UP DOWN LEFT RIGHT. Grid coordinates are grid[y][x].`);
 								<span class="normal-case tracking-normal font-mono">{gameState.mapName}</span>
 							{/if}
 						</div>
-						<button
-							onclick={() => navigator.clipboard.writeText(sessionId)}
-							class="mt-1 font-mono text-lg leading-none text-gray-800 hover:text-blue-600 transition-colors"
-							title="Copy session ID"
-						>{sessionId}</button>
+						<div class="mt-1 flex items-center gap-2">
+							{#if sessionDisplayName}
+								<span class="text-lg leading-none text-gray-800 font-medium">{sessionDisplayName}</span>
+								<button
+									onclick={() => navigator.clipboard.writeText(sessionId)}
+									class="font-mono text-sm leading-none text-gray-400 hover:text-blue-600 transition-colors"
+									title="Copy session ID"
+								>({sessionId})</button>
+							{:else}
+								<button
+									onclick={() => navigator.clipboard.writeText(sessionId)}
+									class="font-mono text-lg leading-none text-gray-800 hover:text-blue-600 transition-colors"
+									title="Copy session ID"
+								>{sessionId}</button>
+							{/if}
+						</div>
 					</div>
 
 					{#if gameState}
@@ -353,8 +373,17 @@ Directions: UP DOWN LEFT RIGHT. Grid coordinates are grid[y][x].`);
 				{/if}
 			</div>
 
-			<div class="flex items-center justify-between gap-x-4 text-xs text-gray-400 px-4 pb-3">
-				<span><span class="text-sky-400">•</span> movement trail{isAnimatingMoves ? ' · animating route…' : ''}</span>
+			<div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-xs text-gray-400 px-4 pb-3">
+				<div class="flex flex-wrap items-center gap-x-4 gap-y-1">
+					<span><span class="text-sky-400">•</span> movement trail{isAnimatingMoves ? ' · animating route…' : ''}</span>
+					<span class="flex items-center gap-x-3 gap-y-1 flex-wrap">
+						<span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-sm bg-red-500"></span> Home</span>
+						<span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-sm bg-emerald-500"></span> Park</span>
+						<span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-sm bg-yellow-400"></span> Charger</span>
+						<span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-sm bg-slate-700"></span> Blocked</span>
+						<span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-sm bg-blue-400"></span> Water</span>
+					</span>
+				</div>
 				<a href="/lobby" class="hover:text-gray-600 transition-colors">← Back to sessions</a>
 			</div>
 
