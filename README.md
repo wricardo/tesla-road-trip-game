@@ -229,7 +229,7 @@ Use GraphQL subscriptions on `ws://localhost:8080/graphql` for new clients. The 
 
 ## 🤖 AI / Agent Integration
 
-Use the GraphQL API for AI and agent integrations. GraphQL introspection is enabled, and `/playground` provides an interactive schema explorer.
+Use the GraphQL API for AI and agent integrations. GraphQL introspection is enabled, and `/playground` provides an interactive schema explorer. For terminal-based querying, [gqlcli](https://github.com/wricardo/gqlcli#-quick-start--using-the-cli) is an open-source GraphQL CLI that works well with this API.
 
 > Note: Legacy MCP/stdio transports are disabled because the REST API transport was removed. Use `/graphql` for game operations.
 
@@ -485,6 +485,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - Built with [Gorilla WebSocket](https://github.com/gorilla/websocket)
 - GraphQL API powered by [gqlgen](https://gqlgen.com/)
+- [gqlcli](https://github.com/wricardo/gqlcli) — open-source GraphQL CLI for querying this API from the terminal
 - Inspired by classic grid-based strategy games
 - Tesla theme chosen for electric vehicle awareness
 

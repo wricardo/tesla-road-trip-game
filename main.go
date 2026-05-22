@@ -61,8 +61,11 @@ var llmsTxtTemplate = template.Must(template.New("llms").Parse(`# Tesla Road Tri
 
 Grid-based navigation game. Control a Tesla, collect all parks, manage battery. Win by visiting every park.
 
-GraphQL endpoint: POST {{.BaseURL}}/graphql
-Playground:       GET  {{.BaseURL}}/playground
+GraphQL endpoint:       POST {{.BaseURL}}/graphql
+GraphQL subscriptions: ws(s)://<host>/graphql
+Playground:             GET  {{.BaseURL}}/playground
+Introspection:          enabled — query __schema/__type or use Playground docs
+GraphQL CLI client:     https://github.com/wricardo/gqlcli — open-source CLI for querying this API
 
 ---
 
@@ -123,7 +126,7 @@ query {
 
 ` + "`" + `localView3x3` + "`" + ` returns a 3-row ASCII snapshot centered on the player — useful for quick spatial awareness without reading the full grid.
 
-` + "`" + `batteryRisk` + "`" + ` is one of: ` + "`" + `"safe"` + "`" + `, ` + "`" + `"moderate"` + "`" + `, ` + "`" + `"high"` + "`" + `, ` + "`" + `"critical"` + "`" + `.
+` + "`" + `batteryRisk` + "`" + ` is one of: ` + "`" + `SAFE` + "`" + `, ` + "`" + `LOW` + "`" + `, ` + "`" + `CAUTION` + "`" + `, ` + "`" + `DANGER` + "`" + `, ` + "`" + `CRITICAL` + "`" + `, ` + "`" + `WARNING` + "`" + `, or ` + "`" + `UNKNOWN` + "`" + `.
 
 ### 4. Move
 
@@ -191,7 +194,7 @@ Check ` + "`" + `stoppedReason` + "`" + ` / ` + "`" + `stopReasonCode` + "`" + `
 
 ### 5a. Execute a long route — reset + chained bulkMoves in one request
 
-GraphQL allows multiple named operations (aliases) in a single mutation. Use this to reset and execute a full route in one round trip:
+GraphQL aliases let you execute multiple mutation fields serially in one request. Use this to reset and execute a full route in one round trip:
 
 ` + "```" + `graphql
 mutation {
@@ -209,7 +212,7 @@ mutation {
 }
 ` + "```" + `
 
-Each ` + "`" + `bulkMove` + "`" + ` alias (c1, c2, c3 …) resumes from where the previous left off. Pack ~50 moves per chunk. Check ` + "`" + `stoppedReason` + "`" + ` on each — if ` + "`" + `"wall"` + "`" + ` or ` + "`" + `"battery"` + "`" + `, replan from that chunk's ` + "`" + `gameState` + "`" + `.
+Each ` + "`" + `bulkMove` + "`" + ` alias (c1, c2, c3 …) resumes from where the previous left off. Send at most 50 moves per ` + "`" + `bulkMove` + "`" + ` call. Check ` + "`" + `stoppedReason` + "`" + ` on each response; if execution stops, use that response's ` + "`" + `gameState` + "`" + ` as the current state for the next request.
 
 ### 6. Reset session
 
@@ -241,14 +244,7 @@ mutation {
 Grid is returned as ` + "`" + `grid: [[Cell]]` + "`" + ` — row-major, ` + "`" + `grid[y][x]` + "`" + `.
 ` + "`" + `Cell.type` + "`" + ` uses the names above. ` + "`" + `Cell.id` + "`" + ` is a coordinate string.
 
-**Warning:** R and B look similar in monospace. Parse character-by-character before assuming a row is blocked.
-
----
-
-## Winning
-
-Collect every park (P). ` + "`" + `victory: true` + "`" + ` appears in ` + "`" + `gameState` + "`" + ` once all parks are visited.
-Track progress via ` + "`" + `visitedParks` + "`" + ` — compare visited count to total P cells in the grid.
+The objective is complete when ` + "`" + `victory: true` + "`" + ` appears in ` + "`" + `gameState` + "`" + `.
 
 ---
 
@@ -257,7 +253,7 @@ Track progress via ` + "`" + `visitedParks` + "`" + ` — compare visited count 
 - Each move costs 1 battery.
 - Stepping on H or S restores battery to ` + "`" + `maxBattery` + "`" + `.
 - Reaching ` + "`" + `battery: 0` + "`" + ` ends the game (` + "`" + `gameOver: true` + "`" + `, ` + "`" + `gameOverCode: "battery"` + "`" + `).
-- Plan routes through charging cells. Check ` + "`" + `batteryRisk` + "`" + ` before long moves.
+- ` + "`" + `batteryRisk` + "`" + ` summarizes the current battery status for clients.
 
 ---
 
@@ -300,14 +296,14 @@ query {
 
 ---
 
-## Strategy Tips for LLMs
+## API Usage Notes
 
-1. Call ` + "`" + `gameState` + "`" + ` first — read ` + "`" + `localView3x3` + "`" + ` for immediate surroundings, full ` + "`" + `grid` + "`" + ` for planning.
-2. Identify H/S cells near your route before venturing far from the start.
-3. Use ` + "`" + `bulkMove` + "`" + ` for known-safe corridors; use single ` + "`" + `move` + "`" + ` when navigating around obstacles.
-4. After ` + "`" + `bulkMove` + "`" + `, check ` + "`" + `stopReasonCode` + "`" + ` — if ` + "`" + `"wall"` + "`" + ` or ` + "`" + `"battery"` + "`" + `, update your map and replan.
-5. Never assume a row is fully blocked — verify each cell character individually (R≠B≠W).
-6. Recharge proactively. Keep at least 3 battery buffer relative to distance to nearest H/S.
+1. Use GraphQL introspection (` + "`" + `__schema` + "`" + ` / ` + "`" + `__type` + "`" + `) or the Playground Docs panel to inspect fields before building queries.
+2. Use ` + "`" + `maps` + "`" + ` to choose a map, then ` + "`" + `createSession` + "`" + ` to start a playable session.
+3. Use ` + "`" + `gameState` + "`" + ` for the current session snapshot. Request only the fields you need.
+4. Use ` + "`" + `move` + "`" + ` for one direction or ` + "`" + `bulkMove` + "`" + ` for a sequence. ` + "`" + `bulkMove` + "`" + ` accepts at most 50 moves per call and reports truncation.
+5. After mutations, read ` + "`" + `success` + "`" + `, ` + "`" + `message` + "`" + `, ` + "`" + `gameOver` + "`" + `, ` + "`" + `victory` + "`" + `, and any stop/attempt fields before making another request.
+6. Use ` + "`" + `sessions` + "`" + `, ` + "`" + `history` + "`" + `, ` + "`" + `reset` + "`" + `, and ` + "`" + `deleteSession` + "`" + ` to manage session lifecycle.
 `))
 
 // getConfigDirDefault returns the default configuration directory.

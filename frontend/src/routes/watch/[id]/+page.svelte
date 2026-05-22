@@ -96,30 +96,70 @@
 
 	let promptCopied = $state(false);
 
-	const llmPrompt = $derived(`You are playing Tesla Road Trip — a grid-based navigation game.
+	const llmPrompt = $derived(`Use this GraphQL API to control an existing Tesla Road Trip game session.
 
 Session ID: ${sessionId}
 GraphQL endpoint: ${typeof window !== 'undefined' ? window.location.origin : ''}/graphql
-GraphQL introspection is enabled, so you can inspect the schema before planning queries or mutations.
+Playground: ${typeof window !== 'undefined' ? window.location.origin : ''}/playground
 
-Goal: collect all parks (🌳). Charging tiles (🏠🏠 home, ⚡ supercharger) restore battery to max. Buildings (🏢) and water (💧) are impassable. Each move costs 1 battery.
+GraphQL introspection is enabled. Use the Playground Docs panel or query __schema/__type to discover fields before constructing operations.
 
-## Read state
-query { gameState(sessionID: "${sessionId}") { playerPos { x y } battery maxBattery score victory gameOver message localView3x3 grid { type visited id } visitedParks { id visited } } }
-
-## Single move
-mutation { move(sessionID: "${sessionId}", direction: RIGHT) { success message gameState { playerPos { x y } battery victory gameOver } } }
-
-## Execute long route — reset + multiple bulkMove aliases in one request (saves round trips)
-mutation {
-  reset(sessionID: "${sessionId}") { battery score }
-  c1: bulkMove(sessionID: "${sessionId}", moves: [UP,UP,RIGHT,RIGHT,DOWN]) { movesExecuted success stoppedReason gameState { playerPos { x y } battery victory gameOver } }
-  c2: bulkMove(sessionID: "${sessionId}", moves: [LEFT,LEFT,UP,UP,RIGHT]) { movesExecuted success stoppedReason gameState { playerPos { x y } battery victory gameOver } }
+## Inspect the API
+query {
+  __type(name: "GameState") {
+    fields { name type { kind name ofType { kind name } } }
+  }
 }
 
-Use aliases (c1:, c2:, c3: …) to chain up to ~50 moves per bulkMove in a single mutation. Each bulkMove resumes from where the previous left off. Check stoppedReason after each chunk — if "wall" or "battery", replan.
+## Read current session state
+query {
+  gameState(sessionID: "${sessionId}") {
+    mapName
+    playerPos { x y }
+    battery
+    maxBattery
+    score
+    victory
+    gameOver
+    message
+    localView3x3
+    grid { type visited id }
+    visitedParks { id visited }
+  }
+}
 
-Grid is grid[y][x]. Directions: UP DOWN LEFT RIGHT.`);
+## Send one move
+mutation {
+  move(sessionID: "${sessionId}", direction: RIGHT) {
+    success
+    message
+    attemptedTo { x y tileChar tileType passable }
+    gameState { playerPos { x y } battery score victory gameOver }
+  }
+}
+
+## Send a move sequence
+mutation {
+  bulkMove(sessionID: "${sessionId}", moves: [UP, RIGHT, DOWN]) {
+    success
+    movesExecuted
+    requestedMoves
+    stoppedReason
+    stopReasonCode
+    truncated
+    limit
+    gameState { playerPos { x y } battery score victory gameOver }
+  }
+}
+
+bulkMove accepts at most 50 moves per call. Check success, stoppedReason, stopReasonCode, truncated, gameOver, and victory before sending another operation.
+
+## Manage this session
+mutation { reset(sessionID: "${sessionId}") { playerPos { x y } battery score victory gameOver } }
+query { history(sessionID: "${sessionId}", page: 1, limit: 20, order: DESC) { totalMoves moves { moveNumber action success battery } } }
+mutation { deleteSession(id: "${sessionId}") { message } }
+
+Directions: UP DOWN LEFT RIGHT. Grid coordinates are grid[y][x].`);
 
 	function copyPrompt() {
 		navigator.clipboard.writeText(llmPrompt);
