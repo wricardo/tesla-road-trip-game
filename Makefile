@@ -1,7 +1,7 @@
 # Tesla Road Trip Game - Makefile
 # Development tooling for the Tesla Road Trip Game server
 
-.PHONY: help build test test-verbose test-coverage clean run dev fmt fmt-check lint vet vet-safe vet-all deps validate claude-game claude-game-stdin verify tools status
+.PHONY: help build test test-verbose test-coverage clean run dev dev-live fmt fmt-check lint vet vet-safe vet-all deps validate claude-game claude-game-stdin verify tools status
 
 # Default target
 help:
@@ -45,7 +45,7 @@ help:
 # Build targets
 build:
 	@echo "Building Tesla Road Trip Game server..."
-	go build -o statefullgame .
+	go build -o tesla-road-trip .
 
 # Test targets
 test:
@@ -68,11 +68,11 @@ test-coverage:
 # Development targets
 run: build
 	@echo "Starting Tesla Road Trip Game server..."
-	./statefullgame
+	./tesla-road-trip
 
 dev: build
 	@echo "Starting development server (Ctrl+C to stop)..."
-	./statefullgame -port 8080
+	./tesla-road-trip -port 8080
 
 dev-backend:
 	@echo "Starting backend on http://localhost:9090 (Ctrl+C to stop)..."
@@ -83,6 +83,22 @@ frontend-dev:
 	cd frontend && npm run dev:local
 
 dev-live:
+	@echo "Stopping existing processes on :9090 and :5173..."
+	@for port in 9090 5173; do \
+		pids=$$(lsof -tiTCP:$$port -sTCP:LISTEN 2>/dev/null || true); \
+		if [ -n "$$pids" ]; then \
+			echo "Stopping port $$port: $$pids"; \
+			kill $$pids 2>/dev/null || true; \
+		fi; \
+	done; \
+	sleep 1; \
+	for port in 9090 5173; do \
+		pids=$$(lsof -tiTCP:$$port -sTCP:LISTEN 2>/dev/null || true); \
+		if [ -n "$$pids" ]; then \
+			echo "Force stopping port $$port: $$pids"; \
+			kill -9 $$pids 2>/dev/null || true; \
+		fi; \
+	done
 	@echo "Starting backend on :9090 and frontend on :5173..."
 	@trap 'kill 0' INT TERM EXIT; \
 	go run . -port 9090 & \
@@ -168,7 +184,7 @@ claude-game-stdin:
 # Cleanup
 clean:
 	@echo "Cleaning build artifacts..."
-	rm -f statefullgame
+	rm -f tesla-road-trip
 	rm -f coverage.out
 	rm -f coverage.html
 	rm -f .mcp-server.pid
@@ -214,7 +230,7 @@ status:
 	fi
 	@echo "   Checking for embedded ngrok in server logs:"
 	@if curl -s http://localhost:8080/api >/dev/null 2>&1; then \
-		echo "   🔍 Found statefullgame server on port 8080 (may have embedded ngrok)"; \
+		echo "   🔍 Found tesla-road-trip server on port 8080 (may have embedded ngrok)"; \
 		echo "   Testing known ngrok domain: https://frog-able-inherently.ngrok-free.app"; \
 		if curl -s https://frog-able-inherently.ngrok-free.app/api >/dev/null 2>&1; then \
 			echo "   ✅ ngrok tunnel responds: https://frog-able-inherently.ngrok-free.app"; \
@@ -226,11 +242,11 @@ status:
 	fi
 	@echo ""
 	@echo "Process information:"
-	@if pgrep -f statefullgame >/dev/null 2>&1; then \
-		echo "✅ statefullgame processes:"; \
-		ps aux | grep statefullgame | grep -v grep | awk '{print "   PID " $$2 ": " $$11 " " $$12 " " $$13}'; \
+	@if pgrep -f tesla-road-trip >/dev/null 2>&1; then \
+		echo "✅ tesla-road-trip processes:"; \
+		ps aux | grep tesla-road-trip | grep -v grep | awk '{print "   PID " $$2 ": " $$11 " " $$12 " " $$13}'; \
 	else \
-		echo "❌ No statefullgame processes found"; \
+		echo "❌ No tesla-road-trip processes found"; \
 	fi
 
 # Composite checks for CI/local pre-commit

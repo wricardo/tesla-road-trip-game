@@ -28,12 +28,12 @@ jobs:
         npm --prefix frontend run build
 
     - name: Build binary (linux/arm64)
-      run: GOOS=linux GOARCH=arm64 go build -o /tmp/statefullgame .
+      run: GOOS=linux GOARCH=arm64 go build -o /tmp/tesla-road-trip .
 
     - name: Package
       run: |
         mkdir -p /tmp/tesla-deploy/frontend /tmp/tesla-deploy/sessions
-        cp /tmp/statefullgame /tmp/tesla-deploy/statefullgame
+        cp /tmp/tesla-road-trip /tmp/tesla-deploy/tesla-road-trip
         cp -r configs /tmp/tesla-deploy/configs
         cp -r frontend/build /tmp/tesla-deploy/frontend/build
         tar czf /tmp/deploy.tgz -C /tmp/tesla-deploy .
@@ -59,7 +59,7 @@ jobs:
           sudo mkdir -p /opt/tesla-road-trip-game
           sudo tar xzf /tmp/tesla-road-trip-game-deploy.tgz -C /opt/tesla-road-trip-game
           sudo chown -R ubuntu:ubuntu /opt/tesla-road-trip-game
-          chmod +x /opt/tesla-road-trip-game/statefullgame
+          chmod +x /opt/tesla-road-trip-game/tesla-road-trip
           mkdir -p /opt/tesla-road-trip-game/sessions
           sudo systemctl restart tesla-road-trip-game.service
           systemctl is-active tesla-road-trip-game.service

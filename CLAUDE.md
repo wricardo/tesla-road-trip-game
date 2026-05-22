@@ -12,12 +12,12 @@ Server uses default port 8080. Use `make` for all common tasks.
 
 ### Build and Run
 ```bash
-make build          # Build binary → ./statefullgame
+make build          # Build binary → ./tesla-road-trip
 make run            # Build + run (port 8080)
 make dev            # Same as run, explicit port 8080
-./statefullgame -port 9090              # Custom port
-./statefullgame -ngrok                  # With ngrok tunnel
-./statefullgame stdio-mcp               # MCP stdio mode
+./tesla-road-trip -port 9090              # Custom port
+./tesla-road-trip -ngrok                  # With ngrok tunnel
+./tesla-road-trip stdio-mcp               # MCP stdio mode
 ```
 
 ### Testing
@@ -57,7 +57,7 @@ Schema lives in `graph/schema.graphqls`. Do not edit `graph/generated/` directly
 ```bash
 make claude-game         # Claude with HTTP MCP (./mcp.json)
 make claude-game-stdin   # Claude with stdio MCP (./mcp-stdin.json)
-./statefullgame stdio-mcp  # Standalone stdio MCP
+./tesla-road-trip stdio-mcp  # Standalone stdio MCP
 ```
 
 ### Config Analysis Tool

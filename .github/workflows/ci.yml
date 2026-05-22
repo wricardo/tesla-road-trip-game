@@ -96,5 +96,5 @@ jobs:
     - name: Upload binary
       uses: actions/upload-artifact@v4
       with:
-        name: statefullgame-${{ github.sha }}
-        path: statefullgame
+        name: tesla-road-trip-${{ github.sha }}
+        path: tesla-road-trip

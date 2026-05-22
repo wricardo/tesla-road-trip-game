@@ -1,4 +1,4 @@
-// Command statefullgame starts the Tesla Road Trip Game server.
+// Command tesla-road-trip starts the Tesla Road Trip Game server.
 //
 // It supports two modes:
 //  1. "server" (default) – runs the HTTP server exposing GraphQL, WebSocket, and an /mcp HTTP endpoint
