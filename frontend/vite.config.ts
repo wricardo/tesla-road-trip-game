@@ -6,9 +6,9 @@ export default defineConfig({
 	plugins: [tailwindcss(), sveltekit()],
 	server: {
 		proxy: {
-			'/graphql': { target: 'http://localhost:8000', ws: true },
-			'/ws': { target: 'http://localhost:8000', ws: true },
-			'/llms.txt': { target: 'http://localhost:8000' }
+			'/graphql': { target: 'http://localhost:9090', ws: true },
+			'/ws': { target: 'http://localhost:9090', ws: true },
+			'/llms.txt': { target: 'http://localhost:9090' }
 		}
 	}
 });
