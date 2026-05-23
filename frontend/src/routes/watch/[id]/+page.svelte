@@ -74,6 +74,7 @@
 
 	const gameState = $derived<GameState | null>(liveState ?? $initialQuery.data?.gameState ?? null);
 	const displayPlayerPos = $derived(animatedPos ?? gameState?.playerPos ?? null);
+	const isLargeMap = $derived((gameState?.grid.length ?? 0) >= 30);
 
 	// Direct graphql-ws subscription — bypasses urql store compatibility issues
 	$effect(() => {
@@ -100,7 +101,7 @@
 		return () => unsubscribe();
 	});
 
-	let caveEnabled = $state(true);
+	let caveEnabled = $state(false);
 	let caveRadius = $state(3);
 
 	let promptCopied = $state(false);
@@ -273,9 +274,9 @@ Directions: UP DOWN LEFT RIGHT. Grid coordinates are grid[y][x].`);
 </svelte:head>
 
 <div class="max-w-[1900px] mx-auto px-3 sm:px-4 py-4 lg:py-6">
-	<div class="grid grid-cols-1 lg:grid-cols-[minmax(0,3fr)_minmax(24rem,2fr)] gap-4 xl:gap-6 items-start">
+	<div class={`grid grid-cols-1 gap-4 xl:gap-6 items-start ${isLargeMap ? '' : 'lg:grid-cols-[minmax(0,3fr)_minmax(24rem,2fr)]'}`}>
 		<!-- left: compact session controls + board -->
-		<section class="min-w-0 bg-white rounded-2xl border border-[#e8e8e8] shadow-sm overflow-hidden">
+		<section class="min-w-0 bg-white rounded-2xl border border-[#e8e8e8] shadow-sm overflow-visible">
 			<div class="p-3 sm:p-4 border-b border-gray-100">
 				<div class="flex flex-wrap items-start justify-between gap-3">
 					<div class="min-w-0">
@@ -339,9 +340,9 @@ Directions: UP DOWN LEFT RIGHT. Grid coordinates are grid[y][x].`);
 				</div>
 			</div>
 
-			<div class="p-3 sm:p-4 overflow-auto flex items-center justify-center board-pane">
+			<div class="p-3 sm:p-4 flex items-start justify-start board-pane">
 				{#if gameState?.grid}
-					<table class="game-board border-collapse" style={`--grid-size: ${gameState.grid.length}`}>
+					<table class="game-board border-collapse" style={`--grid-size: ${gameState.grid.length}; --board-width: ${isLargeMap ? '92vw' : '60vw'}`}>
 						<tbody>
 						{#each gameState.grid as row, y}
 							<tr>
@@ -350,7 +351,7 @@ Directions: UP DOWN LEFT RIGHT. Grid coordinates are grid[y][x].`);
 									{@const isPlayer = displayPlayerPos && x === displayPlayerPos.x && y === displayPlayerPos.y}
 									{@const isTrail = visible && trailKeys.has(`${x},${y}`)}
 									<td class="game-cell text-center border transition-colors
-										{!visible ? 'bg-gray-900 border-gray-900' : cellColorClass(cell.type)}
+										{!visible ? 'bg-slate-800 border-slate-700' : cellColorClass(cell.type)}
 										{visible && isTrail && !isPlayer ? 'ring-2 ring-inset ring-sky-300' : ''}
 										{visible && cell.visited && !isPlayer ? 'opacity-60' : ''}">
 										{#if isPlayer}
@@ -425,7 +426,7 @@ Directions: UP DOWN LEFT RIGHT. Grid coordinates are grid[y][x].`);
 		</section>
 
 		<!-- right: LLM prompt -->
-		<aside class="min-w-0 bg-white rounded-2xl border border-[#e8e8e8] p-4 shadow-sm lg:sticky lg:top-4">
+		<aside class={`min-w-0 bg-white rounded-2xl border border-[#e8e8e8] p-4 shadow-sm ${isLargeMap ? '' : 'lg:sticky lg:top-4'}`}>
 			<div class="flex items-start justify-between gap-3 mb-3">
 				<div class="min-w-0">
 					<span class="text-xs uppercase tracking-widest text-gray-400">Prompt for LLM</span>
@@ -451,6 +452,7 @@ Directions: UP DOWN LEFT RIGHT. Grid coordinates are grid[y][x].`);
 <style>
 	.board-pane {
 		min-height: calc(100vh - 18rem);
+		overflow: visible;
 	}
 
 	.prompt-pane {
@@ -462,7 +464,7 @@ Directions: UP DOWN LEFT RIGHT. Grid coordinates are grid[y][x].`);
 		--cell-size: clamp(
 			1.75rem,
 			min(
-				calc((60vw - 5rem) / var(--grid-size)),
+				calc((var(--board-width) - 5rem) / var(--grid-size)),
 				calc((100vh - 20rem) / var(--grid-size))
 			),
 			4.1rem
