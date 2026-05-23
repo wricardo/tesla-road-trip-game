@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 
-	let { enabled = $bindable(true), radius = $bindable(3) } = $props();
+	let { enabled = $bindable(false), radius = $bindable(3) } = $props();
 
 	// persist in localStorage
 	$effect(() => {
