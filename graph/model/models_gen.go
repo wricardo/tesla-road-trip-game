@@ -188,6 +188,13 @@ type MapMessagesPatchInput struct {
 	HitWall            *string `json:"hitWall,omitempty"`
 }
 
+type MapValidationResult struct {
+	Valid    bool    `json:"valid"`
+	Winnable bool    `json:"winnable"`
+	Message  string  `json:"message"`
+	Error    *string `json:"error,omitempty"`
+}
+
 type MoveHistoryEntry struct {
 	Action       string    `json:"action"`
 	FromPosition *Position `json:"fromPosition"`

@@ -22,6 +22,7 @@ type Mutation {
   reset(sessionID: ID!): GameState!
   createMap(name: String!, map: GameMapInput!): GameMap!
   updateMap(name: String!, patch: GameMapPatchInput!): GameMap!
+  validateMap(map: GameMapInput!): MapValidationResult!
 }
 
 enum Direction { UP DOWN LEFT RIGHT }
@@ -102,6 +103,13 @@ type MoveHistoryEntry {
   timestamp: Int!
   success: Boolean!
   moveNumber: Int!
+}
+
+type MapValidationResult {
+  valid: Boolean!
+  winnable: Boolean!
+  message: String!
+  error: String
 }
 
 type GameMap {

@@ -170,6 +170,13 @@ type ComplexityRoot struct {
 		Welcome            func(childComplexity int) int
 	}
 
+	MapValidationResult struct {
+		Error    func(childComplexity int) int
+		Message  func(childComplexity int) int
+		Valid    func(childComplexity int) int
+		Winnable func(childComplexity int) int
+	}
+
 	MoveHistoryEntry struct {
 		Action       func(childComplexity int) int
 		Battery      func(childComplexity int) int
@@ -198,6 +205,7 @@ type ComplexityRoot struct {
 		Reset         func(childComplexity int, sessionID string) int
 		UpdateMap     func(childComplexity int, name string, patch model.GameMapPatchInput) int
 		UpdateSession func(childComplexity int, id string, displayName string) int
+		ValidateMap   func(childComplexity int, mapArg model.GameMapInput) int
 	}
 
 	Position struct {
@@ -288,6 +296,7 @@ type MutationResolver interface {
 	Reset(ctx context.Context, sessionID string) (*model.GameState, error)
 	CreateMap(ctx context.Context, name string, mapArg model.GameMapInput) (*model.GameMap, error)
 	UpdateMap(ctx context.Context, name string, patch model.GameMapPatchInput) (*model.GameMap, error)
+	ValidateMap(ctx context.Context, mapArg model.GameMapInput) (*model.MapValidationResult, error)
 }
 type QueryResolver interface {
 	Session(ctx context.Context, id string) (*model.Session, error)
@@ -945,6 +954,34 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.MapMessages.Welcome(childComplexity), true
 
+	case "MapValidationResult.error":
+		if e.complexity.MapValidationResult.Error == nil {
+			break
+		}
+
+		return e.complexity.MapValidationResult.Error(childComplexity), true
+
+	case "MapValidationResult.message":
+		if e.complexity.MapValidationResult.Message == nil {
+			break
+		}
+
+		return e.complexity.MapValidationResult.Message(childComplexity), true
+
+	case "MapValidationResult.valid":
+		if e.complexity.MapValidationResult.Valid == nil {
+			break
+		}
+
+		return e.complexity.MapValidationResult.Valid(childComplexity), true
+
+	case "MapValidationResult.winnable":
+		if e.complexity.MapValidationResult.Winnable == nil {
+			break
+		}
+
+		return e.complexity.MapValidationResult.Winnable(childComplexity), true
+
 	case "MoveHistoryEntry.action":
 		if e.complexity.MoveHistoryEntry.Action == nil {
 			break
@@ -1131,6 +1168,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.UpdateSession(childComplexity, args["id"].(string), args["displayName"].(string)), true
+
+	case "Mutation.validateMap":
+		if e.complexity.Mutation.ValidateMap == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_validateMap_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.ValidateMap(childComplexity, args["map"].(model.GameMapInput)), true
 
 	case "Position.x":
 		if e.complexity.Position.X == nil {
@@ -1654,6 +1703,7 @@ type Mutation {
   reset(sessionID: ID!): GameState!
   createMap(name: String!, map: GameMapInput!): GameMap!
   updateMap(name: String!, patch: GameMapPatchInput!): GameMap!
+  validateMap(map: GameMapInput!): MapValidationResult!
 }
 
 enum Direction { UP DOWN LEFT RIGHT }
@@ -1734,6 +1784,13 @@ type MoveHistoryEntry {
   timestamp: Int!
   success: Boolean!
   moveNumber: Int!
+}
+
+type MapValidationResult {
+  valid: Boolean!
+  winnable: Boolean!
+  message: String!
+  error: String
 }
 
 type GameMap {
@@ -2316,6 +2373,34 @@ func (ec *executionContext) field_Mutation_updateSession_argsDisplayName(
 	}
 
 	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_validateMap_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_validateMap_argsMap(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["map"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_validateMap_argsMap(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (model.GameMapInput, error) {
+	if _, ok := rawArgs["map"]; !ok {
+		var zeroVal model.GameMapInput
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("map"))
+	if tmp, ok := rawArgs["map"]; ok {
+		return ec.unmarshalNGameMapInput2githubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐGameMapInput(ctx, tmp)
+	}
+
+	var zeroVal model.GameMapInput
 	return zeroVal, nil
 }
 
@@ -6899,6 +6984,179 @@ func (ec *executionContext) fieldContext_MapMessages_hitWall(_ context.Context, 
 	return fc, nil
 }
 
+func (ec *executionContext) _MapValidationResult_valid(ctx context.Context, field graphql.CollectedField, obj *model.MapValidationResult) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MapValidationResult_valid(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Valid, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MapValidationResult_valid(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MapValidationResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MapValidationResult_winnable(ctx context.Context, field graphql.CollectedField, obj *model.MapValidationResult) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MapValidationResult_winnable(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Winnable, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MapValidationResult_winnable(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MapValidationResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MapValidationResult_message(ctx context.Context, field graphql.CollectedField, obj *model.MapValidationResult) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MapValidationResult_message(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Message, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MapValidationResult_message(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MapValidationResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MapValidationResult_error(ctx context.Context, field graphql.CollectedField, obj *model.MapValidationResult) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MapValidationResult_error(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Error, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MapValidationResult_error(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MapValidationResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _MoveHistoryEntry_action(ctx context.Context, field graphql.CollectedField, obj *model.MoveHistoryEntry) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_MoveHistoryEntry_action(ctx, field)
 	if err != nil {
@@ -8171,6 +8429,71 @@ func (ec *executionContext) fieldContext_Mutation_updateMap(ctx context.Context,
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_updateMap_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_validateMap(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_validateMap(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().ValidateMap(rctx, fc.Args["map"].(model.GameMapInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.MapValidationResult)
+	fc.Result = res
+	return ec.marshalNMapValidationResult2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐMapValidationResult(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_validateMap(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "valid":
+				return ec.fieldContext_MapValidationResult_valid(ctx, field)
+			case "winnable":
+				return ec.fieldContext_MapValidationResult_winnable(ctx, field)
+			case "message":
+				return ec.fieldContext_MapValidationResult_message(ctx, field)
+			case "error":
+				return ec.fieldContext_MapValidationResult_error(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type MapValidationResult", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_validateMap_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -14037,6 +14360,57 @@ func (ec *executionContext) _MapMessages(ctx context.Context, sel ast.SelectionS
 	return out
 }
 
+var mapValidationResultImplementors = []string{"MapValidationResult"}
+
+func (ec *executionContext) _MapValidationResult(ctx context.Context, sel ast.SelectionSet, obj *model.MapValidationResult) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, mapValidationResultImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("MapValidationResult")
+		case "valid":
+			out.Values[i] = ec._MapValidationResult_valid(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "winnable":
+			out.Values[i] = ec._MapValidationResult_winnable(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "message":
+			out.Values[i] = ec._MapValidationResult_message(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "error":
+			out.Values[i] = ec._MapValidationResult_error(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var moveHistoryEntryImplementors = []string{"MoveHistoryEntry"}
 
 func (ec *executionContext) _MoveHistoryEntry(ctx context.Context, sel ast.SelectionSet, obj *model.MoveHistoryEntry) graphql.Marshaler {
@@ -14235,6 +14609,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "updateMap":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_updateMap(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "validateMap":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_validateMap(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -15777,6 +16158,20 @@ func (ec *executionContext) marshalNMapMessages2ᚖgithubᚗcomᚋwricardoᚋtes
 func (ec *executionContext) unmarshalNMapMessagesInput2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐMapMessagesInput(ctx context.Context, v any) (*model.MapMessagesInput, error) {
 	res, err := ec.unmarshalInputMapMessagesInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNMapValidationResult2githubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐMapValidationResult(ctx context.Context, sel ast.SelectionSet, v model.MapValidationResult) graphql.Marshaler {
+	return ec._MapValidationResult(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNMapValidationResult2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐMapValidationResult(ctx context.Context, sel ast.SelectionSet, v *model.MapValidationResult) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._MapValidationResult(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNMoveHistoryEntry2ᚕᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐMoveHistoryEntryᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.MoveHistoryEntry) graphql.Marshaler {
