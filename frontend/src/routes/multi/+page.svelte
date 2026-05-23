@@ -47,21 +47,23 @@
 	let allSessions = $state<{ id: string; mapName: string }[]>([]);
 
 	// selected map from URL ?map=
-	let selectedMap = $state($page.url.searchParams.get('map') ?? '');
+	const selectedMap = $derived($page.url.searchParams.get('map') ?? '');
 
-	const filteredIds = $derived<string[]>(
+	function parseSessionIds(raw: string): string[] {
+		return raw.split(',').map((id) => id.trim()).filter(Boolean);
+	}
+
+	const availableIds = $derived<string[]>(
 		selectedMap
 			? allSessions.filter((s) => s.mapName === selectedMap).map((s) => s.id)
 			: []
 	);
 
-	// auto-select first map that has sessions when none selected
-	$effect(() => {
-		if (!selectedMap && allSessions.length > 0) {
-			const first = allSessions[0].mapName;
-			untrack(() => selectMap(first));
-		}
-	});
+	const selectedIds = $derived<string[]>(
+		selectedMap
+			? parseSessionIds($page.url.searchParams.get('sessions') ?? '').filter((id) => availableIds.includes(id))
+			: []
+	);
 
 	let states = $state<Map<string, SessionState>>(new Map());
 	let sessionOrder = $state<string[]>([]);
@@ -72,10 +74,10 @@
 	const animationTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 	$effect(() => {
-		const next = filteredIds; // reactive read
+		const next = selectedIds; // reactive read
 		untrack(() => {
 			const cur = new Set(sessionOrder);
-			sessionOrder = [...sessionOrder.filter(id => next.includes(id)), ...next.filter(id => !cur.has(id))];
+			sessionOrder = [...next.filter((id) => cur.has(id)), ...next.filter((id) => !cur.has(id))];
 		});
 	});
 
@@ -262,7 +264,7 @@
 	}
 
 	$effect(() => {
-		const ids = new Set(filteredIds);
+		const ids = new Set(selectedIds);
 		for (const id of ids) subscribeSession(id);
 		for (const id of wsUnsubs.keys()) {
 			if (!ids.has(id)) unsubscribeSession(id);
@@ -270,10 +272,22 @@
 	});
 
 	function selectMap(id: string) {
-		selectedMap = id;
 		const url = new URL(window.location.href);
 		if (id) url.searchParams.set('map', id);
 		else url.searchParams.delete('map');
+		url.searchParams.delete('sessions');
+		goto(url.pathname + url.search, { replaceState: true, noScroll: true });
+	}
+
+	function toggleSession(id: string) {
+		if (!selectedMap) return;
+		const url = new URL(window.location.href);
+		const next = parseSessionIds(url.searchParams.get('sessions') ?? '');
+		const idx = next.indexOf(id);
+		if (idx >= 0) next.splice(idx, 1);
+		else next.push(id);
+		if (next.length > 0) url.searchParams.set('sessions', next.join(','));
+		else url.searchParams.delete('sessions');
 		goto(url.pathname + url.search, { replaceState: true, noScroll: true });
 	}
 
@@ -342,8 +356,7 @@
 								{#each row as cell, x}
 									{@const players = playerMap.get(`${x},${y}`) ?? []}
 									{@const hasPlayer = players.length > 0}
-									{@const allOver = hasPlayer && players.every(i => { const s = states.get(sessionOrder[i]); return s?.gameOver && !s?.victory; })}
-									{@const trailIdxs = !hasPlayer && cell.type === 'road' ? (trailMap.get(`${x},${y}`) ?? []) : []}
+											{@const trailIdxs = !hasPlayer && cell.type === 'road' ? (trailMap.get(`${x},${y}`) ?? []) : []}
 									{@const isTrail = trailIdxs.length > 0}
 									<td class="w-9 h-9 text-center text-base border transition-colors
 										{cellColorClass(cell.type)}
@@ -375,11 +388,16 @@
 				{:else if !selectedMap}
 					<div class="flex flex-col items-center justify-center h-64 text-gray-400 gap-3">
 						<span class="text-4xl">🗺️</span>
-						<p class="text-sm">Select a map above to watch sessions.</p>
+						<p class="text-sm">Select a map above to choose sessions.</p>
 					</div>
-				{:else if filteredIds.length === 0}
+				{:else if availableIds.length === 0}
 					<div class="flex items-center justify-center h-64 text-gray-400">
 						<p class="text-sm">No sessions for this map.</p>
+					</div>
+				{:else if selectedIds.length === 0}
+					<div class="flex flex-col items-center justify-center h-64 text-gray-400 gap-3">
+						<span class="text-4xl">☑️</span>
+						<p class="text-sm">Select one or more sessions from the list.</p>
 					</div>
 				{:else}
 					<div class="flex items-center justify-center h-64 text-gray-400">
@@ -390,14 +408,27 @@
 		</div>
 
 		<!-- session list -->
-		<div class="w-full lg:w-56 shrink-0 flex flex-col gap-2">
-			{#each sessionOrder as id, i}
+		<div class="w-full lg:w-72 shrink-0 flex flex-col gap-2">
+			<div class="flex items-center justify-between gap-2 px-1 pb-1">
+				<span class="text-[11px] uppercase tracking-widest text-gray-400">Sessions to watch</span>
+				<span class="text-[11px] text-gray-300">{selectedIds.length} selected</span>
+			</div>
+			{#each availableIds as id, i}
 				{@const s = states.get(id)}
-				<a href="/watch/{id}" class="bg-white rounded-xl border border-[#e8e8e8] px-3 py-2.5 shadow-sm hover:shadow-md transition-shadow flex items-center gap-2">
-					<span class="text-lg leading-none">{carColors[i % carColors.length]}</span>
+				<label class="bg-white rounded-xl border border-[#e8e8e8] px-3 py-2.5 shadow-sm hover:shadow-md transition-shadow flex items-start gap-2 cursor-pointer">
+					<input
+						type="checkbox"
+						class="mt-1 accent-[#393c41]"
+						checked={selectedIds.includes(id)}
+						onchange={() => toggleSession(id)}
+					/>
+					<span class="text-lg leading-none mt-0.5">{carColors[i % carColors.length]}</span>
 					<div class="flex-1 min-w-0">
 						<div class="flex items-center justify-between gap-1">
-							<span class="font-mono text-xs font-medium text-[#393c41]">{id}</span>
+							<div class="min-w-0">
+								<div class="font-mono text-xs font-medium text-[#393c41] truncate">{id}</div>
+								<div class="text-[11px] text-gray-400">{s ? `${s.score} parks · ${s.totalMoves} moves` : 'Loading…'}</div>
+							</div>
 							{#if s}
 								<span class="text-xs shrink-0 {s.victory ? 'text-green-500' : s.gameOver ? 'text-red-500' : 'text-gray-400'}">
 									{s.victory ? '🏆' : s.gameOver ? '💥' : '🟢'}
@@ -409,15 +440,12 @@
 								<div class="h-full rounded-full {s.battery / s.maxBattery > 0.5 ? 'bg-green-400' : s.battery / s.maxBattery > 0.25 ? 'bg-orange-400' : 'bg-red-400'}"
 									style="width:{Math.max(0, s.battery / s.maxBattery * 100)}%"></div>
 							</div>
-							<div class="flex gap-2 text-xs text-gray-400 mt-0.5">
-								<span>Parks {s.score}</span><span>📍 {s.totalMoves}</span>
-							</div>
 						{/if}
 					</div>
-				</a>
+				</label>
 			{/each}
-			{#if sessionOrder.length === 0}
-				<p class="text-xs text-gray-400 text-center py-4">No sessions</p>
+			{#if availableIds.length === 0}
+				<p class="text-xs text-gray-400 text-center py-4">No sessions on this map</p>
 			{/if}
 		</div>
 	</div>
