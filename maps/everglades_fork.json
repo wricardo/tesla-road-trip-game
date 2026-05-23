@@ -1,0 +1,49 @@
+{
+  "name": "everglades_fork",
+  "description": "Marshland spine with branching park detours that punish greedy routing.",
+  "grid_size": 18,
+  "max_battery": 20,
+  "starting_battery": 20,
+  "layout": [
+    "WWWWWWWWWWWWWWWWWW",
+    "WWWWHWWWWWWWWWWWWW",
+    "WWWWRWWWWWWWWWWWWW",
+    "WWWWPRRRSRWWWWWWWW",
+    "WWWWRWWWWWWWWWWWWW",
+    "WWWWPWWWWWWWWWWWWW",
+    "WWWWRWWWWWWWWWWWWW",
+    "WWWWRRRPRRRSWWWWWW",
+    "WWWWRWWWWWWWWWWWWW",
+    "WWWWSWWWWWWWWWWWWW",
+    "WWWWRWWWWWWWWWWWWW",
+    "WWWWRRRPRRRWWWWWWW",
+    "WWWWRWWWWWWWWWWWWW",
+    "WWWWRWWWWWWWWWWWWW",
+    "WWWWRRRRRRRRWWWWWW",
+    "WWWWRWWWWWWWWWWWWW",
+    "WWWWRWWWWWWWWWWWWW",
+    "WWWWWWWWWWWWWWWWWW"
+  ],
+  "legend": {
+    "B": "building",
+    "H": "home",
+    "P": "park",
+    "R": "road",
+    "S": "supercharger",
+    "W": "water"
+  },
+  "wall_crash_ends_game": true,
+  "messages": {
+    "welcome": "Welcome! Drive your Tesla to collect parks. Watch your battery!",
+    "home_charge": "Home sweet home! Battery fully charged!",
+    "supercharger_charge": "Supercharger! Battery fully charged!",
+    "park_visited": "Park visited! Score: %d",
+    "park_already_visited": "Already visited this park",
+    "victory": "Victory! All %d parks visited!",
+    "out_of_battery": "Out of battery! Game Over!",
+    "stranded": "Stranded with no battery! Game Over!",
+    "cant_move": "Can't move there!",
+    "battery_status": "Battery: %d/%d",
+    "hit_wall": "You crashed into a wall! Game Over!"
+  }
+}

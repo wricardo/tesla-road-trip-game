@@ -1,0 +1,48 @@
+{
+  "name": "island_chain",
+  "description": "A chain of islands connected by narrow bridges over water.",
+  "grid_size": 17,
+  "max_battery": 24,
+  "starting_battery": 24,
+  "layout": [
+    "WWWWWWWWWWWWWWWWW",
+    "WWWWWWWWWWWWWWWWW",
+    "WWHPPWPRSWRSRWRWW",
+    "WWRWRWRWRWRWRWRWW",
+    "WWSRSRRWRRPWPRRWW",
+    "WWWWWWWWWWWWWWWWW",
+    "WWWWWWWWWWWWWWWWW",
+    "WWWWWWWWWWWWWWWWW",
+    "WWWWWWWWWWWWWWWWW",
+    "WWWWWWWWWWWWWWWWW",
+    "WWWWWWWWWWWWWWWWW",
+    "WWWWWWWWWWWWWWWWW",
+    "WWWWWWWWWWWWWWWWW",
+    "WWWWWWWWWWWWWWWWW",
+    "WWWWWWWWWWWWWWWWW",
+    "WWWWWWWWWWWWWWWWW",
+    "WWWWWWWWWWWWWWWWW"
+  ],
+  "legend": {
+    "B": "building",
+    "H": "home",
+    "P": "park",
+    "R": "road",
+    "S": "supercharger",
+    "W": "water"
+  },
+  "wall_crash_ends_game": true,
+  "messages": {
+    "welcome": "Welcome! Drive your Tesla to collect parks. Watch your battery!",
+    "home_charge": "Home sweet home! Battery fully charged!",
+    "supercharger_charge": "Supercharger! Battery fully charged!",
+    "park_visited": "Park visited! Score: %d",
+    "park_already_visited": "Already visited this park",
+    "victory": "Victory! All %d parks visited!",
+    "out_of_battery": "Out of battery! Game Over!",
+    "stranded": "Stranded with no battery! Game Over!",
+    "cant_move": "Can't move there!",
+    "battery_status": "Battery: %d/%d",
+    "hit_wall": "You crashed into a wall! Game Over!"
+  }
+}
