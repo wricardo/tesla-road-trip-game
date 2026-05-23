@@ -9,6 +9,7 @@ import (
 	"fmt"
 	goSort "sort"
 
+	"github.com/wricardo/tesla-road-trip-game/game/engine"
 	"github.com/wricardo/tesla-road-trip-game/game/service"
 	"github.com/wricardo/tesla-road-trip-game/graph/generated"
 	"github.com/wricardo/tesla-road-trip-game/graph/model"
@@ -123,6 +124,28 @@ func (r *mutationResolver) UpdateMap(ctx context.Context, name string, patch mod
 		return nil, err
 	}
 	return toGameMap(cfg), nil
+}
+
+// ValidateMap is the resolver for the validateMap field.
+func (r *mutationResolver) ValidateMap(ctx context.Context, mapArg model.GameMapInput) (*model.MapValidationResult, error) {
+	cfg := fromGameMapInput(mapArg)
+	if cfg.Name == "" {
+		cfg.Name = mapArg.Name
+	}
+	if err := engine.ValidateGameConfig(cfg); err != nil {
+		errMsg := err.Error()
+		return &model.MapValidationResult{
+			Valid:    false,
+			Winnable: false,
+			Message:  errMsg,
+			Error:    &errMsg,
+		}, nil
+	}
+	return &model.MapValidationResult{
+		Valid:    true,
+		Winnable: true,
+		Message:  fmt.Sprintf("Map %q is solvable.", cfg.Name),
+	}, nil
 }
 
 // Session is the resolver for the session field.

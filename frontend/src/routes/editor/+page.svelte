@@ -105,6 +105,7 @@
 	let validationMessage = $state('');
 	let validationType = $state<'error' | 'warning' | 'success' | ''>('');
 	let isSaving = $state(false);
+	let isValidating = $state(false);
 	let isLoadingMap = $state(false);
 	let selectedConfigId = $state('');
 	let originalMapId = $state('');
@@ -287,6 +288,39 @@
 	async function saveAsNew() {
 		if (!validateMap({ saveAsNew: true })) return;
 		await persistMap(mapName.trim(), 'New map saved successfully.');
+	}
+
+	async function validateWithSolver() {
+		if (!validateMap()) return;
+		isValidating = true;
+		try {
+			const VALIDATE_MAP = gql`
+				mutation ValidateMap($map: GameMapInput!) {
+					validateMap(map: $map) {
+						valid
+						winnable
+						message
+						error
+					}
+				}
+			`;
+
+			const result = await client.mutation(VALIDATE_MAP, { map: buildMapConfig() }).toPromise();
+			if (result.error) throw result.error;
+
+			const validation = result.data?.validateMap;
+			if (!validation) throw new Error('No validation result returned');
+
+			validationType = validation.valid ? 'success' : 'error';
+			validationMessage = validation.valid
+				? `✅ Solver validation passed: ${validation.message}`
+				: `❌ Solver validation failed: ${validation.error ?? validation.message}`;
+		} catch (error) {
+			validationType = 'error';
+			validationMessage = `❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}`;
+		} finally {
+			isValidating = false;
+		}
 	}
 
 	async function loadAvailableConfigs() {
@@ -527,11 +561,14 @@
 						Wall collision ends game
 					</label>
 
-					<button onclick={saveConfiguration} disabled={isSaving || isLoadingMap} class="w-full bg-[#393c41] text-white text-sm px-4 py-3 rounded-full hover:bg-black transition-colors disabled:opacity-50 mt-2">
+					<button onclick={saveConfiguration} disabled={isSaving || isLoadingMap || isValidating} class="w-full bg-[#393c41] text-white text-sm px-4 py-3 rounded-full hover:bg-black transition-colors disabled:opacity-50 mt-2">
 						{isSaving ? 'Saving…' : isEditMode ? 'Save changes' : 'Save map'}
 					</button>
+					<button type="button" onclick={validateWithSolver} disabled={isSaving || isLoadingMap || isValidating} class="w-full border border-gray-200 bg-white text-[#393c41] text-sm px-4 py-3 rounded-full hover:border-gray-400 transition-colors disabled:opacity-50">
+						{isValidating ? 'Validating…' : 'Validate solvable'}
+					</button>
 					{#if isEditMode}
-						<button type="button" onclick={saveAsNew} disabled={isSaving || isLoadingMap} class="w-full border border-gray-200 bg-white text-[#393c41] text-sm px-4 py-3 rounded-full hover:border-gray-400 transition-colors disabled:opacity-50">
+						<button type="button" onclick={saveAsNew} disabled={isSaving || isLoadingMap || isValidating} class="w-full border border-gray-200 bg-white text-[#393c41] text-sm px-4 py-3 rounded-full hover:border-gray-400 transition-colors disabled:opacity-50">
 							Save as new
 						</button>
 					{/if}
