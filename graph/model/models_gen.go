@@ -45,9 +45,22 @@ type BulkMoveResult struct {
 }
 
 type Cell struct {
-	Type    string `json:"type"`
-	Visited bool   `json:"visited"`
-	ID      string `json:"id"`
+	Type              string   `json:"type"`
+	Visited           bool     `json:"visited"`
+	ID                string   `json:"id"`
+	AllowedDirections []string `json:"allowedDirections"`
+}
+
+type CellConfigEntry struct {
+	Key               string   `json:"key"`
+	Type              string   `json:"type"`
+	AllowedDirections []string `json:"allowedDirections"`
+}
+
+type CellConfigEntryInput struct {
+	Key               string   `json:"key"`
+	Type              string   `json:"type"`
+	AllowedDirections []string `json:"allowedDirections"`
 }
 
 type DeleteSessionResult struct {
@@ -62,39 +75,42 @@ type GameEvent struct {
 }
 
 type GameMap struct {
-	Name              string         `json:"name"`
-	Description       string         `json:"description"`
-	GridSize          int            `json:"gridSize"`
-	MaxBattery        int            `json:"maxBattery"`
-	StartingBattery   int            `json:"startingBattery"`
-	Layout            []string       `json:"layout"`
-	Legend            []*LegendEntry `json:"legend"`
-	WallCrashEndsGame bool           `json:"wallCrashEndsGame"`
-	Messages          *MapMessages   `json:"messages"`
+	Name              string             `json:"name"`
+	Description       string             `json:"description"`
+	GridSize          int                `json:"gridSize"`
+	MaxBattery        int                `json:"maxBattery"`
+	StartingBattery   int                `json:"startingBattery"`
+	Layout            []string           `json:"layout"`
+	Legend            []*LegendEntry     `json:"legend"`
+	CellConfigs       []*CellConfigEntry `json:"cellConfigs"`
+	WallCrashEndsGame bool               `json:"wallCrashEndsGame"`
+	Messages          *MapMessages       `json:"messages"`
 }
 
 type GameMapInput struct {
-	Name              string              `json:"name"`
-	Description       string              `json:"description"`
-	GridSize          int                 `json:"gridSize"`
-	MaxBattery        int                 `json:"maxBattery"`
-	StartingBattery   int                 `json:"startingBattery"`
-	Layout            []string            `json:"layout"`
-	Legend            []*LegendEntryInput `json:"legend"`
-	WallCrashEndsGame bool                `json:"wallCrashEndsGame"`
-	Messages          *MapMessagesInput   `json:"messages"`
+	Name              string                  `json:"name"`
+	Description       string                  `json:"description"`
+	GridSize          int                     `json:"gridSize"`
+	MaxBattery        int                     `json:"maxBattery"`
+	StartingBattery   int                     `json:"startingBattery"`
+	Layout            []string                `json:"layout"`
+	Legend            []*LegendEntryInput     `json:"legend"`
+	CellConfigs       []*CellConfigEntryInput `json:"cellConfigs,omitempty"`
+	WallCrashEndsGame bool                    `json:"wallCrashEndsGame"`
+	Messages          *MapMessagesInput       `json:"messages"`
 }
 
 type GameMapPatchInput struct {
-	Name              *string                `json:"name,omitempty"`
-	Description       *string                `json:"description,omitempty"`
-	GridSize          *int                   `json:"gridSize,omitempty"`
-	MaxBattery        *int                   `json:"maxBattery,omitempty"`
-	StartingBattery   *int                   `json:"startingBattery,omitempty"`
-	Layout            []string               `json:"layout,omitempty"`
-	Legend            []*LegendEntryInput    `json:"legend,omitempty"`
-	WallCrashEndsGame *bool                  `json:"wallCrashEndsGame,omitempty"`
-	Messages          *MapMessagesPatchInput `json:"messages,omitempty"`
+	Name              *string                 `json:"name,omitempty"`
+	Description       *string                 `json:"description,omitempty"`
+	GridSize          *int                    `json:"gridSize,omitempty"`
+	MaxBattery        *int                    `json:"maxBattery,omitempty"`
+	StartingBattery   *int                    `json:"startingBattery,omitempty"`
+	Layout            []string                `json:"layout,omitempty"`
+	Legend            []*LegendEntryInput     `json:"legend,omitempty"`
+	CellConfigs       []*CellConfigEntryInput `json:"cellConfigs,omitempty"`
+	WallCrashEndsGame *bool                   `json:"wallCrashEndsGame,omitempty"`
+	Messages          *MapMessagesPatchInput  `json:"messages,omitempty"`
 }
 
 type GameState struct {

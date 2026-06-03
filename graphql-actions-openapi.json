@@ -1,0 +1,165 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Tesla Road Trip GraphQL Actions API",
+    "description": "OpenAPI wrapper for executing Tesla Road Trip GraphQL operations through the single /graphql endpoint. Send query documents for reads and mutation documents for state changes.",
+    "version": "v1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://tesla.ngrok.pro"
+    }
+  ],
+  "paths": {
+    "/graphql": {
+      "post": {
+        "operationId": "execute_graphql",
+        "summary": "Execute a GraphQL query or mutation",
+        "description": "Execute a GraphQL operation against the Tesla Road Trip API. Use query operations for reads such as sessions, maps, gameState, history, and schema introspection. Use mutation operations for state changes such as createSession, updateSession, move, bulkMove, reset, deleteSession, createMap, updateMap, and deleteMap.",
+        "x-openai-inconsequential": false,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GraphQLRequest"
+              },
+              "examples": {
+                "listMaps": {
+                  "summary": "List available maps",
+                  "value": {
+                    "query": "query { maps { mapId name description gridSize maxBattery } }"
+                  }
+                },
+                "readGameState": {
+                  "summary": "Read current game state",
+                  "value": {
+                    "query": "query($sessionID: ID!) { gameState(sessionID: $sessionID) { battery maxBattery score victory gameOver localView3x3 playerPos { x y } } }",
+                    "variables": {
+                      "sessionID": "SESSION_ID"
+                    }
+                  }
+                },
+                "createSession": {
+                  "summary": "Create a session",
+                  "value": {
+                    "query": "mutation($mapID: String) { createSession(mapID: $mapID) { id mapName gameState { battery playerPos { x y } } } }",
+                    "variables": {
+                      "mapID": "classic"
+                    }
+                  }
+                },
+                "moveRight": {
+                  "summary": "Move right",
+                  "value": {
+                    "query": "mutation($sessionID: ID!) { move(sessionID: $sessionID, direction: RIGHT) { success message gameState { battery score playerPos { x y } victory gameOver } } }",
+                    "variables": {
+                      "sessionID": "SESSION_ID"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "GraphQL operation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GraphQLResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "GraphQL operation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GraphQLResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "GraphQLRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "GraphQL query or mutation document. Include the mutation keyword for state-changing operations."
+          },
+          "variables": {
+            "type": "object",
+            "description": "Optional GraphQL variables object.",
+            "additionalProperties": true
+          },
+          "operationName": {
+            "type": "string",
+            "description": "Optional GraphQL operation name when the document contains multiple operations."
+          }
+        },
+        "required": [
+          "query"
+        ]
+      },
+      "GraphQLError": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "locations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "path": {
+            "type": "array",
+            "items": {
+              "type": [
+                "string",
+                "integer"
+              ]
+            }
+          },
+          "extensions": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "GraphQLResponse": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "data": {
+            "description": "GraphQL response data. Shape depends on requested fields.",
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": true
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GraphQLError"
+            }
+          }
+        }
+      }
+    }
+  }
+}

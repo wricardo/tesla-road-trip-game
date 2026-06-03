@@ -23,9 +23,16 @@ const (
 
 // Cell represents a single grid cell
 type Cell struct {
-	Type    CellType `json:"type"`
-	Visited bool     `json:"visited,omitempty"` // For parks
-	ID      string   `json:"id,omitempty"`      // Unique ID for parks
+	Type              CellType `json:"type"`
+	Visited           bool     `json:"visited,omitempty"`
+	ID                string   `json:"id,omitempty"`
+	AllowedDirections []string `json:"allowed_directions,omitempty"` // empty = unrestricted
+}
+
+// CellConfig defines properties for a custom layout char (used in GameConfig.CellConfigs)
+type CellConfig struct {
+	Type              string   `json:"type"`
+	AllowedDirections []string `json:"allowed_directions,omitempty"` // empty = unrestricted
 }
 
 // Position represents x,y coordinates
@@ -36,14 +43,15 @@ type Position struct {
 
 // GameConfig represents the game configuration from JSON
 type GameConfig struct {
-	Name              string            `json:"name"`
-	Description       string            `json:"description"`
-	GridSize          int               `json:"grid_size"`
-	MaxBattery        int               `json:"max_battery"`
-	StartingBattery   int               `json:"starting_battery"`
-	Layout            []string          `json:"layout"`
-	Legend            map[string]string `json:"legend"`
-	WallCrashEndsGame bool              `json:"wall_crash_ends_game"`
+	Name              string                `json:"name"`
+	Description       string                `json:"description"`
+	GridSize          int                   `json:"grid_size"`
+	MaxBattery        int                   `json:"max_battery"`
+	StartingBattery   int                   `json:"starting_battery"`
+	Layout            []string              `json:"layout"`
+	Legend            map[string]string     `json:"legend"`
+	CellConfigs       map[string]CellConfig `json:"cell_configs,omitempty"` // extra chars with direction constraints
+	WallCrashEndsGame bool                  `json:"wall_crash_ends_game"`
 	Messages          struct {
 		Welcome            string `json:"welcome"`
 		HomeCharge         string `json:"home_charge"`

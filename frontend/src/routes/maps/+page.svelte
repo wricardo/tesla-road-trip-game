@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { getContextClient, queryStore, gql } from '@urql/svelte';
+	import { directionsForChar, directionGlyph, type CellConfigEntry } from '$lib/directional';
 	import { MAPS_QUERY, MAP_QUERY } from '$lib/queries';
 
 	type MapInfo = {
@@ -18,6 +19,7 @@
 		startingBattery: number;
 		layout: string[];
 		legend: LegendEntry[];
+		cellConfigs: CellConfigEntry[];
 	};
 	type MapCard = MapInfo & { preview?: GameMap; error?: string };
 
@@ -52,12 +54,12 @@
 		});
 	});
 
-	function tileType(char: string, legend: LegendEntry[] = []) {
-		return legend.find((entry) => entry.key === char)?.value ?? 'road';
+	function tileType(char: string, legend: LegendEntry[] = [], cellConfigs: CellConfigEntry[] = []) {
+		return cellConfigs.find((entry) => entry.key === char)?.type ?? legend.find((entry) => entry.key === char)?.value ?? 'road';
 	}
 
-	function tileClass(char: string, legend: LegendEntry[] = []) {
-		switch (tileType(char, legend)) {
+	function tileClass(char: string, legend: LegendEntry[] = [], cellConfigs: CellConfigEntry[] = []) {
+		switch (tileType(char, legend, cellConfigs)) {
 			case 'home': return 'bg-red-500 ring-1 ring-red-200';
 			case 'park': return 'bg-emerald-500';
 			case 'supercharger': return 'bg-yellow-400';
@@ -127,7 +129,7 @@
 								<div class="grid gap-0.5 aspect-square" style={`grid-template-columns: repeat(${map.preview.gridSize}, minmax(0, 1fr));`} aria-label={`Preview of ${map.name}`}>
 									{#each map.preview.layout as row}
 										{#each row.split('') as char}
-											<div class={`aspect-square rounded-[2px] ${tileClass(char, map.preview.legend)}`} title={tileType(char, map.preview.legend)}></div>
+											<div class={`aspect-square rounded-[2px] flex items-center justify-center text-[0.5rem] leading-none font-bold ${tileClass(char, map.preview.legend, map.preview.cellConfigs)}`} title={tileType(char, map.preview.legend, map.preview.cellConfigs)}>{directionGlyph(directionsForChar(char, map.preview.cellConfigs))}</div>
 										{/each}
 									{/each}
 								</div>

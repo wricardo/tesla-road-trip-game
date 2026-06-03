@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { createClient as createWsClient } from 'graphql-ws';
 	import { getContextClient, queryStore, gql } from '@urql/svelte';
+	import { directionGlyph, hasDirections } from '$lib/directional';
 
 	const GAME_STATE_QUERY = `
 		query GameState($sessionID: ID!) {
 			gameState(sessionID: $sessionID) {
 				battery maxBattery score victory gameOver totalMoves message mapName
 				playerPos { x y }
-				grid { type visited id }
+				grid { type visited id allowedDirections }
 			}
 		}
 	`;
@@ -17,7 +18,7 @@
 			sessionUpdated(sessionID: $sessionID) {
 				battery maxBattery score victory gameOver totalMoves message mapName
 				playerPos { x y }
-				grid { type visited id }
+				grid { type visited id allowedDirections }
 			}
 		}
 	`;
@@ -36,7 +37,7 @@
 		victory: boolean; gameOver: boolean; totalMoves: number;
 		message: string; mapName: string;
 		playerPos: { x: number; y: number };
-		grid: Array<Array<{ type: string; visited: boolean; id: string }>>;
+		grid: Array<Array<{ type: string; visited: boolean; id: string; allowedDirections: string[] }>>;
 	};
 
 	let liveState = $state<GameState | null>(null);
@@ -88,6 +89,8 @@
 								class="text-center border-0 {cellColorClass(cell.type)} {cell.visited && !isPlayer ? 'opacity-50' : ''}">
 								{#if isPlayer}
 									{gs.gameOver ? '💥' : '🚗'}
+								{:else if hasDirections(cell)}
+									<span class="text-orange-500 font-bold leading-none">{directionGlyph(cell.allowedDirections)}</span>
 								{/if}
 							</td>
 						{/each}

@@ -159,7 +159,7 @@ func (e *GameEngine) CanMove(direction string) bool {
 		return false
 	}
 
-	return e.state.CanMoveTo(newX, newY) && e.state.Battery > 0
+	return e.state.CanMoveTo(newX, newY, direction) && e.state.Battery > 0
 }
 
 // GetPossibleMoves returns all valid directions the player can move

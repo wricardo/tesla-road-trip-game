@@ -5,13 +5,14 @@
 	import { createClient as createWsClient } from 'graphql-ws';
 	import { onMount, untrack } from 'svelte';
 	import { SESSIONS_QUERY, MAPS_QUERY } from '$lib/queries';
+	import { directionGlyph, hasDirections } from '$lib/directional';
 
 	const GAME_STATE_QUERY = `
 		query GameState($sessionID: ID!) {
 			gameState(sessionID: $sessionID) {
 				battery maxBattery score victory gameOver totalMoves message
 				playerPos { x y }
-				grid { type visited id }
+				grid { type visited id allowedDirections }
 				currentMoves { fromPosition { x y } toPosition { x y } success }
 			}
 		}
@@ -22,7 +23,7 @@
 			sessionUpdated(sessionID: $sessionID) {
 				battery maxBattery score victory gameOver totalMoves message
 				playerPos { x y }
-				grid { type visited id }
+				grid { type visited id allowedDirections }
 				currentMoves { fromPosition { x y } toPosition { x y } success }
 			}
 		}
@@ -35,7 +36,7 @@
 		battery: number; maxBattery: number; score: number;
 		victory: boolean; gameOver: boolean; totalMoves: number; message: string;
 		playerPos: { x: number; y: number };
-		grid: Array<Array<{ type: string; visited: boolean; id: string }>>;
+		grid: Array<Array<{ type: string; visited: boolean; id: string; allowedDirections: string[] }>>;
 		currentMoves: MoveEntry[];
 	};
 
@@ -378,6 +379,8 @@
 													<span class="inline-block rounded-full w-1 h-1 shrink-0" style="background:{dotColors[idx % dotColors.length]}"></span>
 												{/each}
 											</span>
+										{:else if hasDirections(cell)}
+											<span class="text-orange-500 font-bold leading-none">{directionGlyph(cell.allowedDirections)}</span>
 										{/if}
 									</td>
 								{/each}
