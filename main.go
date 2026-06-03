@@ -419,17 +419,10 @@ Available tools:
 | update_map      | Partially update a map (omitted fields unchanged)   |
 | delete_map      | Permanently delete a map                            |
 
-To use MCP in Claude Code, add to ` + "`" + `mcp.json` + "`" + `:
+To use MCP in Claude Code, run:
 
-` + "```" + `json
-{
-  "mcpServers": {
-    "tesla-game": {
-      "type": "http",
-      "url": "https://tesla.ngrok.pro/mcp"
-    }
-  }
-}
+` + "```" + `bash
+claude mcp add --transport http tesla-game https://tesla.ngrok.pro/mcp
 ` + "```" + `
 
 ---

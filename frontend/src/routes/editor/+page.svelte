@@ -3,8 +3,9 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
+	import { directionGlyph, standardDirectionalCellConfigs, directionalChars } from '$lib/directional';
 
-	type CellType = 'R' | 'H' | 'P' | 'S' | 'W' | 'B';
+	type CellType = string;
 
 	interface Config {
 		mapId: string;
@@ -12,7 +13,8 @@
 		description: string;
 	}
 
-	type LegendEntry = { key: CellType; value: string };
+	type LegendEntry = { key: string; value: string };
+	type CellConfigEntry = { key: string; type: string; allowedDirections: string[] };
 
 	interface MapMessages {
 		welcome: string;
@@ -36,28 +38,49 @@
 		startingBattery: number;
 		layout: string[];
 		legend: LegendEntry[];
+		cellConfigs: CellConfigEntry[];
 		wallCrashEndsGame: boolean;
 		messages: MapMessages;
 	}
 
 	const client = getContextClient();
 
-	const cellLabels: Record<CellType, string> = {
+	const cellLabels: Record<string, string> = {
 		R: 'Road',
 		H: 'Home',
 		P: 'Park',
 		S: 'Supercharger',
 		W: 'Water',
-		B: 'Building'
+		B: 'Building',
+		'|': 'North/South road',
+		'-': 'East/West road',
+		'^': 'North-only road',
+		v: 'South-only road',
+		'>': 'East-only road',
+		'<': 'West-only road',
+		J: 'North/East turn',
+		L: 'North/West turn',
+		'7': 'South/East turn',
+		r: 'South/West turn'
 	};
 
-	const cellClasses: Record<CellType, string> = {
+	const cellClasses: Record<string, string> = {
 		R: 'bg-white',
 		H: 'bg-red-500 ring-1 ring-red-200',
 		P: 'bg-emerald-500',
 		S: 'bg-yellow-400',
 		W: 'bg-blue-400',
-		B: 'bg-slate-700'
+		B: 'bg-slate-700',
+		'|': 'bg-white text-orange-500 font-bold',
+		'-': 'bg-white text-orange-500 font-bold',
+		'^': 'bg-white text-orange-500 font-bold',
+		v: 'bg-white text-orange-500 font-bold',
+		'>': 'bg-white text-orange-500 font-bold',
+		'<': 'bg-white text-orange-500 font-bold',
+		J: 'bg-white text-orange-500 font-bold',
+		L: 'bg-white text-orange-500 font-bold',
+		'7': 'bg-white text-orange-500 font-bold',
+		r: 'bg-white text-orange-500 font-bold'
 	};
 
 	const defaultLegend: LegendEntry[] = [
@@ -86,6 +109,7 @@
 	let gridSize = $state(10);
 	let gridData = $state<CellType[][]>([]);
 	let currentTool = $state<CellType>('R');
+	let currentCellConfigs = $state<CellConfigEntry[]>(standardDirectionalCellConfigs);
 	let configs = $state<Config[]>([]);
 
 	// Form fields
@@ -183,6 +207,18 @@
 		currentTool = type;
 	}
 
+	function displayLabel(cell: CellType) {
+		return cellLabels[cell] ?? 'Directional road';
+	}
+
+	function displayClass(cell: CellType) {
+		return cellClasses[cell] ?? 'bg-white text-orange-500 font-bold';
+	}
+
+	function displayGlyph(cell: CellType) {
+		return directionalChars.has(cell) ? directionGlyph(currentCellConfigs.find((entry) => entry.key === cell)?.allowedDirections ?? []) : '';
+	}
+
 	function resetEditor() {
 		selectedConfigId = '';
 		originalMapId = '';
@@ -194,6 +230,7 @@
 		startingBattery = 20;
 		wallCrashEndsGame = true;
 		currentTool = 'R';
+		currentCellConfigs = standardDirectionalCellConfigs;
 		initializeGrid(10);
 		validationMessage = '';
 		validationType = '';
@@ -242,6 +279,7 @@
 			startingBattery,
 			layout,
 			legend: defaultLegend,
+			cellConfigs: currentCellConfigs,
 			wallCrashEndsGame,
 			messages: defaultMessages
 		};
@@ -362,6 +400,7 @@
 						maxBattery
 						startingBattery
 						layout
+						cellConfigs { key type allowedDirections }
 						wallCrashEndsGame
 					}
 				}
@@ -379,6 +418,7 @@
 			wallCrashEndsGame = map.wallCrashEndsGame;
 			gridSize = map.gridSize;
 
+			currentCellConfigs = map.cellConfigs?.length ? map.cellConfigs : standardDirectionalCellConfigs;
 			gridData = map.layout.map((row: string) => row.split('') as CellType[]);
 			originalMapId = selectedConfigId;
 			lastSavedMapId = selectedConfigId;
@@ -444,11 +484,12 @@
 							<button
 								type="button"
 								onclick={() => paintCell(rowIdx, colIdx)}
-								class={`w-8 h-8 rounded-[3px] border border-white/70 text-xs cursor-pointer hover:ring-2 hover:ring-gray-300 focus:outline-none focus:ring-2 focus:ring-[#393c41] transition-all ${cellClasses[cell]}`}
-								aria-label={`${cellLabels[cell]} at row ${rowIdx + 1}, column ${colIdx + 1}`}
-								title={cellLabels[cell]}
+								class={`w-8 h-8 rounded-[3px] border border-white/70 text-xs cursor-pointer hover:ring-2 hover:ring-gray-300 focus:outline-none focus:ring-2 focus:ring-[#393c41] transition-all flex items-center justify-center ${displayClass(cell)}`}
+								aria-label={`${displayLabel(cell)} at row ${rowIdx + 1}, column ${colIdx + 1}`}
+								title={displayLabel(cell)}
 							>
-								<span class="sr-only">{cellLabels[cell]}</span>
+								{displayGlyph(cell)}
+								<span class="sr-only">{displayLabel(cell)}</span>
 							</button>
 						{/each}
 					{/each}
@@ -522,7 +563,7 @@
 									: 'border-gray-200 bg-white text-gray-500 hover:border-gray-400 hover:text-[#393c41]'
 							}`}
 						>
-							<span class={`block h-7 w-7 rounded-md mx-auto mb-2 border border-white/70 ${cellClasses[type as CellType]}`}></span>
+							<span class={`flex items-center justify-center h-7 w-7 rounded-md mx-auto mb-2 border border-white/70 ${displayClass(type as CellType)}`}>{displayGlyph(type as CellType)}</span>
 							<span class="text-xs">{label}</span>
 						</button>
 					{/each}

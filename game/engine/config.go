@@ -53,7 +53,26 @@ func ValidateGameConfig(config *GameConfig) error {
 			case 'P':
 				parkCount++
 			default:
+				if _, ok := config.CellConfigs[string(char)]; ok {
+					continue
+				}
 				return fmt.Errorf("config validation: invalid character '%c' at row %d, col %d", char, i+1, j+1)
+			}
+		}
+	}
+
+	// Validate CellConfigs
+	validDirections := map[string]bool{"north": true, "south": true, "east": true, "west": true}
+	for char, cc := range config.CellConfigs {
+		if len(char) != 1 {
+			return fmt.Errorf("config validation: cell_configs key must be single character, got %q", char)
+		}
+		if cc.Type != string(Road) {
+			return fmt.Errorf("config validation: cell_configs[%q] type must be %q, got %q", char, Road, cc.Type)
+		}
+		for _, d := range cc.AllowedDirections {
+			if !validDirections[d] {
+				return fmt.Errorf("config validation: cell_configs[%q] invalid direction %q (must be north/south/east/west)", char, d)
 			}
 		}
 	}
@@ -143,11 +162,36 @@ func validateWinnable(config *GameConfig) error {
 		return fmt.Errorf("config validation: layout must contain at least one home (H) cell")
 	}
 
+	// dirName maps (dx,dy) → direction string for AllowedDirections checks
+	type dirEntry struct {
+		dx, dy int
+		name   string
+	}
+	dirList := []dirEntry{
+		{0, -1, "north"},
+		{0, 1, "south"},
+		{-1, 0, "west"},
+		{1, 0, "east"},
+	}
+
+	// cellAllowed checks direction constraints from CellConfigs for a raw layout char
+	cellAllowed := func(ch rune, dirName string) bool {
+		cc, ok := config.CellConfigs[string(ch)]
+		if !ok || len(cc.AllowedDirections) == 0 {
+			return true
+		}
+		for _, d := range cc.AllowedDirections {
+			if d == dirName {
+				return true
+			}
+		}
+		return false
+	}
+
 	allParks := uint64(1<<len(parks)) - 1
 	start := state{x: home.x, y: home.y, battery: config.StartingBattery}
 	queue := []state{start}
 	seen := map[state]bool{start: true}
-	directions := []point{{x: 0, y: -1}, {x: 0, y: 1}, {x: -1, y: 0}, {x: 1, y: 0}}
 
 	for head := 0; head < len(queue); head++ {
 		current := queue[head]
@@ -158,14 +202,26 @@ func validateWinnable(config *GameConfig) error {
 			continue
 		}
 
-		for _, dir := range directions {
-			nx, ny := current.x+dir.x, current.y+dir.y
+		currentChar := rune(config.Layout[current.y][current.x])
+
+		for _, dir := range dirList {
+			// exit constraint: current cell must allow this direction
+			if !cellAllowed(currentChar, dir.name) {
+				continue
+			}
+
+			nx, ny := current.x+dir.dx, current.y+dir.dy
 			if nx < 0 || ny < 0 || nx >= config.GridSize || ny >= config.GridSize {
 				continue
 			}
 
 			cell := rune(config.Layout[ny][nx])
 			if cell == 'B' || cell == 'W' {
+				continue
+			}
+
+			// entry constraint: destination cell must allow this direction
+			if !cellAllowed(cell, dir.name) {
 				continue
 			}
 
@@ -300,7 +356,8 @@ func InitGameStateFromConfig(config *GameConfig) *GameState {
 	for y := 0; y < gridSize; y++ {
 		for x := 0; x < gridSize; x++ {
 			if y < len(config.Layout) && x < len(config.Layout[y]) {
-				switch config.Layout[y][x] {
+				ch := config.Layout[y][x]
+				switch ch {
 				case 'R':
 					grid[y][x] = Cell{Type: Road}
 				case 'H':
@@ -316,6 +373,16 @@ func InitGameStateFromConfig(config *GameConfig) *GameState {
 					grid[y][x] = Cell{Type: Water}
 				case 'B':
 					grid[y][x] = Cell{Type: Building}
+				default:
+					if cc, ok := config.CellConfigs[string(ch)]; ok {
+						cell := Cell{Type: CellType(cc.Type)}
+						if len(cc.AllowedDirections) > 0 {
+							dirs := make([]string, len(cc.AllowedDirections))
+							copy(dirs, cc.AllowedDirections)
+							cell.AllowedDirections = dirs
+						}
+						grid[y][x] = cell
+					}
 				}
 			}
 		}

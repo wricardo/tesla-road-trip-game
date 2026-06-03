@@ -1,0 +1,50 @@
+{
+  "name": "One Way City",
+  "description": "One-way streets form a racetrack loop. Follow the arrows or get blocked.",
+  "grid_size": 12,
+  "max_battery": 25,
+  "starting_battery": 25,
+  "layout": [
+    "BBBBBBBBBBBB",
+    "BH>>>>>P>>7B",
+    "BRBBBBBBBBvB",
+    "BRBBBBBBBBvB",
+    "BRBBBBBBBBvB",
+    "BRBBBBBBBBvB",
+    "BRBBBBBBBBvB",
+    "BRBBBBBBBBvB",
+    "BRBBBBBBBBvB",
+    "BRBBBBBBBBvB",
+    "BJ<<<<P<<<HB",
+    "BBBBBBBBBBBB"
+  ],
+  "legend": {
+    "B": "building",
+    "H": "home",
+    "P": "park",
+    "R": "road",
+    "S": "supercharger",
+    "W": "water"
+  },
+  "cell_configs": {
+    ">": { "type": "road", "allowed_directions": ["east"] },
+    "<": { "type": "road", "allowed_directions": ["west"] },
+    "v": { "type": "road", "allowed_directions": ["south"] },
+    "7": { "type": "road", "allowed_directions": ["east", "south"] },
+    "J": { "type": "road", "allowed_directions": ["west", "north"] }
+  },
+  "wall_crash_ends_game": false,
+  "messages": {
+    "welcome": "One Way City! Follow the arrows around the loop to collect both parks.",
+    "home_charge": "Home! Battery charged!",
+    "supercharger_charge": "Supercharger! Battery charged!",
+    "park_visited": "Park collected! Score: %d",
+    "park_already_visited": "Already visited",
+    "victory": "Victory! Completed the loop — %d parks collected!",
+    "out_of_battery": "Out of battery! Game Over!",
+    "stranded": "Stranded! Game Over!",
+    "cant_move": "Wrong way!",
+    "battery_status": "Battery: %d/%d",
+    "hit_wall": "Crashed!"
+  }
+}

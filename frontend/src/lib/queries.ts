@@ -23,7 +23,7 @@ export const SESSIONS_QUERY = `
           gameOver
           totalMoves
           playerPos { x y }
-          grid { type visited id }
+          grid { type visited id allowedDirections }
         }
       }
     }
@@ -57,7 +57,7 @@ export const SESSION_SUBSCRIPTION = `
       message
       mapName
       playerPos { x y }
-      grid { type visited id }
+      grid { type visited id allowedDirections }
     }
   }
 `;
@@ -84,6 +84,7 @@ export const MAP_QUERY = `
       startingBattery
       layout
       legend { key value }
+      cellConfigs { key type allowedDirections }
     }
   }
 `;

@@ -1,7 +1,7 @@
 # Tesla Road Trip Game - Makefile
 # Development tooling for the Tesla Road Trip Game server
 
-.PHONY: help build test test-verbose test-coverage clean run dev dev-live fmt fmt-check lint vet vet-safe vet-all deps validate claude-game claude-game-stdin verify tools status
+.PHONY: help build build-tui tui test test-verbose test-coverage clean run dev dev-live fmt fmt-check lint vet vet-safe vet-all deps validate claude-game claude-game-stdin verify tools status
 
 # Default target
 help:
@@ -9,6 +9,8 @@ help:
 	@echo ""
 	@echo "Building & Running:"
 	@echo "  build        - Build the game server binary"
+	@echo "  build-tui    - Build the terminal UI client binary"
+	@echo "  tui          - Build and run the TUI client"
 	@echo "  run          - Run the game server (default config)"
 	@echo "  dev          - Run backend in development mode on port 8080"
 	@echo "  dev-backend  - Run backend on port 9090 for frontend live dev"
@@ -46,6 +48,14 @@ help:
 build:
 	@echo "Building Tesla Road Trip Game server..."
 	go build -o tesla-road-trip .
+
+build-tui:
+	@echo "Building TUI client..."
+	go build -o tesla-road-trip-tui ./cmd/tui
+
+tui: build-tui
+	@echo "Starting TUI (connect to http://localhost:8080)..."
+	./tesla-road-trip-tui
 
 # Test targets
 test:

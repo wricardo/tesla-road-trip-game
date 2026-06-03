@@ -5,9 +5,13 @@ import (
 	"time"
 )
 
-// CanMoveTo checks if the player can move to the specified coordinates
-func (gs *GameState) CanMoveTo(x, y int) bool {
-	// Check bounds - handle non-square grids properly
+// CanMoveTo checks if the player can move to the specified coordinates.
+//
+// When direction is supplied, it also enforces directional road constraints on
+// both the current cell (exit) and destination cell (entry). Direction may be
+// up/down/left/right or north/south/east/west. Omitting direction preserves the
+// legacy passability-only check.
+func (gs *GameState) CanMoveTo(x, y int, direction ...string) bool {
 	if y < 0 || y >= len(gs.Grid) {
 		return false
 	}
@@ -15,8 +19,52 @@ func (gs *GameState) CanMoveTo(x, y int) bool {
 		return false
 	}
 	cellType := gs.Grid[y][x].Type
-	// Only water and buildings are obstacles - homes are passable and charge battery
-	return cellType != Water && cellType != Building
+	if cellType == Water || cellType == Building {
+		return false
+	}
+
+	if len(direction) == 0 || direction[0] == "" {
+		return true
+	}
+
+	if gs.PlayerPos.Y < 0 || gs.PlayerPos.Y >= len(gs.Grid) {
+		return false
+	}
+	if gs.PlayerPos.X < 0 || gs.PlayerPos.X >= len(gs.Grid[gs.PlayerPos.Y]) {
+		return false
+	}
+
+	cardinal := moveToCardinal(direction[0])
+	return directionAllowed(gs.Grid[gs.PlayerPos.Y][gs.PlayerPos.X], cardinal) &&
+		directionAllowed(gs.Grid[y][x], cardinal)
+}
+
+// directionAllowed returns false if cell has AllowedDirections and dir is not among them.
+func directionAllowed(cell Cell, dir string) bool {
+	if len(cell.AllowedDirections) == 0 {
+		return true
+	}
+	for _, d := range cell.AllowedDirections {
+		if d == dir {
+			return true
+		}
+	}
+	return false
+}
+
+// moveToCardinal converts up/down/left/right to north/south/west/east.
+func moveToCardinal(direction string) string {
+	switch direction {
+	case "up":
+		return "north"
+	case "down":
+		return "south"
+	case "left":
+		return "west"
+	case "right":
+		return "east"
+	}
+	return direction
 }
 
 // MovePlayer attempts to move the player in the specified direction
@@ -37,6 +85,18 @@ func (gs *GameState) MovePlayer(direction string, config *GameConfig) bool {
 	case "right":
 		newX++
 	default:
+		return false
+	}
+
+	cardinal := moveToCardinal(direction)
+
+	// Check exit direction constraint on current cell
+	fromCell := gs.Grid[gs.PlayerPos.Y][gs.PlayerPos.X]
+	if !directionAllowed(fromCell, cardinal) {
+		gs.Message = fmt.Sprintf("Can't go %s from here (one-way road)", direction)
+		if config.Messages.CantMove != "" {
+			gs.Message = config.Messages.CantMove + fmt.Sprintf(" [direction %s not allowed]", direction)
+		}
 		return false
 	}
 
@@ -61,6 +121,15 @@ func (gs *GameState) MovePlayer(direction string, config *GameConfig) bool {
 		gs.Message = fmt.Sprintf("Can't move %s: %s at (%d,%d)", direction, obstacleType, newX, newY)
 		if config.Messages.CantMove != "" {
 			gs.Message = config.Messages.CantMove + fmt.Sprintf(" [Blocked by: %s]", obstacleType)
+		}
+		return false
+	}
+
+	// Check entry direction constraint on destination cell
+	if !directionAllowed(gs.Grid[newY][newX], cardinal) {
+		gs.Message = fmt.Sprintf("Can't enter that road going %s (one-way road)", direction)
+		if config.Messages.CantMove != "" {
+			gs.Message = config.Messages.CantMove + fmt.Sprintf(" [entry direction %s not allowed]", direction)
 		}
 		return false
 	}

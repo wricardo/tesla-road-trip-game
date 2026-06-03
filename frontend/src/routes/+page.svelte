@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { MAPS_QUERY, MAP_QUERY, CREATE_SESSION_MUTATION, UPDATE_SESSION_MUTATION } from '$lib/queries';
+	import { directionsForChar, directionGlyph, type CellConfigEntry } from '$lib/directional';
 
 	type LegendEntry = { key: string; value: string };
 	type MapPreview = {
@@ -13,6 +14,7 @@
 		startingBattery: number;
 		layout: string[];
 		legend: LegendEntry[];
+		cellConfigs: CellConfigEntry[];
 	};
 
 	const client = getContextClient();
@@ -53,12 +55,12 @@
 		});
 	});
 
-	function tileType(char: string, legend: LegendEntry[] = []) {
-		return legend.find((entry) => entry.key === char)?.value ?? 'road';
+	function tileType(char: string, legend: LegendEntry[] = [], cellConfigs: CellConfigEntry[] = []) {
+		return cellConfigs.find((entry) => entry.key === char)?.type ?? legend.find((entry) => entry.key === char)?.value ?? 'road';
 	}
 
-	function tileClass(char: string, legend: LegendEntry[] = []) {
-		switch (tileType(char, legend)) {
+	function tileClass(char: string, legend: LegendEntry[] = [], cellConfigs: CellConfigEntry[] = []) {
+		switch (tileType(char, legend, cellConfigs)) {
 			case 'home': return 'bg-red-500 ring-2 ring-red-200';
 			case 'park': return 'bg-emerald-500';
 			case 'supercharger': return 'bg-yellow-400';
@@ -94,39 +96,39 @@
 <div class="bg-white border-b border-[#e8e8e8]">
 	<div class="max-w-7xl mx-auto px-6 py-16 lg:py-20">
 		<div class="lg:grid lg:grid-cols-[1fr_380px] gap-12 items-start">
-			<!-- Left: pitch -->
+			<!-- Left: intro -->
 			<div>
-				<p class="text-xs font-bold uppercase tracking-widest text-red-500 mb-4">🚗 Learn AI through interactive gameplay</p>
+				<p class="text-xs font-bold uppercase tracking-widest text-red-500 mb-4">🚗 Educational AI project</p>
 				<h1 class="text-4xl lg:text-5xl font-light text-[#171a20] leading-tight tracking-tight mb-6">
-					Teach your AI agent<br>to drive a Tesla.<br>Manage resources. Navigate maps.
+					Drive the car across the map.<br>Visit every park.<br>Get back home safely.
 				</h1>
 				<p class="text-lg text-gray-500 font-light leading-relaxed max-w-2xl mb-10">
-						An educational game where AI agents learn pathfinding, resource management, and decision-making. <a href="/learn" class="text-red-500 font-medium hover:underline">Learn more</a>
+					Tesla Road Trip is a small game for exploring how people and AI agents make decisions. Move through the grid, collect all parks, manage battery, and plan a route around chargers, water, and blocked tiles. <a href="/learn" class="text-red-500 font-medium hover:underline">Learn more</a>
 				</p>
 
 				<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
 					<div class="bg-[#f7f7f7] rounded-2xl p-5">
 						<div class="text-2xl mb-2">🗺️</div>
-						<div class="font-medium text-[#393c41] mb-1">Choose a map</div>
-						<p class="text-sm text-gray-400 leading-relaxed">Start with a built-in configuration or design your own custom road trip.</p>
+						<div class="font-medium text-[#393c41] mb-1">Explore the grid</div>
+						<p class="text-sm text-gray-400 leading-relaxed">Choose a map and decide which roads, parks, chargers, and obstacles matter for the trip.</p>
 					</div>
 					<div class="bg-[#f7f7f7] rounded-2xl p-5">
 						<div class="text-2xl mb-2">⚡</div>
-						<div class="font-medium text-[#393c41] mb-1">Spend energy wisely</div>
-						<p class="text-sm text-gray-400 leading-relaxed">Every move drains battery. Route through chargers before you get stranded.</p>
+						<div class="font-medium text-[#393c41] mb-1">Manage battery</div>
+						<p class="text-sm text-gray-400 leading-relaxed">Each move costs energy, so the route has to include enough chargers to keep going.</p>
 					</div>
 					<div class="bg-[#f7f7f7] rounded-2xl p-5">
 						<div class="text-2xl mb-2">🤖</div>
-						<div class="font-medium text-[#393c41] mb-1">Built for AI play</div>
-						<p class="text-sm text-gray-400 leading-relaxed">Use GraphQL, WebSockets, and llms.txt to let agents inspect and control sessions.</p>
+						<div class="font-medium text-[#393c41] mb-1">Try it with an AI</div>
+						<p class="text-sm text-gray-400 leading-relaxed">Use the tools and APIs to let an agent inspect the session and choose the next move.</p>
 					</div>
 				</div>
 			</div>
 
 			<!-- Right: quick actions -->
 			<div class="mt-10 lg:mt-0 bg-[#f7f7f7] rounded-2xl p-6 border border-[#e8e8e8]">
-				<h2 class="text-xl font-light text-[#393c41] mb-1">Start a road trip</h2>
-				<p class="text-sm text-gray-400 mb-5">Create a session, open the tools, or let an AI drive.</p>
+				<h2 class="text-xl font-light text-[#393c41] mb-1">Start playing</h2>
+				<p class="text-sm text-gray-400 mb-5">Create a session and try to collect every park before returning home.</p>
 
 				<div class="mb-4">
 					<label for="cfg" class="block text-xs font-semibold text-[#393c41] mb-1.5">Map</label>
@@ -170,7 +172,7 @@
 							<div class="grid gap-0.5 aspect-square" style={`grid-template-columns: repeat(${preview.gridSize}, minmax(0, 1fr));`} aria-label={`Preview of ${preview.name}`}>
 								{#each preview.layout as row}
 									{#each row.split('') as char}
-										<div class={`aspect-square rounded-[2px] ${tileClass(char, preview.legend)}`} title={tileType(char, preview.legend)}></div>
+										<div class={`aspect-square rounded-[2px] flex items-center justify-center text-[0.55rem] leading-none font-bold ${tileClass(char, preview.legend, preview.cellConfigs)}`} title={tileType(char, preview.legend, preview.cellConfigs)}>{directionGlyph(directionsForChar(char, preview.cellConfigs))}</div>
 									{/each}
 								{/each}
 							</div>

@@ -87,6 +87,7 @@ type Cell {
   type: String!
   visited: Boolean!
   id: String!
+  allowedDirections: [String!]!
 }
 
 type Position { x: Int!, y: Int! }
@@ -120,11 +121,14 @@ type GameMap {
   startingBattery: Int!
   layout: [String!]!
   legend: [LegendEntry!]!
+  cellConfigs: [CellConfigEntry!]!
   wallCrashEndsGame: Boolean!
   messages: MapMessages!
 }
 
 type LegendEntry { key: String!, value: String! }
+
+type CellConfigEntry { key: String!, type: String!, allowedDirections: [String!]! }
 
 type MapMessages {
   welcome: String!
@@ -148,11 +152,14 @@ input GameMapInput {
   startingBattery: Int!
   layout: [String!]!
   legend: [LegendEntryInput!]!
+  cellConfigs: [CellConfigEntryInput!] = []
   wallCrashEndsGame: Boolean!
   messages: MapMessagesInput!
 }
 
 input LegendEntryInput { key: String!, value: String! }
+
+input CellConfigEntryInput { key: String!, type: String!, allowedDirections: [String!]! }
 
 input MapMessagesInput {
   welcome: String!
@@ -177,6 +184,7 @@ input GameMapPatchInput {
   startingBattery: Int
   layout: [String!]
   legend: [LegendEntryInput!]
+  cellConfigs: [CellConfigEntryInput!]
   wallCrashEndsGame: Boolean
   messages: MapMessagesPatchInput
 }

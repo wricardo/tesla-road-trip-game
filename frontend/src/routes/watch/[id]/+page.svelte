@@ -3,13 +3,14 @@
 	import { getContextClient, queryStore, gql } from '@urql/svelte';
 	import { createClient as createWsClient } from 'graphql-ws';
 	import CaveMode from '$lib/CaveMode.svelte';
+	import { directionGlyph, hasDirections } from '$lib/directional';
 
 	const GAME_STATE_QUERY = `
 		query GameState($sessionID: ID!) {
 			gameState(sessionID: $sessionID) {
 				battery maxBattery score victory gameOver totalMoves message mapName
 				playerPos { x y }
-				grid { type visited id }
+				grid { type visited id allowedDirections }
 				currentMoves { fromPosition { x y } toPosition { x y } success }
 			}
 		}
@@ -20,7 +21,7 @@
 			sessionUpdated(sessionID: $sessionID) {
 				battery maxBattery score victory gameOver totalMoves message mapName
 				playerPos { x y }
-				grid { type visited id }
+				grid { type visited id allowedDirections }
 				currentMoves { fromPosition { x y } toPosition { x y } success }
 			}
 		}
@@ -61,7 +62,7 @@
 		message: string;
 		mapName: string;
 		playerPos: Position;
-		grid: Array<Array<{ type: string; visited: boolean; id: string }>>;
+		grid: Array<Array<{ type: string; visited: boolean; id: string; allowedDirections: string[] }>>;
 		currentMoves: MoveHistoryEntry[];
 	};
 
@@ -115,15 +116,8 @@ GraphQL endpoint: ${typeof window !== 'undefined' ? window.location.origin : ''}
 Playground: ${typeof window !== 'undefined' ? window.location.origin : ''}/playground
 MCP endpoint: https://tesla.ngrok.pro/mcp (Streamable HTTP transport)
 
-To use MCP in Claude Code, configure:
-{
-  "mcpServers": {
-    "tesla-game": {
-      "type": "http",
-      "url": "https://tesla.ngrok.pro/mcp"
-    }
-  }
-}
+To use MCP in Claude Code, run:
+claude mcp add --transport http tesla-game https://tesla.ngrok.pro/mcp
 
 GraphQL introspection is enabled. Use the Playground Docs panel or query __schema/__type to discover fields before constructing operations.
 
@@ -146,7 +140,7 @@ query {
     gameOver
     message
     localView3x3
-    grid { type visited id }
+    grid { type visited id allowedDirections }
     visitedParks { id visited }
   }
 }
@@ -188,6 +182,10 @@ Directions: UP DOWN LEFT RIGHT. Grid coordinates are grid[y][x].`);
 		navigator.clipboard.writeText(llmPrompt);
 		promptCopied = true;
 		setTimeout(() => promptCopied = false, 2000);
+	}
+
+	function cellTextClass(cell: { type: string; allowedDirections?: string[] }): string {
+		return cell.type === 'road' && hasDirections(cell) ? 'text-orange-500 font-bold' : '';
 	}
 
 	function cellColorClass(type: string): string {
@@ -358,6 +356,8 @@ Directions: UP DOWN LEFT RIGHT. Grid coordinates are grid[y][x].`);
 											{gameState.victory ? '🚗' : gameState.gameOver ? '💥' : '🚗'}
 										{:else if isTrail}
 											<span class="text-sky-500 leading-none">•</span>
+										{:else if visible && hasDirections(cell)}
+											<span class={`leading-none ${cellTextClass(cell)}`}>{directionGlyph(cell.allowedDirections)}</span>
 										{/if}
 									</td>
 								{/each}

@@ -84,9 +84,16 @@ type ComplexityRoot struct {
 	}
 
 	Cell struct {
-		ID      func(childComplexity int) int
-		Type    func(childComplexity int) int
-		Visited func(childComplexity int) int
+		AllowedDirections func(childComplexity int) int
+		ID                func(childComplexity int) int
+		Type              func(childComplexity int) int
+		Visited           func(childComplexity int) int
+	}
+
+	CellConfigEntry struct {
+		AllowedDirections func(childComplexity int) int
+		Key               func(childComplexity int) int
+		Type              func(childComplexity int) int
 	}
 
 	DeleteSessionResult struct {
@@ -101,6 +108,7 @@ type ComplexityRoot struct {
 	}
 
 	GameMap struct {
+		CellConfigs       func(childComplexity int) int
 		Description       func(childComplexity int) int
 		GridSize          func(childComplexity int) int
 		Layout            func(childComplexity int) int
@@ -534,6 +542,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.BulkMoveResult.Truncated(childComplexity), true
 
+	case "Cell.allowedDirections":
+		if e.complexity.Cell.AllowedDirections == nil {
+			break
+		}
+
+		return e.complexity.Cell.AllowedDirections(childComplexity), true
+
 	case "Cell.id":
 		if e.complexity.Cell.ID == nil {
 			break
@@ -554,6 +569,27 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Cell.Visited(childComplexity), true
+
+	case "CellConfigEntry.allowedDirections":
+		if e.complexity.CellConfigEntry.AllowedDirections == nil {
+			break
+		}
+
+		return e.complexity.CellConfigEntry.AllowedDirections(childComplexity), true
+
+	case "CellConfigEntry.key":
+		if e.complexity.CellConfigEntry.Key == nil {
+			break
+		}
+
+		return e.complexity.CellConfigEntry.Key(childComplexity), true
+
+	case "CellConfigEntry.type":
+		if e.complexity.CellConfigEntry.Type == nil {
+			break
+		}
+
+		return e.complexity.CellConfigEntry.Type(childComplexity), true
 
 	case "DeleteSessionResult.message":
 		if e.complexity.DeleteSessionResult.Message == nil {
@@ -589,6 +625,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.GameEvent.Type(childComplexity), true
+
+	case "GameMap.cellConfigs":
+		if e.complexity.GameMap.CellConfigs == nil {
+			break
+		}
+
+		return e.complexity.GameMap.CellConfigs(childComplexity), true
 
 	case "GameMap.description":
 		if e.complexity.GameMap.Description == nil {
@@ -1560,6 +1603,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	opCtx := graphql.GetOperationContext(ctx)
 	ec := executionContext{opCtx, e, 0, 0, make(chan graphql.DeferredResult)}
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
+		ec.unmarshalInputCellConfigEntryInput,
 		ec.unmarshalInputGameMapInput,
 		ec.unmarshalInputGameMapPatchInput,
 		ec.unmarshalInputLegendEntryInput,
@@ -1768,6 +1812,7 @@ type Cell {
   type: String!
   visited: Boolean!
   id: String!
+  allowedDirections: [String!]!
 }
 
 type Position { x: Int!, y: Int! }
@@ -1801,11 +1846,14 @@ type GameMap {
   startingBattery: Int!
   layout: [String!]!
   legend: [LegendEntry!]!
+  cellConfigs: [CellConfigEntry!]!
   wallCrashEndsGame: Boolean!
   messages: MapMessages!
 }
 
 type LegendEntry { key: String!, value: String! }
+
+type CellConfigEntry { key: String!, type: String!, allowedDirections: [String!]! }
 
 type MapMessages {
   welcome: String!
@@ -1829,11 +1877,14 @@ input GameMapInput {
   startingBattery: Int!
   layout: [String!]!
   legend: [LegendEntryInput!]!
+  cellConfigs: [CellConfigEntryInput!] = []
   wallCrashEndsGame: Boolean!
   messages: MapMessagesInput!
 }
 
 input LegendEntryInput { key: String!, value: String! }
+
+input CellConfigEntryInput { key: String!, type: String!, allowedDirections: [String!]! }
 
 input MapMessagesInput {
   welcome: String!
@@ -1858,6 +1909,7 @@ input GameMapPatchInput {
   startingBattery: Int
   layout: [String!]
   legend: [LegendEntryInput!]
+  cellConfigs: [CellConfigEntryInput!]
   wallCrashEndsGame: Boolean
   messages: MapMessagesPatchInput
 }
@@ -4364,6 +4416,182 @@ func (ec *executionContext) fieldContext_Cell_id(_ context.Context, field graphq
 	return fc, nil
 }
 
+func (ec *executionContext) _Cell_allowedDirections(ctx context.Context, field graphql.CollectedField, obj *model.Cell) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Cell_allowedDirections(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.AllowedDirections, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]string)
+	fc.Result = res
+	return ec.marshalNString2ᚕstringᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Cell_allowedDirections(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Cell",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CellConfigEntry_key(ctx context.Context, field graphql.CollectedField, obj *model.CellConfigEntry) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CellConfigEntry_key(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Key, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CellConfigEntry_key(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CellConfigEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CellConfigEntry_type(ctx context.Context, field graphql.CollectedField, obj *model.CellConfigEntry) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CellConfigEntry_type(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Type, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CellConfigEntry_type(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CellConfigEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CellConfigEntry_allowedDirections(ctx context.Context, field graphql.CollectedField, obj *model.CellConfigEntry) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CellConfigEntry_allowedDirections(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.AllowedDirections, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]string)
+	fc.Result = res
+	return ec.marshalNString2ᚕstringᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CellConfigEntry_allowedDirections(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CellConfigEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _DeleteSessionResult_message(ctx context.Context, field graphql.CollectedField, obj *model.DeleteSessionResult) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_DeleteSessionResult_message(ctx, field)
 	if err != nil {
@@ -4904,6 +5132,58 @@ func (ec *executionContext) fieldContext_GameMap_legend(_ context.Context, field
 	return fc, nil
 }
 
+func (ec *executionContext) _GameMap_cellConfigs(ctx context.Context, field graphql.CollectedField, obj *model.GameMap) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_GameMap_cellConfigs(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CellConfigs, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.CellConfigEntry)
+	fc.Result = res
+	return ec.marshalNCellConfigEntry2ᚕᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐCellConfigEntryᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_GameMap_cellConfigs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameMap",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "key":
+				return ec.fieldContext_CellConfigEntry_key(ctx, field)
+			case "type":
+				return ec.fieldContext_CellConfigEntry_type(ctx, field)
+			case "allowedDirections":
+				return ec.fieldContext_CellConfigEntry_allowedDirections(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CellConfigEntry", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _GameMap_wallCrashEndsGame(ctx context.Context, field graphql.CollectedField, obj *model.GameMap) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_GameMap_wallCrashEndsGame(ctx, field)
 	if err != nil {
@@ -5061,6 +5341,8 @@ func (ec *executionContext) fieldContext_GameState_grid(_ context.Context, field
 				return ec.fieldContext_Cell_visited(ctx, field)
 			case "id":
 				return ec.fieldContext_Cell_id(ctx, field)
+			case "allowedDirections":
+				return ec.fieldContext_Cell_allowedDirections(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Cell", field.Name)
 		},
@@ -8338,6 +8620,8 @@ func (ec *executionContext) fieldContext_Mutation_createMap(ctx context.Context,
 				return ec.fieldContext_GameMap_layout(ctx, field)
 			case "legend":
 				return ec.fieldContext_GameMap_legend(ctx, field)
+			case "cellConfigs":
+				return ec.fieldContext_GameMap_cellConfigs(ctx, field)
 			case "wallCrashEndsGame":
 				return ec.fieldContext_GameMap_wallCrashEndsGame(ctx, field)
 			case "messages":
@@ -8413,6 +8697,8 @@ func (ec *executionContext) fieldContext_Mutation_updateMap(ctx context.Context,
 				return ec.fieldContext_GameMap_layout(ctx, field)
 			case "legend":
 				return ec.fieldContext_GameMap_legend(ctx, field)
+			case "cellConfigs":
+				return ec.fieldContext_GameMap_cellConfigs(ctx, field)
 			case "wallCrashEndsGame":
 				return ec.fieldContext_GameMap_wallCrashEndsGame(ctx, field)
 			case "messages":
@@ -9062,6 +9348,8 @@ func (ec *executionContext) fieldContext_Query_map(ctx context.Context, field gr
 				return ec.fieldContext_GameMap_layout(ctx, field)
 			case "legend":
 				return ec.fieldContext_GameMap_legend(ctx, field)
+			case "cellConfigs":
+				return ec.fieldContext_GameMap_cellConfigs(ctx, field)
 			case "wallCrashEndsGame":
 				return ec.fieldContext_GameMap_wallCrashEndsGame(ctx, field)
 			case "messages":
@@ -9565,6 +9853,8 @@ func (ec *executionContext) fieldContext_Session_gameMap(_ context.Context, fiel
 				return ec.fieldContext_GameMap_layout(ctx, field)
 			case "legend":
 				return ec.fieldContext_GameMap_legend(ctx, field)
+			case "cellConfigs":
+				return ec.fieldContext_GameMap_cellConfigs(ctx, field)
 			case "wallCrashEndsGame":
 				return ec.fieldContext_GameMap_wallCrashEndsGame(ctx, field)
 			case "messages":
@@ -10948,6 +11238,8 @@ func (ec *executionContext) fieldContext_UnifiedSession_gameMap(_ context.Contex
 				return ec.fieldContext_GameMap_layout(ctx, field)
 			case "legend":
 				return ec.fieldContext_GameMap_legend(ctx, field)
+			case "cellConfigs":
+				return ec.fieldContext_GameMap_cellConfigs(ctx, field)
 			case "wallCrashEndsGame":
 				return ec.fieldContext_GameMap_wallCrashEndsGame(ctx, field)
 			case "messages":
@@ -13142,6 +13434,47 @@ func (ec *executionContext) fieldContext___Type_isOneOf(_ context.Context, field
 
 // region    **************************** input.gotpl *****************************
 
+func (ec *executionContext) unmarshalInputCellConfigEntryInput(ctx context.Context, obj any) (model.CellConfigEntryInput, error) {
+	var it model.CellConfigEntryInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"key", "type", "allowedDirections"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "key":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("key"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Key = data
+		case "type":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("type"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Type = data
+		case "allowedDirections":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("allowedDirections"))
+			data, err := ec.unmarshalNString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AllowedDirections = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputGameMapInput(ctx context.Context, obj any) (model.GameMapInput, error) {
 	var it model.GameMapInput
 	asMap := map[string]any{}
@@ -13149,7 +13482,11 @@ func (ec *executionContext) unmarshalInputGameMapInput(ctx context.Context, obj 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "description", "gridSize", "maxBattery", "startingBattery", "layout", "legend", "wallCrashEndsGame", "messages"}
+	if _, present := asMap["cellConfigs"]; !present {
+		asMap["cellConfigs"] = []any{}
+	}
+
+	fieldsInOrder := [...]string{"name", "description", "gridSize", "maxBattery", "startingBattery", "layout", "legend", "cellConfigs", "wallCrashEndsGame", "messages"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13205,6 +13542,13 @@ func (ec *executionContext) unmarshalInputGameMapInput(ctx context.Context, obj 
 				return it, err
 			}
 			it.Legend = data
+		case "cellConfigs":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("cellConfigs"))
+			data, err := ec.unmarshalOCellConfigEntryInput2ᚕᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐCellConfigEntryInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.CellConfigs = data
 		case "wallCrashEndsGame":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("wallCrashEndsGame"))
 			data, err := ec.unmarshalNBoolean2bool(ctx, v)
@@ -13232,7 +13576,7 @@ func (ec *executionContext) unmarshalInputGameMapPatchInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "description", "gridSize", "maxBattery", "startingBattery", "layout", "legend", "wallCrashEndsGame", "messages"}
+	fieldsInOrder := [...]string{"name", "description", "gridSize", "maxBattery", "startingBattery", "layout", "legend", "cellConfigs", "wallCrashEndsGame", "messages"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13288,6 +13632,13 @@ func (ec *executionContext) unmarshalInputGameMapPatchInput(ctx context.Context,
 				return it, err
 			}
 			it.Legend = data
+		case "cellConfigs":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("cellConfigs"))
+			data, err := ec.unmarshalOCellConfigEntryInput2ᚕᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐCellConfigEntryInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.CellConfigs = data
 		case "wallCrashEndsGame":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("wallCrashEndsGame"))
 			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
@@ -13780,6 +14131,60 @@ func (ec *executionContext) _Cell(ctx context.Context, sel ast.SelectionSet, obj
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "allowedDirections":
+			out.Values[i] = ec._Cell_allowedDirections(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var cellConfigEntryImplementors = []string{"CellConfigEntry"}
+
+func (ec *executionContext) _CellConfigEntry(ctx context.Context, sel ast.SelectionSet, obj *model.CellConfigEntry) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, cellConfigEntryImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CellConfigEntry")
+		case "key":
+			out.Values[i] = ec._CellConfigEntry_key(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "type":
+			out.Values[i] = ec._CellConfigEntry_type(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "allowedDirections":
+			out.Values[i] = ec._CellConfigEntry_allowedDirections(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -13939,6 +14344,11 @@ func (ec *executionContext) _GameMap(ctx context.Context, sel ast.SelectionSet, 
 			}
 		case "legend":
 			out.Values[i] = ec._GameMap_legend(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "cellConfigs":
+			out.Values[i] = ec._GameMap_cellConfigs(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -15796,6 +16206,65 @@ func (ec *executionContext) marshalNCell2ᚖgithubᚗcomᚋwricardoᚋteslaᚑro
 	return ec._Cell(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNCellConfigEntry2ᚕᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐCellConfigEntryᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.CellConfigEntry) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNCellConfigEntry2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐCellConfigEntry(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNCellConfigEntry2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐCellConfigEntry(ctx context.Context, sel ast.SelectionSet, v *model.CellConfigEntry) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CellConfigEntry(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNCellConfigEntryInput2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐCellConfigEntryInput(ctx context.Context, v any) (*model.CellConfigEntryInput, error) {
+	res, err := ec.unmarshalInputCellConfigEntryInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) marshalNDeleteSessionResult2githubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐDeleteSessionResult(ctx context.Context, sel ast.SelectionSet, v model.DeleteSessionResult) graphql.Marshaler {
 	return ec._DeleteSessionResult(ctx, sel, &v)
 }
@@ -16888,6 +17357,24 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	_ = ctx
 	res := graphql.MarshalBoolean(*v)
 	return res
+}
+
+func (ec *executionContext) unmarshalOCellConfigEntryInput2ᚕᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐCellConfigEntryInputᚄ(ctx context.Context, v any) ([]*model.CellConfigEntryInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*model.CellConfigEntryInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNCellConfigEntryInput2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐCellConfigEntryInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
 }
 
 func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v any) (*int, error) {

@@ -40,7 +40,9 @@ func toGameState(gs *engine.GameState) *model.GameState {
 	for y := range gs.Grid {
 		grid[y] = make([]*model.Cell, len(gs.Grid[y]))
 		for x, c := range gs.Grid[y] {
-			grid[y][x] = &model.Cell{Type: string(c.Type), Visited: c.Visited, ID: c.ID}
+			dirs := make([]string, len(c.AllowedDirections))
+			copy(dirs, c.AllowedDirections)
+			grid[y][x] = &model.Cell{Type: string(c.Type), Visited: c.Visited, ID: c.ID, AllowedDirections: dirs}
 		}
 	}
 	visitedKeys := make([]string, 0, len(gs.VisitedParks))
@@ -80,8 +82,20 @@ func toGameMap(c *engine.GameConfig) *model.GameMap {
 	for _, k := range keys {
 		legend = append(legend, &model.LegendEntry{Key: k, Value: c.Legend[k]})
 	}
+	cellConfigKeys := make([]string, 0, len(c.CellConfigs))
+	for k := range c.CellConfigs {
+		cellConfigKeys = append(cellConfigKeys, k)
+	}
+	sort.Strings(cellConfigKeys)
+	cellConfigs := make([]*model.CellConfigEntry, 0, len(cellConfigKeys))
+	for _, k := range cellConfigKeys {
+		cc := c.CellConfigs[k]
+		dirs := make([]string, len(cc.AllowedDirections))
+		copy(dirs, cc.AllowedDirections)
+		cellConfigs = append(cellConfigs, &model.CellConfigEntry{Key: k, Type: cc.Type, AllowedDirections: dirs})
+	}
 	m := c.Messages
-	return &model.GameMap{Name: c.Name, Description: c.Description, GridSize: c.GridSize, MaxBattery: c.MaxBattery, StartingBattery: c.StartingBattery, Layout: c.Layout, Legend: legend, WallCrashEndsGame: c.WallCrashEndsGame, Messages: &model.MapMessages{Welcome: m.Welcome, HomeCharge: m.HomeCharge, SuperchargerCharge: m.SuperchargerCharge, ParkVisited: m.ParkVisited, ParkAlreadyVisited: m.ParkAlreadyVisited, Victory: m.Victory, OutOfBattery: m.OutOfBattery, Stranded: m.Stranded, CantMove: m.CantMove, BatteryStatus: m.BatteryStatus, HitWall: m.HitWall}}
+	return &model.GameMap{Name: c.Name, Description: c.Description, GridSize: c.GridSize, MaxBattery: c.MaxBattery, StartingBattery: c.StartingBattery, Layout: c.Layout, Legend: legend, CellConfigs: cellConfigs, WallCrashEndsGame: c.WallCrashEndsGame, Messages: &model.MapMessages{Welcome: m.Welcome, HomeCharge: m.HomeCharge, SuperchargerCharge: m.SuperchargerCharge, ParkVisited: m.ParkVisited, ParkAlreadyVisited: m.ParkAlreadyVisited, Victory: m.Victory, OutOfBattery: m.OutOfBattery, Stranded: m.Stranded, CantMove: m.CantMove, BatteryStatus: m.BatteryStatus, HitWall: m.HitWall}}
 }
 
 func fromGameMapInput(in model.GameMapInput) *engine.GameConfig {
@@ -91,7 +105,15 @@ func fromGameMapInput(in model.GameMapInput) *engine.GameConfig {
 			legend[e.Key] = e.Value
 		}
 	}
-	c := &engine.GameConfig{Name: in.Name, Description: in.Description, GridSize: in.GridSize, MaxBattery: in.MaxBattery, StartingBattery: in.StartingBattery, Layout: in.Layout, Legend: legend, WallCrashEndsGame: in.WallCrashEndsGame}
+	cellConfigs := make(map[string]engine.CellConfig, len(in.CellConfigs))
+	for _, cc := range in.CellConfigs {
+		if cc != nil {
+			dirs := make([]string, len(cc.AllowedDirections))
+			copy(dirs, cc.AllowedDirections)
+			cellConfigs[cc.Key] = engine.CellConfig{Type: cc.Type, AllowedDirections: dirs}
+		}
+	}
+	c := &engine.GameConfig{Name: in.Name, Description: in.Description, GridSize: in.GridSize, MaxBattery: in.MaxBattery, StartingBattery: in.StartingBattery, Layout: in.Layout, Legend: legend, CellConfigs: cellConfigs, WallCrashEndsGame: in.WallCrashEndsGame}
 	if in.Messages != nil {
 		c.Messages.Welcome = in.Messages.Welcome
 		c.Messages.HomeCharge = in.Messages.HomeCharge
@@ -136,6 +158,17 @@ func applyPatch(cfg *engine.GameConfig, patch model.GameMapPatchInput) {
 			}
 		}
 		cfg.Legend = legend
+	}
+	if patch.CellConfigs != nil {
+		cellConfigs := make(map[string]engine.CellConfig, len(patch.CellConfigs))
+		for _, cc := range patch.CellConfigs {
+			if cc != nil {
+				dirs := make([]string, len(cc.AllowedDirections))
+				copy(dirs, cc.AllowedDirections)
+				cellConfigs[cc.Key] = engine.CellConfig{Type: cc.Type, AllowedDirections: dirs}
+			}
+		}
+		cfg.CellConfigs = cellConfigs
 	}
 	if patch.WallCrashEndsGame != nil {
 		cfg.WallCrashEndsGame = *patch.WallCrashEndsGame

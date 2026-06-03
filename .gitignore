@@ -63,3 +63,7 @@ settings.local.json
 *.db
 .beads-credential-key
 tesla-road-trip
+
+# Local build artifacts
+/tesla-road-trip-tui
+/tui
