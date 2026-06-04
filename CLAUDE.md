@@ -20,6 +20,25 @@ make dev            # Same as run, explicit port 8080
 ./tesla-road-trip stdio-mcp               # MCP stdio mode
 ```
 
+**Port conflicts**: Port 8080 is often taken by other processes. `make dev-live` uses 9090 (frontend dev). Use 9191+ for standalone server to avoid conflicts. Check first: `lsof -i :PORT | grep LISTEN`.
+
+**macOS port shadowing**: Both `*:8080` (wildcard) and `localhost:8080` (specific) can bind simultaneously. The wildcard listener wins for `curl localhost:8080` — always verify which server responds with a known query.
+
+### TUI Client
+```bash
+make build-tui                                          # Build → ./tesla-road-trip-tui
+./tesla-road-trip-tui -server http://localhost:9191     # Connect to custom port
+./tesla-road-trip-tui -server URL -session <id>        # Jump directly to session (skip list)
+```
+**`-session` flag**: Added in cmd/tui/main.go + model.go. When set, `rootModel.Init()` must return `play.Init()` not `sessions.loadCmd()` — otherwise play screen hangs forever on "Loading...". Files that must change together: `main.go` and `model.go:Init()`.
+
+### Bulk tmux Launch (multi-session)
+```bash
+# 4-pane grid per window: split-h → split-v on pane 0 → split-v on pane 2
+# Pane order: 0=TL, 1=BL, 2=TR, 3=BR
+# Avoid using 'id' as variable name in bash tmux scripts — shadows Unix 'id' command; use 'sid' instead
+```
+
 ### Testing
 ```bash
 make test                   # All Go tests
@@ -177,6 +196,10 @@ When playing the Tesla game, ask: where is the nearest charger/home? How much ba
 - Assuming a row is fully blocked without character-by-character check
 - Depleting battery without a clear path to a charger
 - Confusing `R` (road) with `B` (building) — they look similar in monospace
+
+### Map Creation Notes
+- `createSession(mapName: "easy_trapped_park")` returns empty ID silently — use `mapID: "easy_trapped_park"` instead (mapId field, not mapName)
+- Always check session ID is non-empty after `createSession` before launching TUI
 
 <!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:ca08a54f -->
 ## Beads Issue Tracker
