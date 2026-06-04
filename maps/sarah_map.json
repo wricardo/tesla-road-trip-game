@@ -1,0 +1,46 @@
+{
+  "name": "Sarah's Circuit",
+  "description": "A retro neon circuit board. Trace copper paths through IC blocks to activate all 10 data nodes. The chips won't let you cut corners.",
+  "grid_size": 15,
+  "max_battery": 20,
+  "starting_battery": 20,
+  "layout": [
+    "BBBBBBBBBBBBBBB",
+    "BSRRRPRSRPRRRSB",
+    "BRBBBBBRBBBBBRB",
+    "BPBBBBBRBBBBBPB",
+    "BRBBBBBRBBBBBRB",
+    "BRRRRRRSRRRRRRB",
+    "BRBBBBBPBBBBBRB",
+    "BHRRRRRSRRRRRSB",
+    "BRBBBBBPBBBBBRB",
+    "BRRRRRRSRRRRRRB",
+    "BRBBBBBRBBBBBRB",
+    "BPBBBBBRBBBBBPB",
+    "BRBBBBBRBBBBBRB",
+    "BSRRRPRSRPRRRSB",
+    "BBBBBBBBBBBBBBB"
+  ],
+  "legend": {
+    "B": "building",
+    "H": "home",
+    "P": "park",
+    "R": "road",
+    "S": "supercharger",
+    "W": "water"
+  },
+  "wall_crash_ends_game": true,
+  "messages": {
+    "welcome": "System boot initiated. Navigate the circuit board to activate all 10 data nodes!",
+    "home_charge": "Power connector! Battery fully charged!",
+    "supercharger_charge": "Capacitor bank! Energy restored to maximum!",
+    "park_visited": "Data node activated! %d nodes online.",
+    "park_already_visited": "Node already active.",
+    "victory": "All %d data nodes activated. System boot complete!",
+    "out_of_battery": "Power depleted! System shutdown.",
+    "stranded": "No power remaining. Dead in the circuit.",
+    "cant_move": "Path blocked by IC component!",
+    "battery_status": "Power: %d/%d",
+    "hit_wall": "Crashed into an IC block! Circuit damaged."
+  }
+}

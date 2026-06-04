@@ -49,6 +49,9 @@ func newRootModel(c *Client) rootModel {
 }
 
 func (m rootModel) Init() tea.Cmd {
+	if m.screen == screenPlay {
+		return m.play.Init()
+	}
 	return m.sessions.loadCmd()
 }
 
