@@ -26,18 +26,5 @@
     "W": "water",
     "B": "building"
   },
-  "wall_crash_ends_game": true,
-  "messages": {
-    "welcome": "Welcome to Garden Path! Collect all 6 parks!",
-    "home_charge": "Home sweet home! Battery fully charged!",
-    "supercharger_charge": "Supercharger! Battery fully charged!",
-    "park_visited": "Beautiful park collected! Score: %d",
-    "park_already_visited": "Already visited this park",
-    "victory": "Wonderful! All %d parks visited!",
-    "out_of_battery": "Out of battery! Game Over!",
-    "stranded": "Stranded with no battery! Game Over!",
-    "cant_move": "Can't drive through there!",
-    "battery_status": "Battery: %d/%d",
-    "hit_wall": "You crashed into a wall! Game Over!"
-  }
+  "wall_crash_ends_game": true
 }

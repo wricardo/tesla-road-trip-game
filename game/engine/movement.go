@@ -93,10 +93,7 @@ func (gs *GameState) MovePlayer(direction string, config *GameConfig) bool {
 	// Check exit direction constraint on current cell
 	fromCell := gs.Grid[gs.PlayerPos.Y][gs.PlayerPos.X]
 	if !directionAllowed(fromCell, cardinal) {
-		gs.Message = fmt.Sprintf("Can't go %s from here (one-way road)", direction)
-		if config.Messages.CantMove != "" {
-			gs.Message = config.Messages.CantMove + fmt.Sprintf(" [direction %s not allowed]", direction)
-		}
+		gs.Message = DefaultMessages.CantMove + fmt.Sprintf(" [direction %s not allowed]", direction)
 		return false
 	}
 
@@ -110,33 +107,23 @@ func (gs *GameState) MovePlayer(direction string, config *GameConfig) bool {
 
 		// Check if wall crash ends game
 		if config.WallCrashEndsGame {
-			gs.Message = fmt.Sprintf("COLLISION: Hit %s at (%d,%d) moving %s from (%d,%d)! Game Over!",
-				obstacleType, newX, newY, direction, gs.PlayerPos.X, gs.PlayerPos.Y)
-			if config.Messages.HitWall != "" {
-				gs.Message = config.Messages.HitWall + fmt.Sprintf(" [Hit: %s at (%d,%d)]", obstacleType, newX, newY)
-			}
+			gs.Message = DefaultMessages.HitWall + fmt.Sprintf(" [Hit: %s at (%d,%d)]", obstacleType, newX, newY)
 			gs.GameOver = true
 			return false
 		}
-		gs.Message = fmt.Sprintf("Can't move %s: %s at (%d,%d)", direction, obstacleType, newX, newY)
-		if config.Messages.CantMove != "" {
-			gs.Message = config.Messages.CantMove + fmt.Sprintf(" [Blocked by: %s]", obstacleType)
-		}
+		gs.Message = DefaultMessages.CantMove + fmt.Sprintf(" [Blocked by: %s]", obstacleType)
 		return false
 	}
 
 	// Check entry direction constraint on destination cell
 	if !directionAllowed(gs.Grid[newY][newX], cardinal) {
-		gs.Message = fmt.Sprintf("Can't enter that road going %s (one-way road)", direction)
-		if config.Messages.CantMove != "" {
-			gs.Message = config.Messages.CantMove + fmt.Sprintf(" [entry direction %s not allowed]", direction)
-		}
+		gs.Message = DefaultMessages.CantMove + fmt.Sprintf(" [entry direction %s not allowed]", direction)
 		return false
 	}
 
 	// Now check battery for valid moves
 	if gs.Battery <= 0 {
-		gs.Message = config.Messages.OutOfBattery
+		gs.Message = DefaultMessages.OutOfBattery
 		gs.GameOver = true
 		return false
 	}
@@ -152,37 +139,37 @@ func (gs *GameState) MovePlayer(direction string, config *GameConfig) bool {
 	switch currentCell.Type {
 	case Home:
 		gs.Battery = gs.MaxBattery
-		gs.Message = config.Messages.HomeCharge
+		gs.Message = DefaultMessages.HomeCharge
 
 	case Supercharger:
 		gs.Battery = gs.MaxBattery
-		gs.Message = config.Messages.SuperchargerCharge
+		gs.Message = DefaultMessages.SuperchargerCharge
 
 	case Park:
 		if currentCell.ID != "" && !gs.VisitedParks[currentCell.ID] {
 			gs.VisitedParks[currentCell.ID] = true
 			currentCell.Visited = true
 			gs.Score++
-			gs.Message = fmt.Sprintf(config.Messages.ParkVisited, gs.Score)
+			gs.Message = fmt.Sprintf(DefaultMessages.ParkVisited, gs.Score)
 
 			// Check victory condition
 			if gs.Score == CountTotalParks(gs.Grid) {
 				gs.Victory = true
 				gs.GameOver = true
-				gs.Message = fmt.Sprintf(config.Messages.Victory, gs.Score)
+				gs.Message = fmt.Sprintf(DefaultMessages.Victory, gs.Score)
 			}
 		} else if currentCell.Visited {
-			gs.Message = config.Messages.ParkAlreadyVisited
+			gs.Message = DefaultMessages.ParkAlreadyVisited
 		}
 
 	default:
-		gs.Message = fmt.Sprintf(config.Messages.BatteryStatus, gs.Battery, gs.MaxBattery)
+		gs.Message = fmt.Sprintf(DefaultMessages.BatteryStatus, gs.Battery, gs.MaxBattery)
 	}
 
 	// Check if stranded
 	if gs.Battery == 0 && !gs.CanReachCharger() {
 		gs.GameOver = true
-		gs.Message = config.Messages.Stranded
+		gs.Message = DefaultMessages.Stranded
 	}
 
 	return true

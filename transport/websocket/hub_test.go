@@ -239,8 +239,8 @@ func TestWebSocketUpgrade(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	// Check if client was registered
-	if len(hub.sessions["ws-test"]) != 1 {
-		t.Errorf("Expected 1 client in session, got %d", len(hub.sessions["ws-test"]))
+	if got := hub.SessionClientCount("ws-test"); got != 1 {
+		t.Errorf("Expected 1 client in session, got %d", got)
 	}
 
 	// Close connection
@@ -250,7 +250,7 @@ func TestWebSocketUpgrade(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	// Check if client was unregistered and session cleaned up
-	if _, exists := hub.sessions["ws-test"]; exists {
+	if hub.HasSessionClients("ws-test") {
 		t.Error("Session should have been cleaned up after WebSocket close")
 	}
 }

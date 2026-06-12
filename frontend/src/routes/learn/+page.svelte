@@ -1,13 +1,13 @@
 <script lang="ts">
 	let copied = $state('');
 
-	const graphqlCreateSessionCurl = `BASE_URL="https://tesla.ngrok.pro" # local backend: http://localhost:9090
+	const graphqlCreateSessionCurl = `BASE_URL="http://tesla.wricardo.net" # local backend: http://localhost:9090
 curl -s "$BASE_URL/graphql" \
   -H 'Content-Type: application/json' \
   --data '{"query":"mutation { createSession(mapID: \"classic\") { id mapName gameState { battery playerPos { x y } } } }"}'`;
 
 	const graphqlStateCurl = `SESSION_ID="paste-session-id-here"
-BASE_URL="https://tesla.ngrok.pro"
+BASE_URL="http://tesla.wricardo.net"
 curl -s "$BASE_URL/graphql" \
   -H 'Content-Type: application/json' \
   --data "$(jq -nc --arg id "$SESSION_ID" '{
@@ -16,7 +16,7 @@ curl -s "$BASE_URL/graphql" \
   }')"`;
 
 	const graphqlMoveCurl = `SESSION_ID="paste-session-id-here"
-BASE_URL="https://tesla.ngrok.pro"
+BASE_URL="http://tesla.wricardo.net"
 curl -s "$BASE_URL/graphql" \
   -H 'Content-Type: application/json' \
   --data "$(jq -nc --arg id "$SESSION_ID" '{
@@ -24,18 +24,18 @@ curl -s "$BASE_URL/graphql" \
     variables: { id: $id }
   }')"`;
 
-	const mcpListToolsCurl = `BASE_URL="https://tesla.ngrok.pro"
+	const mcpListToolsCurl = `BASE_URL="http://tesla.wricardo.net"
 curl -s "$BASE_URL/mcp" \
   -H 'Content-Type: application/json' \
   --data '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'`;
 
-	const mcpCreateSessionCurl = `BASE_URL="https://tesla.ngrok.pro"
+	const mcpCreateSessionCurl = `BASE_URL="http://tesla.wricardo.net"
 curl -s "$BASE_URL/mcp" \
   -H 'Content-Type: application/json' \
   --data '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"create_session","arguments":{"map_name":"classic"}}}'`;
 
 	const mcpMoveCurl = `SESSION_ID="paste-session-id-here"
-BASE_URL="https://tesla.ngrok.pro"
+BASE_URL="http://tesla.wricardo.net"
 curl -s "$BASE_URL/mcp" \
   -H 'Content-Type: application/json' \
   --data "$(jq -nc --arg id "$SESSION_ID" '{
@@ -45,7 +45,7 @@ curl -s "$BASE_URL/mcp" \
     params: { name: "move", arguments: { session_id: $id, direction: "right" } }
   }')"`;
 
-	const claudeMcpConfig = `claude mcp add --transport http tesla-game https://tesla.ngrok.pro/mcp`;
+	const claudeMcpConfig = `claude mcp add --transport http tesla-game http://tesla.wricardo.net/mcp`;
 
 	const legendTiles = [
 		{ label: 'Player', icon: '🚗' },
@@ -141,8 +141,8 @@ curl -s "$BASE_URL/mcp" \
 		<div class="rounded-2xl border border-[#e8e8e8] bg-white p-4 mb-6">
 			<p class="text-xs uppercase tracking-widest text-gray-400 mb-2">Endpoints</p>
 			<div class="grid gap-2 text-sm text-gray-600">
-				<p><span class="font-medium text-[#393c41]">GraphQL:</span> <code class="font-mono">https://tesla.ngrok.pro/graphql</code> <span class="text-gray-400">(local backend: <code>http://localhost:9090/graphql</code>)</span></p>
-				<p><span class="font-medium text-[#393c41]">MCP:</span> <code class="font-mono">https://tesla.ngrok.pro/mcp</code> <span class="text-gray-400">(local backend: <code>http://localhost:9090/mcp</code>)</span></p>
+				<p><span class="font-medium text-[#393c41]">GraphQL:</span> <code class="font-mono">http://tesla.wricardo.net/graphql</code> <span class="text-gray-400">(local backend: <code>http://localhost:9090/graphql</code>)</span></p>
+				<p><span class="font-medium text-[#393c41]">MCP:</span> <code class="font-mono">http://tesla.wricardo.net/mcp</code> <span class="text-gray-400">(local backend: <code>http://localhost:9090/mcp</code>)</span></p>
 			</div>
 		</div>
 

@@ -24,12 +24,16 @@ func NewResolver(gameService service.GameService, hub *websocket.Hub) *Resolver 
 // withHTTPRequest middleware in main.go. Exported so main can use the same key.
 type HTTPRequestKey struct{}
 
-// checkAdminKey returns an error if ADMIN_API_KEY is set and the request's
-// X-Admin-Key header does not match. No-ops when ADMIN_API_KEY is unset.
+// checkAdminKey requires X-Admin-Key for admin mutations. ADMIN_API_KEY must be
+// configured; local development can opt out explicitly with
+// ALLOW_UNAUTHENTICATED_ADMIN=true.
 func checkAdminKey(ctx context.Context) error {
 	required := os.Getenv("ADMIN_API_KEY")
 	if required == "" {
-		return nil
+		if os.Getenv("ALLOW_UNAUTHENTICATED_ADMIN") == "true" {
+			return nil
+		}
+		return errors.New("admin operation disabled: set ADMIN_API_KEY and send X-Admin-Key")
 	}
 	r, _ := ctx.Value(HTTPRequestKey{}).(*http.Request)
 	if r == nil {

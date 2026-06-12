@@ -1,6 +1,6 @@
 {
   "name": "Caldera Circuit",
-  "description": "Race the ring road around an active volcanic caldera on Stella Island. The lava lake in the center is impassable — navigate the coastal circuit to visit all 10 scenic overlooks before your battery dies.",
+  "description": "Race the ring road around an active volcanic caldera on Stella Island. The lava lake in the center is impassable \u2014 navigate the coastal circuit to visit all 10 scenic overlooks before your battery dies.",
   "grid_size": 16,
   "max_battery": 25,
   "starting_battery": 25,
@@ -30,18 +30,5 @@
     "W": "water",
     "B": "building"
   },
-  "wall_crash_ends_game": true,
-  "messages": {
-    "welcome": "Welcome to Stella Island! The volcano is active — race the ring road and visit all 10 overlooks!",
-    "home_charge": "Coastal lodge! Battery fully charged!",
-    "supercharger_charge": "Geothermal supercharger! Battery fully charged!",
-    "park_visited": "Scenic overlook reached! Score: %d",
-    "park_already_visited": "Already visited this overlook",
-    "victory": "Island circuit complete! All %d overlooks visited!",
-    "out_of_battery": "Stranded on the caldera road! Game Over!",
-    "stranded": "Battery dead on the ring road! Game Over!",
-    "cant_move": "Lava or jungle — no way through!",
-    "battery_status": "Battery: %d/%d",
-    "hit_wall": "You drove into the lava! Game Over!"
-  }
+  "wall_crash_ends_game": true
 }

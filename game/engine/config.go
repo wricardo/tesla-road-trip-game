@@ -99,33 +99,6 @@ func ValidateGameConfig(config *GameConfig) error {
 		}
 	}
 
-	// Validate messages
-	if config.Messages.Welcome == "" {
-		return fmt.Errorf("config validation: messages.welcome is required")
-	}
-	if config.Messages.Victory == "" {
-		return fmt.Errorf("config validation: messages.victory is required")
-	}
-	if config.Messages.OutOfBattery == "" {
-		return fmt.Errorf("config validation: messages.out_of_battery is required")
-	}
-
-	// Validate wall crash message if feature is enabled
-	if config.WallCrashEndsGame && config.Messages.HitWall == "" {
-		return fmt.Errorf("config validation: messages.hit_wall is required when wall_crash_ends_game is true")
-	}
-
-	// Validate format strings
-	if !strings.Contains(config.Messages.ParkVisited, "%d") {
-		return fmt.Errorf("config validation: messages.park_visited must contain %%d for score")
-	}
-	if !strings.Contains(config.Messages.Victory, "%d") {
-		return fmt.Errorf("config validation: messages.victory must contain %%d for park count")
-	}
-	if config.Messages.BatteryStatus != "" && !strings.Contains(config.Messages.BatteryStatus, "%d") {
-		return fmt.Errorf("config validation: messages.battery_status must contain %%d for battery values")
-	}
-
 	if err := validateWinnable(config); err != nil {
 		return err
 	}
@@ -310,9 +283,12 @@ func InitGameStateFromConfig(config *GameConfig) *GameState {
 	if config == nil {
 		// Use default config if not provided
 		config = &GameConfig{
+			Name:            "default",
+			Description:     "Default configuration",
 			GridSize:        15,
 			MaxBattery:      10,
 			StartingBattery: 10,
+			Legend:          map[string]string{"R": "road", "H": "home", "P": "park", "S": "supercharger", "W": "water", "B": "building"},
 			Layout: []string{
 				"BBBWBBBPBBBWBBB",
 				"BRRRRRRRRRRRRRB",
@@ -331,16 +307,6 @@ func InitGameStateFromConfig(config *GameConfig) *GameState {
 				"BBBWBBBPBBBWBBB",
 			},
 		}
-		config.Messages.Welcome = "Welcome! Drive your Tesla to collect parks. Watch your battery!"
-		config.Messages.HomeCharge = "Home sweet home! Battery fully charged!"
-		config.Messages.SuperchargerCharge = "Supercharger! Battery fully charged!"
-		config.Messages.ParkVisited = "Park visited! Score: %d"
-		config.Messages.ParkAlreadyVisited = "Already visited this park"
-		config.Messages.Victory = "Victory! All %d parks visited!"
-		config.Messages.OutOfBattery = "Out of battery! Game Over!"
-		config.Messages.Stranded = "Stranded with no battery! Game Over!"
-		config.Messages.CantMove = "Can't move there!"
-		config.Messages.BatteryStatus = "Battery: %d/%d"
 	}
 
 	// Create grid based on config
@@ -395,7 +361,7 @@ func InitGameStateFromConfig(config *GameConfig) *GameState {
 		MaxBattery:        config.MaxBattery,
 		Score:             0,
 		VisitedParks:      make(map[string]bool),
-		Message:           config.Messages.Welcome,
+		Message:           DefaultMessages.Welcome,
 		GameOver:          false,
 		Victory:           false,
 		MapName:           config.Name,

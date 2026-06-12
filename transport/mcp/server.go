@@ -20,12 +20,18 @@ import (
 // mcpHTTPRequestKey is the context key for the incoming *http.Request.
 type mcpHTTPRequestKey struct{}
 
-// checkAdminKey returns an error if ADMIN_API_KEY is set and the request's
-// X-Admin-Key header does not match. No-ops when ADMIN_API_KEY is unset.
+const maxMCPRequestBodyBytes int64 = 1 << 20 // 1 MiB
+
+// checkAdminKey requires X-Admin-Key for admin mutations. ADMIN_API_KEY must be
+// configured; local development can opt out explicitly with
+// ALLOW_UNAUTHENTICATED_ADMIN=true.
 func checkAdminKey(ctx context.Context) error {
 	required := os.Getenv("ADMIN_API_KEY")
 	if required == "" {
-		return nil
+		if os.Getenv("ALLOW_UNAUTHENTICATED_ADMIN") == "true" {
+			return nil
+		}
+		return errors.New("admin operation disabled: set ADMIN_API_KEY and send X-Admin-Key")
 	}
 	r, _ := ctx.Value(mcpHTTPRequestKey{}).(*http.Request)
 	if r == nil {
@@ -65,9 +71,10 @@ func (s *Server) Handler() http.Handler {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxMCPRequestBodyBytes)
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
-			http.Error(w, "failed to read body", http.StatusBadRequest)
+			http.Error(w, "failed to read body", http.StatusRequestEntityTooLarge)
 			return
 		}
 		defer r.Body.Close()

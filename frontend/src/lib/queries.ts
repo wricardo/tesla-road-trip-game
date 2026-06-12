@@ -97,3 +97,42 @@ export const CREATE_SESSION_MUTATION = `
     }
   }
 `;
+
+export const MOVE_MUTATION = `
+  mutation Move($sessionID: ID!, $direction: Direction!) {
+    move(sessionID: $sessionID, direction: $direction) {
+      success
+      message
+      attemptedTo { x y tileChar tileType passable }
+      gameState {
+        battery
+        maxBattery
+        score
+        victory
+        gameOver
+        totalMoves
+        mapName
+        playerPos { x y }
+        grid { type visited id allowedDirections }
+        currentMoves { fromPosition { x y } toPosition { x y } success }
+      }
+    }
+  }
+`;
+
+export const RESET_MUTATION = `
+  mutation Reset($sessionID: ID!) {
+    reset(sessionID: $sessionID) {
+      battery
+      maxBattery
+      score
+      victory
+      gameOver
+      totalMoves
+      mapName
+      playerPos { x y }
+      grid { type visited id allowedDirections }
+      currentMoves { fromPosition { x y } toPosition { x y } success }
+    }
+  }
+`;

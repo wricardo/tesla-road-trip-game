@@ -140,7 +140,6 @@ func TestEngine_ComplexPathfinding(t *testing.T) {
 			"S": "supercharger", "W": "water", "B": "building",
 		},
 		WallCrashEndsGame: false,
-		Messages:          createTestConfig().Messages,
 	}
 
 	engine, err := NewEngine(mazeConfig)
@@ -221,7 +220,6 @@ func TestEngine_ChargingStationStrategy(t *testing.T) {
 			"S": "supercharger", "W": "water", "B": "building",
 		},
 		WallCrashEndsGame: false,
-		Messages:          createTestConfig().Messages,
 	}
 
 	engine, err := NewEngine(chargingConfig)
@@ -330,7 +328,6 @@ func TestEngine_ParkCollectionOptimization(t *testing.T) {
 			"S": "supercharger", "W": "water", "B": "building",
 		},
 		WallCrashEndsGame: false,
-		Messages:          createTestConfig().Messages,
 	}
 
 	engine, err := NewEngine(parkConfig)
@@ -485,7 +482,6 @@ func TestEngine_EdgeCasesAndBoundaries(t *testing.T) {
 				"B": "building", "S": "supercharger", "W": "water",
 			},
 			WallCrashEndsGame: false,
-			Messages:          createTestConfig().Messages,
 		}
 
 		victoryEngine, err := NewEngine(victoryConfig)

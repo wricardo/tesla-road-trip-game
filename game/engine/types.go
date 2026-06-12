@@ -41,6 +41,36 @@ type Position struct {
 	Y int `json:"y"`
 }
 
+// GameMessages contains the built-in gameplay copy.
+type GameMessages struct {
+	Welcome            string
+	HomeCharge         string
+	SuperchargerCharge string
+	ParkVisited        string
+	ParkAlreadyVisited string
+	Victory            string
+	OutOfBattery       string
+	Stranded           string
+	CantMove           string
+	BatteryStatus      string
+	HitWall            string
+}
+
+// DefaultMessages is the canonical gameplay copy. Maps do not customize messages.
+var DefaultMessages = GameMessages{
+	Welcome:            "Welcome! Drive your Tesla to collect parks. Watch your battery!",
+	HomeCharge:         "Home sweet home! Battery fully charged!",
+	SuperchargerCharge: "Supercharger! Battery fully charged!",
+	ParkVisited:        "Park visited! Score: %d",
+	ParkAlreadyVisited: "Already visited this park",
+	Victory:            "Victory! All %d parks visited!",
+	OutOfBattery:       "Out of battery! Game Over!",
+	Stranded:           "Stranded with no battery! Game Over!",
+	CantMove:           "Can't move there!",
+	BatteryStatus:      "Battery: %d/%d",
+	HitWall:            "You crashed into a wall! Game Over!",
+}
+
 // GameConfig represents the game configuration from JSON
 type GameConfig struct {
 	Name              string                `json:"name"`
@@ -52,19 +82,6 @@ type GameConfig struct {
 	Legend            map[string]string     `json:"legend"`
 	CellConfigs       map[string]CellConfig `json:"cell_configs,omitempty"` // extra chars with direction constraints
 	WallCrashEndsGame bool                  `json:"wall_crash_ends_game"`
-	Messages          struct {
-		Welcome            string `json:"welcome"`
-		HomeCharge         string `json:"home_charge"`
-		SuperchargerCharge string `json:"supercharger_charge"`
-		ParkVisited        string `json:"park_visited"`
-		ParkAlreadyVisited string `json:"park_already_visited"`
-		Victory            string `json:"victory"`
-		OutOfBattery       string `json:"out_of_battery"`
-		Stranded           string `json:"stranded"`
-		CantMove           string `json:"cant_move"`
-		BatteryStatus      string `json:"battery_status"`
-		HitWall            string `json:"hit_wall"`
-	} `json:"messages"`
 }
 
 // SurroundingCell represents a cell with its absolute position

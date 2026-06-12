@@ -47,7 +47,7 @@ const (
 
 // Configuration flags control how the server starts and which services are enabled.
 var (
-	port         = flag.Int("port", 8080, "HTTP server port")
+	port         = flag.Int("port", 8000, "HTTP server port")
 	host         = flag.String("host", "localhost", "HTTP server host")
 	configDir    = flag.String("config-dir", getConfigDirDefault(), "Directory containing game configurations")
 	sessionsDir  = flag.String("sessions-dir", getSessionsDirDefault(), "Directory for persisted game sessions")
@@ -399,7 +399,7 @@ WebSocket URL: ` + "`" + `ws://<host>/graphql` + "`" + ` (` + "`" + `wss://` + "
 ## MCP (Model Context Protocol)
 
 MCP endpoint: ` + "`" + `{{.BaseURL}}/mcp` + "`" + ` (Streamable HTTP transport)
-Production MCP endpoint: ` + "`" + `https://tesla.ngrok.pro/mcp` + "`" + `
+Production MCP endpoint: ` + "`" + `http://tesla.wricardo.net/mcp` + "`" + `
 
 Available tools:
 
@@ -422,7 +422,7 @@ Available tools:
 To use MCP in Claude Code, run:
 
 ` + "```" + `bash
-claude mcp add --transport http tesla-game https://tesla.ngrok.pro/mcp
+claude mcp add --transport http tesla-game http://tesla.wricardo.net/mcp
 ` + "```" + `
 
 ---
@@ -516,7 +516,7 @@ func init() {
 		fmt.Fprintf(os.Stderr, "\nOptions:\n")
 		flag.PrintDefaults()
 		fmt.Fprintf(os.Stderr, "\nExamples:\n")
-		fmt.Fprintf(os.Stderr, "  %s                    # Run HTTP server on default port 8080\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "  %s                    # Run HTTP server on default port 8000\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s -port 9090         # Run HTTP server on port 9090\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s stdio-mcp          # Run MCP stdio server\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s mcp -port 9090     # Run MCP stdio server with internal HTTP on port 9090\n", os.Args[0])

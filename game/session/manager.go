@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -43,12 +44,31 @@ func NewManagerWithPersistence(persistence SessionPersistence) *Manager {
 
 // Create creates a new session with the given ID and configuration
 func (m *Manager) Create(id string, config *engine.GameConfig) (*service.Session, error) {
-	if id == "" {
-		id = m.generateSessionID()
+	if id != "" {
+		if err := validateSessionID(id); err != nil {
+			return nil, err
+		}
 	}
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	if id == "" {
+		var err error
+		for i := 0; i < 10; i++ {
+			id, err = m.generateSessionID()
+			if err != nil {
+				return nil, err
+			}
+			if !m.sessionExists(id) {
+				break
+			}
+			id = ""
+		}
+		if id == "" {
+			return nil, ErrSessionAlreadyExists
+		}
+	}
 
 	// Check if session already exists (case-insensitive)
 	if m.sessionExists(id) {
@@ -85,6 +105,10 @@ func (m *Manager) Create(id string, config *engine.GameConfig) (*service.Session
 
 // Get retrieves a session by ID (case-insensitive)
 func (m *Manager) Get(id string) (*service.Session, error) {
+	if err := validateSessionID(id); err != nil {
+		return nil, err
+	}
+
 	m.mu.RLock()
 	session, exists := m.sessions[strings.ToLower(id)]
 	if !exists {
@@ -146,6 +170,10 @@ func (m *Manager) List() []*service.Session {
 
 // Delete removes a session
 func (m *Manager) Delete(id string) error {
+	if err := validateSessionID(id); err != nil {
+		return err
+	}
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -178,6 +206,10 @@ func (m *Manager) Delete(id string) error {
 
 // DeleteFromMemory removes a session from memory only (not from persistence)
 func (m *Manager) DeleteFromMemory(id string) error {
+	if err := validateSessionID(id); err != nil {
+		return err
+	}
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -198,6 +230,10 @@ func (m *Manager) DeleteFromMemory(id string) error {
 
 // UpdateDisplayName sets the display name on a session and persists it
 func (m *Manager) UpdateDisplayName(id, displayName string) error {
+	if err := validateSessionID(id); err != nil {
+		return err
+	}
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -222,6 +258,10 @@ func (m *Manager) UpdateDisplayName(id, displayName string) error {
 
 // UpdateLastAccessed updates the last accessed time for a session
 func (m *Manager) UpdateLastAccessed(id string) error {
+	if err := validateSessionID(id); err != nil {
+		return err
+	}
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -248,6 +288,9 @@ func (m *Manager) UpdateLastAccessed(id string) error {
 
 // Save saves a specific session to persistence
 func (m *Manager) Save(id string) error {
+	if err := validateSessionID(id); err != nil {
+		return err
+	}
 	if m.persistence == nil {
 		return nil // No persistence configured
 	}
@@ -293,11 +336,26 @@ func (m *Manager) Count() int {
 }
 
 // generateSessionID generates a random 4-character session ID
-func (m *Manager) generateSessionID() string {
+func (m *Manager) generateSessionID() (string, error) {
 	// Generate 2 random bytes (4 hex characters)
 	bytes := make([]byte, 2)
-	rand.Read(bytes)
-	return hex.EncodeToString(bytes)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", fmt.Errorf("failed to generate session ID: %w", err)
+	}
+	return hex.EncodeToString(bytes), nil
+}
+
+func validateSessionID(id string) error {
+	if id == "" || id == "." || id == ".." || filepath.IsAbs(id) || strings.ContainsAny(id, `/\\`) || strings.Contains(id, "..") {
+		return ErrInvalidSessionID
+	}
+	for _, r := range id {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' || r == '-' {
+			continue
+		}
+		return ErrInvalidSessionID
+	}
+	return nil
 }
 
 // sessionExists checks if a session exists (case-insensitive)

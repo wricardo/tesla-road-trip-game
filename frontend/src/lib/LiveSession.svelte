@@ -6,7 +6,7 @@
 	const GAME_STATE_QUERY = `
 		query GameState($sessionID: ID!) {
 			gameState(sessionID: $sessionID) {
-				battery maxBattery score victory gameOver totalMoves message mapName
+				battery maxBattery score victory gameOver totalMoves mapName
 				playerPos { x y }
 				grid { type visited id allowedDirections }
 			}
@@ -16,7 +16,7 @@
 	const SESSION_SUBSCRIPTION = `
 		subscription SessionUpdated($sessionID: ID!) {
 			sessionUpdated(sessionID: $sessionID) {
-				battery maxBattery score victory gameOver totalMoves message mapName
+				battery maxBattery score victory gameOver totalMoves mapName
 				playerPos { x y }
 				grid { type visited id allowedDirections }
 			}
@@ -35,7 +35,7 @@
 	type GameState = {
 		battery: number; maxBattery: number; score: number;
 		victory: boolean; gameOver: boolean; totalMoves: number;
-		message: string; mapName: string;
+		mapName: string;
 		playerPos: { x: number; y: number };
 		grid: Array<Array<{ type: string; visited: boolean; id: string; allowedDirections: string[] }>>;
 	};

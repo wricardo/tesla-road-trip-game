@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "https://tesla.ngrok.pro"
+      "url": "http://tesla.wricardo.net"
     }
   ],
   "paths": {

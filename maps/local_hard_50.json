@@ -64,18 +64,5 @@
     "S": "supercharger",
     "W": "water"
   },
-  "wall_crash_ends_game": true,
-  "messages": {
-    "welcome": "Welcome to the local 50x50 labyrinth!",
-    "home_charge": "Back home! Battery fully charged.",
-    "supercharger_charge": "Supercharger! Battery fully charged.",
-    "park_visited": "Park visited! Score: %d",
-    "park_already_visited": "Already visited this park.",
-    "victory": "Victory! All %d parks visited.",
-    "out_of_battery": "Battery depleted!",
-    "stranded": "Stranded with no charge!",
-    "cant_move": "No road there.",
-    "battery_status": "Battery: %d/%d",
-    "hit_wall": "Hit wall!"
-  }
+  "wall_crash_ends_game": true
 }

@@ -2,6 +2,7 @@ package engine
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 )
@@ -161,7 +162,7 @@ func TestGameStateJSONMarshaling(t *testing.T) {
 		Message:      "Test message",
 		GameOver:     false,
 		Victory:      false,
-		MapName:   "test_config",
+		MapName:      "test_config",
 		MoveHistory:  []MoveHistoryEntry{},
 		TotalMoves:   0,
 	}
@@ -250,8 +251,6 @@ func TestGameConfigJSONMarshaling(t *testing.T) {
 		Legend:            map[string]string{"R": "road", "H": "home", "P": "park"},
 		WallCrashEndsGame: true,
 	}
-	config.Messages.Welcome = "Welcome to the test!"
-
 	data, err := json.Marshal(config)
 	if err != nil {
 		t.Fatalf("Failed to marshal game config: %v", err)
@@ -275,7 +274,7 @@ func TestGameConfigJSONMarshaling(t *testing.T) {
 	if unmarshaled.WallCrashEndsGame != config.WallCrashEndsGame {
 		t.Errorf("WallCrashEndsGame: expected %v, got %v", config.WallCrashEndsGame, unmarshaled.WallCrashEndsGame)
 	}
-	if unmarshaled.Messages.Welcome != config.Messages.Welcome {
-		t.Errorf("Messages.Welcome: expected %s, got %s", config.Messages.Welcome, unmarshaled.Messages.Welcome)
+	if strings.Contains(string(data), "messages") {
+		t.Errorf("GameConfig JSON should not include messages, got: %s", string(data))
 	}
 }

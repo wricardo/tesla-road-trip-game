@@ -16,20 +16,6 @@
 	type LegendEntry = { key: string; value: string };
 	type CellConfigEntry = { key: string; type: string; allowedDirections: string[] };
 
-	interface MapMessages {
-		welcome: string;
-		homeCharge: string;
-		superchargerCharge: string;
-		parkVisited: string;
-		parkAlreadyVisited: string;
-		victory: string;
-		outOfBattery: string;
-		stranded: string;
-		cantMove: string;
-		batteryStatus: string;
-		hitWall: string;
-	}
-
 	interface MapConfig {
 		name: string;
 		description: string;
@@ -40,7 +26,6 @@
 		legend: LegendEntry[];
 		cellConfigs: CellConfigEntry[];
 		wallCrashEndsGame: boolean;
-		messages: MapMessages;
 	}
 
 	const client = getContextClient();
@@ -91,20 +76,6 @@
 		{ key: 'W', value: 'water' },
 		{ key: 'B', value: 'building' }
 	];
-
-	const defaultMessages: MapMessages = {
-		welcome: 'Welcome! Drive your Tesla to collect parks. Watch your battery!',
-		homeCharge: 'Home sweet home! Battery fully charged!',
-		superchargerCharge: 'Supercharger! Battery fully charged!',
-		parkVisited: 'Park visited! Score: %d',
-		parkAlreadyVisited: 'Already visited this park',
-		victory: 'Victory! All %d parks visited!',
-		outOfBattery: 'Out of battery! Game Over!',
-		stranded: 'Stranded with no battery! Game Over!',
-		cantMove: "Can't move there!",
-		batteryStatus: 'Battery: %d/%d',
-		hitWall: 'You crashed into a wall! Game Over!'
-	};
 
 	let gridSize = $state(10);
 	let gridData = $state<CellType[][]>([]);
@@ -280,8 +251,7 @@
 			layout,
 			legend: defaultLegend,
 			cellConfigs: currentCellConfigs,
-			wallCrashEndsGame,
-			messages: defaultMessages
+			wallCrashEndsGame
 		};
 	}
 
