@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/wricardo/tesla-road-trip-game/game/engine"
 )
@@ -187,17 +186,9 @@ func (s *gameServiceImpl) Move(ctx context.Context, sessionID, direction string,
 	// Update last accessed time
 	s.sessions.UpdateLastAccessed(sessionID)
 
-	// Collect events
-	events := []GameEvent{}
-
 	// Handle reset if requested
 	if reset {
 		sess.Engine.Reset()
-		events = append(events, GameEvent{
-			Type:      "reset",
-			Message:   "Game reset to initial state",
-			Timestamp: time.Now(),
-		})
 	}
 
 	// Execute move
@@ -213,32 +204,20 @@ func (s *gameServiceImpl) Move(ctx context.Context, sessionID, direction string,
 		Success:   success,
 		GameState: state,
 		Message:   state.Message,
-		Events:    events,
 	}
 
-	// Add move event
 	if success {
-		moveEvents := s.extractMoveEvents(sess, prevPos, newPos, direction)
-		result.Events = append(result.Events, moveEvents...)
-
 		// Fill compact step info
 		tileChar, tileType := "", ""
-		if newPos.Y >= 0 && newPos.Y < len(state.Grid) && newPos.X >= 0 && newPos.X < len(state.Grid[0]) {
-			tileChar, tileType = mapCellToCharAndType(state.Grid[newPos.Y][newPos.X])
-		}
 		charged := false
 		park := false
-		victory := false
-		for _, ev := range moveEvents {
-			switch ev.Type {
-			case "charge":
-				charged = true
-			case "park_visited":
-				park = true
-			case "victory":
-				victory = true
-			}
+		if newPos.Y >= 0 && newPos.Y < len(state.Grid) && newPos.X >= 0 && newPos.X < len(state.Grid[0]) {
+			cell := state.Grid[newPos.Y][newPos.X]
+			tileChar, tileType = mapCellToCharAndType(cell)
+			charged = cell.Type == engine.Home || cell.Type == engine.Supercharger
+			park = cell.Type == engine.Park
 		}
+		victory := state.Victory
 		result.Step = &StepInfo{
 			Idx:           1,
 			Dir:           direction,
@@ -314,7 +293,6 @@ func (s *gameServiceImpl) BulkMove(ctx context.Context, sessionID string, moves 
 	result := &BulkMoveResult{
 		RequestedMoves: len(moves),
 		TotalMoves:     len(moves), // backward-compat: mirrors requested_moves
-		Events:         make([]GameEvent, 0),
 		Success:        true,
 		StartPos:       startPos,
 		StartBattery:   startBattery,
@@ -325,11 +303,6 @@ func (s *gameServiceImpl) BulkMove(ctx context.Context, sessionID string, moves 
 	// Handle reset
 	if reset {
 		sess.Engine.Reset()
-		result.Events = append(result.Events, GameEvent{
-			Type:      "reset",
-			Message:   "Game reset to initial state",
-			Timestamp: time.Now(),
-		})
 	}
 
 	// Limit moves to prevent abuse
@@ -408,30 +381,19 @@ func (s *gameServiceImpl) BulkMove(ctx context.Context, sessionID string, moves 
 		result.MovesExecuted++
 		newPos := sess.Engine.GetPlayerPosition()
 
-		// Collect events for this move
-		events := s.extractMoveEvents(sess, prevPos, newPos, move)
-		result.Events = append(result.Events, events...)
-
 		// Build step info for this executed move
 		currState := sess.Engine.GetState()
 		batteryAfter := currState.Battery
 		tileChar, tileType := "", ""
-		if newPos.Y >= 0 && newPos.Y < len(currState.Grid) && newPos.X >= 0 && newPos.X < len(currState.Grid[0]) {
-			tileChar, tileType = mapCellToCharAndType(currState.Grid[newPos.Y][newPos.X])
-		}
 		charged := false
 		park := false
-		victory := false
-		for _, ev := range events {
-			switch ev.Type {
-			case "charge":
-				charged = true
-			case "park_visited":
-				park = true
-			case "victory":
-				victory = true
-			}
+		if newPos.Y >= 0 && newPos.Y < len(currState.Grid) && newPos.X >= 0 && newPos.X < len(currState.Grid[0]) {
+			cell := currState.Grid[newPos.Y][newPos.X]
+			tileChar, tileType = mapCellToCharAndType(cell)
+			charged = cell.Type == engine.Home || cell.Type == engine.Supercharger
+			park = cell.Type == engine.Park
 		}
+		victory := currState.Victory
 		step := StepInfo{
 			Idx:           i + 1,
 			Dir:           move,
@@ -642,69 +604,6 @@ func (s *gameServiceImpl) SaveMap(ctx context.Context, mapName string, config *e
 // DeleteMap removes a map configuration from disk
 func (s *gameServiceImpl) DeleteMap(ctx context.Context, mapName string) error {
 	return s.configs.DeleteConfig(mapName)
-}
-
-// extractMoveEvents generates events from a move
-func (s *gameServiceImpl) extractMoveEvents(sess *Session, prevPos, newPos engine.Position, direction string) []GameEvent {
-	events := []GameEvent{}
-	state := sess.Engine.GetState()
-
-	// Basic move event
-	events = append(events, GameEvent{
-		Type:      "move",
-		Message:   fmt.Sprintf("Moved %s to (%d,%d)", direction, newPos.X, newPos.Y),
-		Timestamp: time.Now(),
-		Position:  newPos,
-	})
-
-	// Check if position actually changed (might be blocked)
-	if prevPos.X == newPos.X && prevPos.Y == newPos.Y {
-		return events // Move was blocked, no additional events
-	}
-
-	// Check for special cell events
-	if newPos.Y >= 0 && newPos.Y < len(state.Grid) &&
-		newPos.X >= 0 && newPos.X < len(state.Grid[0]) {
-		cell := state.Grid[newPos.Y][newPos.X]
-
-		switch cell.Type {
-		case engine.Home, engine.Supercharger:
-			events = append(events, GameEvent{
-				Type:      "charge",
-				Message:   fmt.Sprintf("Battery charged to %d/%d", state.Battery, state.MaxBattery),
-				Timestamp: time.Now(),
-				Position:  newPos,
-			})
-		case engine.Park:
-			if cell.Visited {
-				events = append(events, GameEvent{
-					Type:      "park_visited",
-					Message:   fmt.Sprintf("Park %s visited! Score: %d", cell.ID, state.Score),
-					Timestamp: time.Now(),
-					Position:  newPos,
-				})
-			}
-		}
-	}
-
-	// Check for game over events
-	if state.GameOver {
-		if state.Victory {
-			events = append(events, GameEvent{
-				Type:      "victory",
-				Message:   "Victory! All parks visited!",
-				Timestamp: time.Now(),
-			})
-		} else {
-			events = append(events, GameEvent{
-				Type:      "game_over",
-				Message:   state.Message,
-				Timestamp: time.Now(),
-			})
-		}
-	}
-
-	return events
 }
 
 // Helpers for BulkMoveResult enrichment

@@ -30,31 +30,6 @@ func createValidConfig() *GameConfig {
 			"B": "building",
 		},
 		WallCrashEndsGame: false,
-		Messages: struct {
-			Welcome            string `json:"welcome"`
-			HomeCharge         string `json:"home_charge"`
-			SuperchargerCharge string `json:"supercharger_charge"`
-			ParkVisited        string `json:"park_visited"`
-			ParkAlreadyVisited string `json:"park_already_visited"`
-			Victory            string `json:"victory"`
-			OutOfBattery       string `json:"out_of_battery"`
-			Stranded           string `json:"stranded"`
-			CantMove           string `json:"cant_move"`
-			BatteryStatus      string `json:"battery_status"`
-			HitWall            string `json:"hit_wall"`
-		}{
-			Welcome:            "Welcome to the test game!",
-			HomeCharge:         "Home charging!",
-			SuperchargerCharge: "Supercharger!",
-			ParkVisited:        "Park visited! Score: %d",
-			ParkAlreadyVisited: "Already visited",
-			Victory:            "Victory! All %d parks visited!",
-			OutOfBattery:       "Out of battery!",
-			Stranded:           "Stranded!",
-			CantMove:           "Can't move!",
-			BatteryStatus:      "Battery: %d/%d",
-			HitWall:            "Hit wall!",
-		},
 	}
 }
 
@@ -233,71 +208,6 @@ func TestValidateGameConfig_InvalidLegend(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "legend['R'] must be 'road'") {
 		t.Errorf("Expected legend validation error, got: %v", err)
-	}
-}
-
-func TestValidateGameConfig_MissingMessages(t *testing.T) {
-	tests := []struct {
-		name         string
-		messageField string
-		modifier     func(*GameConfig)
-	}{
-		{"welcome", "messages.welcome", func(c *GameConfig) { c.Messages.Welcome = "" }},
-		{"victory", "messages.victory", func(c *GameConfig) { c.Messages.Victory = "" }},
-		{"out of battery", "messages.out_of_battery", func(c *GameConfig) { c.Messages.OutOfBattery = "" }},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			config := createValidConfig()
-			test.modifier(config)
-			err := ValidateGameConfig(config)
-			if err == nil {
-				t.Errorf("Expected error for missing %s", test.messageField)
-			}
-			if !strings.Contains(err.Error(), test.messageField+" is required") {
-				t.Errorf("Expected %s validation error, got: %v", test.messageField, err)
-			}
-		})
-	}
-}
-
-func TestValidateGameConfig_HitWallMessage(t *testing.T) {
-	config := createValidConfig()
-	config.WallCrashEndsGame = true
-	config.Messages.HitWall = ""
-	err := ValidateGameConfig(config)
-	if err == nil {
-		t.Error("Expected error for missing hit wall message when wall crash ends game")
-	}
-	if !strings.Contains(err.Error(), "messages.hit_wall is required when wall_crash_ends_game is true") {
-		t.Errorf("Expected hit wall message validation error, got: %v", err)
-	}
-}
-
-func TestValidateGameConfig_FormatStrings(t *testing.T) {
-	tests := []struct {
-		name     string
-		modifier func(*GameConfig)
-		expected string
-	}{
-		{"park visited", func(c *GameConfig) { c.Messages.ParkVisited = "No format" }, "park_visited must contain %d"},
-		{"victory", func(c *GameConfig) { c.Messages.Victory = "No format" }, "victory must contain %d"},
-		{"battery status", func(c *GameConfig) { c.Messages.BatteryStatus = "No format" }, "battery_status must contain %d"},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			config := createValidConfig()
-			test.modifier(config)
-			err := ValidateGameConfig(config)
-			if err == nil {
-				t.Errorf("Expected error for %s format string", test.name)
-			}
-			if !strings.Contains(err.Error(), test.expected) {
-				t.Errorf("Expected format string validation error containing '%s', got: %v", test.expected, err)
-			}
-		})
 	}
 }
 

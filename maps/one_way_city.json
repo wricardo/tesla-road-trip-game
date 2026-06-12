@@ -27,24 +27,38 @@
     "W": "water"
   },
   "cell_configs": {
-    ">": { "type": "road", "allowed_directions": ["east"] },
-    "<": { "type": "road", "allowed_directions": ["west"] },
-    "v": { "type": "road", "allowed_directions": ["south"] },
-    "7": { "type": "road", "allowed_directions": ["east", "south"] },
-    "J": { "type": "road", "allowed_directions": ["west", "north"] }
+    ">": {
+      "type": "road",
+      "allowed_directions": [
+        "east"
+      ]
+    },
+    "<": {
+      "type": "road",
+      "allowed_directions": [
+        "west"
+      ]
+    },
+    "v": {
+      "type": "road",
+      "allowed_directions": [
+        "south"
+      ]
+    },
+    "7": {
+      "type": "road",
+      "allowed_directions": [
+        "east",
+        "south"
+      ]
+    },
+    "J": {
+      "type": "road",
+      "allowed_directions": [
+        "west",
+        "north"
+      ]
+    }
   },
-  "wall_crash_ends_game": false,
-  "messages": {
-    "welcome": "One Way City! Follow the arrows around the loop to collect both parks.",
-    "home_charge": "Home! Battery charged!",
-    "supercharger_charge": "Supercharger! Battery charged!",
-    "park_visited": "Park collected! Score: %d",
-    "park_already_visited": "Already visited",
-    "victory": "Victory! Completed the loop — %d parks collected!",
-    "out_of_battery": "Out of battery! Game Over!",
-    "stranded": "Stranded! Game Over!",
-    "cant_move": "Wrong way!",
-    "battery_status": "Battery: %d/%d",
-    "hit_wall": "Crashed!"
-  }
+  "wall_crash_ends_game": false
 }

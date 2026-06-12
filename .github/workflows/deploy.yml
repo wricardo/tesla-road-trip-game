@@ -97,10 +97,13 @@ jobs:
             systemctl is-active tesla-road-trip-game.service
           '
 
-      - name: Smoke test deployed GraphQL schema
+      - name: Smoke test deployed GraphQL API
+        env:
+          DEPLOY_BASE_URL: ${{ secrets.DEPLOY_BASE_URL }}
         run: |
+          test -n "$DEPLOY_BASE_URL"
           sleep 2
-          response=$(curl -fsS https://tesla.ngrok.pro/graphql \
+          response=$(curl -fsS "$DEPLOY_BASE_URL/graphql" \
             -H 'content-type: application/json' \
-            --data '{"query":"query { __type(name: \"Session\") { fields { name } } }"}')
-          echo "$response" | grep -q '"displayName"'
+            --data '{"query":"query { maps { mapId } }"}')
+          echo "$response" | grep -q '"maps"'

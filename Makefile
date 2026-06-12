@@ -12,7 +12,7 @@ help:
 	@echo "  build-tui    - Build the terminal UI client binary"
 	@echo "  tui          - Build and run the TUI client"
 	@echo "  run          - Run the game server (default config)"
-	@echo "  dev          - Run backend in development mode on port 8080"
+	@echo "  dev          - Run backend in development mode on port 8000"
 	@echo "  dev-backend  - Run backend on port 9090 for frontend live dev"
 	@echo "  frontend-dev - Run Svelte frontend with live reload on port 5173"
 	@echo "  dev-live     - Run backend + live frontend together"
@@ -54,7 +54,7 @@ build-tui:
 	go build -o tesla-road-trip-tui ./cmd/tui
 
 tui: build-tui
-	@echo "Starting TUI (connect to http://localhost:8080)..."
+	@echo "Starting TUI (connect to http://localhost:8000)..."
 	./tesla-road-trip-tui
 
 # Test targets
@@ -82,7 +82,7 @@ run: build
 
 dev: build
 	@echo "Starting development server (Ctrl+C to stop)..."
-	./tesla-road-trip -port 8080
+	./tesla-road-trip -port 8000
 
 dev-backend:
 	@echo "Starting backend on http://localhost:9090 (Ctrl+C to stop)..."
@@ -204,19 +204,19 @@ status:
 	@echo "Tesla Road Trip Game - Server Status"
 	@echo "===================================="
 	@echo ""
-	@echo "Checking local server (port 8080):"
-	@if curl -s http://localhost:8080/api >/dev/null 2>&1; then \
-		echo "✅ Server is running on port 8080"; \
-		echo "   Game API: http://localhost:8080/api"; \
-		echo "   Web UI: http://localhost:8080"; \
-		echo "   MCP endpoint: http://localhost:8080/mcp"; \
+	@echo "Checking local server (port 8000):"
+	@if curl -s http://localhost:8000/api >/dev/null 2>&1; then \
+		echo "✅ Server is running on port 8000"; \
+		echo "   Game API: http://localhost:8000/api"; \
+		echo "   Web UI: http://localhost:8000"; \
+		echo "   MCP endpoint: http://localhost:8000/mcp"; \
 	else \
-		echo "❌ Server is not running on port 8080"; \
-		if lsof -i :8080 >/dev/null 2>&1; then \
-			echo "   Port 8080 is occupied by another process:"; \
-			lsof -i :8080; \
+		echo "❌ Server is not running on port 8000"; \
+		if lsof -i :8000 >/dev/null 2>&1; then \
+			echo "   Port 8000 is occupied by another process:"; \
+			lsof -i :8000; \
 		else \
-			echo "   Port 8080 is available"; \
+			echo "   Port 8000 is available"; \
 		fi; \
 	fi
 	@echo ""
@@ -239,8 +239,8 @@ status:
 		echo "⚠️  ngrok CLI not installed"; \
 	fi
 	@echo "   Checking for embedded ngrok in server logs:"
-	@if curl -s http://localhost:8080/api >/dev/null 2>&1; then \
-		echo "   🔍 Found tesla-road-trip server on port 8080 (may have embedded ngrok)"; \
+	@if curl -s http://localhost:8000/api >/dev/null 2>&1; then \
+		echo "   🔍 Found tesla-road-trip server on port 8000 (may have embedded ngrok)"; \
 		NGROK_DOMAIN=$$(grep NGROK_DOMAIN .env 2>/dev/null | cut -d= -f2); \
 		if [ -n "$$NGROK_DOMAIN" ]; then \
 			echo "   Testing ngrok domain: https://$$NGROK_DOMAIN"; \

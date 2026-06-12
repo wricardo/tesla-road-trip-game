@@ -98,8 +98,11 @@ type Client struct {
 type Hub struct {
 	upgrader websocket.Upgrader
 
-	// Registered clients by session ID
-	sessions map[string]map[*Client]bool
+	// Registered clients by session ID. Protected by sessionsMu because
+	// BroadcastToSession can be called directly by HTTP/GraphQL handlers while
+	// Run concurrently registers/unregisters clients.
+	sessionsMu sync.RWMutex
+	sessions   map[string]map[*Client]bool
 
 	// Inbound messages from clients
 	broadcast chan *Message
@@ -181,16 +184,24 @@ func (h *Hub) BroadcastToSession(sessionID string, state *engine.GameState) {
 		return
 	}
 
-	// Send to all WebSocket clients in this session
+	// Send to all WebSocket clients in this session.
+	// Hold sessionsMu while sending so unregisterClient cannot close a send
+	// channel concurrently with this non-blocking send.
+	var stale []*Client
+	h.sessionsMu.Lock()
 	if clients, ok := h.sessions[sessionID]; ok {
 		for client := range clients {
 			select {
 			case client.send <- data:
 			default:
-				h.unregisterClient(client)
+				stale = append(stale, client)
 			}
 		}
 	}
+	for _, client := range stale {
+		h.unregisterClientLocked(client)
+	}
+	h.sessionsMu.Unlock()
 
 	// Fan out to GraphQL subscription channels
 	h.mu.RLock()
@@ -268,6 +279,9 @@ func (h *Hub) BroadcastEvent(sessionID string, event string, data interface{}) {
 
 // registerClient adds a client to a session
 func (h *Hub) registerClient(client *Client) {
+	h.sessionsMu.Lock()
+	defer h.sessionsMu.Unlock()
+
 	if h.sessions[client.sessionID] == nil {
 		h.sessions[client.sessionID] = make(map[*Client]bool)
 	}
@@ -279,6 +293,13 @@ func (h *Hub) registerClient(client *Client) {
 
 // unregisterClient removes a client from a session
 func (h *Hub) unregisterClient(client *Client) {
+	h.sessionsMu.Lock()
+	defer h.sessionsMu.Unlock()
+	h.unregisterClientLocked(client)
+}
+
+// unregisterClientLocked removes a client from a session. h.sessionsMu must be held.
+func (h *Hub) unregisterClientLocked(client *Client) {
 	if clients, ok := h.sessions[client.sessionID]; ok {
 		if _, ok := clients[client]; ok {
 			delete(clients, client)
@@ -295,6 +316,21 @@ func (h *Hub) unregisterClient(client *Client) {
 	}
 }
 
+// SessionClientCount returns the number of connected clients for a session.
+func (h *Hub) SessionClientCount(sessionID string) int {
+	h.sessionsMu.RLock()
+	defer h.sessionsMu.RUnlock()
+	return len(h.sessions[sessionID])
+}
+
+// HasSessionClients reports whether the hub tracks any clients for a session.
+func (h *Hub) HasSessionClients(sessionID string) bool {
+	h.sessionsMu.RLock()
+	defer h.sessionsMu.RUnlock()
+	_, ok := h.sessions[sessionID]
+	return ok
+}
+
 // broadcastMessage sends a message to all clients in a session
 func (h *Hub) broadcastMessage(message *Message) {
 	data, err := json.Marshal(message)
@@ -303,15 +339,21 @@ func (h *Hub) broadcastMessage(message *Message) {
 		return
 	}
 
+	var stale []*Client
+	h.sessionsMu.Lock()
 	if clients, ok := h.sessions[message.SessionID]; ok {
 		for client := range clients {
 			select {
 			case client.send <- data:
 			default:
-				h.unregisterClient(client)
+				stale = append(stale, client)
 			}
 		}
 	}
+	for _, client := range stale {
+		h.unregisterClientLocked(client)
+	}
+	h.sessionsMu.Unlock()
 }
 
 // readPump pumps messages from the WebSocket connection to the hub

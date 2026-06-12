@@ -29,31 +29,6 @@ func createTestGameState() (*GameState, *GameConfig) {
 			"B": "building",
 		},
 		WallCrashEndsGame: false,
-		Messages: struct {
-			Welcome            string `json:"welcome"`
-			HomeCharge         string `json:"home_charge"`
-			SuperchargerCharge string `json:"supercharger_charge"`
-			ParkVisited        string `json:"park_visited"`
-			ParkAlreadyVisited string `json:"park_already_visited"`
-			Victory            string `json:"victory"`
-			OutOfBattery       string `json:"out_of_battery"`
-			Stranded           string `json:"stranded"`
-			CantMove           string `json:"cant_move"`
-			BatteryStatus      string `json:"battery_status"`
-			HitWall            string `json:"hit_wall"`
-		}{
-			Welcome:            "Welcome to test!",
-			HomeCharge:         "Home charged!",
-			SuperchargerCharge: "Supercharged!",
-			ParkVisited:        "Park visited! Score: %d",
-			ParkAlreadyVisited: "Already visited this park",
-			Victory:            "Victory! All %d parks visited!",
-			OutOfBattery:       "Out of battery!",
-			Stranded:           "Stranded!",
-			CantMove:           "Can't move there!",
-			BatteryStatus:      "Battery: %d/%d",
-			HitWall:            "Hit wall!",
-		},
 	}
 
 	state := InitGameStateFromConfig(config)
@@ -192,7 +167,7 @@ func TestMovePlayer_WallCrashEndsGame(t *testing.T) {
 	if !state.GameOver {
 		t.Error("Expected game to be over after wall crash")
 	}
-	if !strings.Contains(state.Message, "Hit wall!") {
+	if !strings.Contains(state.Message, DefaultMessages.HitWall) {
 		t.Errorf("Expected hit wall message, got: %s", state.Message)
 	}
 }
@@ -208,7 +183,7 @@ func TestMovePlayer_OutOfBattery(t *testing.T) {
 	if !state.GameOver {
 		t.Error("Expected game to be over when out of battery")
 	}
-	if state.Message != config.Messages.OutOfBattery {
+	if state.Message != DefaultMessages.OutOfBattery {
 		t.Errorf("Expected out of battery message, got: %s", state.Message)
 	}
 }
@@ -238,7 +213,7 @@ func TestMovePlayer_HomeCharging(t *testing.T) {
 	if state.Battery != config.MaxBattery {
 		t.Errorf("Expected battery to be at max (%d) after visiting home, got %d", config.MaxBattery, state.Battery)
 	}
-	if state.Message != config.Messages.HomeCharge {
+	if state.Message != DefaultMessages.HomeCharge {
 		t.Errorf("Expected home charge message, got: %s", state.Message)
 	}
 }
@@ -254,7 +229,7 @@ func TestMovePlayer_SuperchargerCharging(t *testing.T) {
 	if state.Battery != config.MaxBattery {
 		t.Errorf("Expected battery to be at max (%d) after visiting supercharger, got %d", config.MaxBattery, state.Battery)
 	}
-	if state.Message != config.Messages.SuperchargerCharge {
+	if state.Message != DefaultMessages.SuperchargerCharge {
 		t.Errorf("Expected supercharger message, got: %s", state.Message)
 	}
 }
@@ -295,7 +270,7 @@ func TestMovePlayer_AlreadyVisitedPark(t *testing.T) {
 	if state.Score != initialScore {
 		t.Errorf("Expected score to remain %d, got %d", initialScore, state.Score)
 	}
-	if state.Message != config.Messages.ParkAlreadyVisited {
+	if state.Message != DefaultMessages.ParkAlreadyVisited {
 		t.Errorf("Expected already visited message, got: %s", state.Message)
 	}
 }
@@ -337,7 +312,7 @@ func TestMovePlayer_Stranded(t *testing.T) {
 	if !state.GameOver {
 		t.Error("Expected game to be over when stranded")
 	}
-	if state.Message != config.Messages.Stranded {
+	if state.Message != DefaultMessages.Stranded {
 		t.Errorf("Expected stranded message, got: %s", state.Message)
 	}
 }

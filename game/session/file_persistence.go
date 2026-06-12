@@ -35,6 +35,9 @@ func (fp *FilePersistence) Save(session *service.Session) error {
 	if session == nil {
 		return fmt.Errorf("session cannot be nil")
 	}
+	if err := validateSessionID(session.ID); err != nil {
+		return err
+	}
 
 	// Get config ID from display name
 	configID, err := fp.getConfigIDFromName(session.Config.Name)
@@ -68,6 +71,9 @@ func (fp *FilePersistence) Save(session *service.Session) error {
 
 // Load retrieves a session from a JSON file
 func (fp *FilePersistence) Load(id string) (*service.Session, error) {
+	if err := validateSessionID(id); err != nil {
+		return nil, err
+	}
 	filePath := fp.getFilePath(id)
 
 	// Check if file exists
@@ -129,6 +135,9 @@ func (fp *FilePersistence) Load(id string) (*service.Session, error) {
 
 // Delete removes a session file
 func (fp *FilePersistence) Delete(id string) error {
+	if err := validateSessionID(id); err != nil {
+		return err
+	}
 	filePath := fp.getFilePath(id)
 
 	// Check if file exists
@@ -170,6 +179,9 @@ func (fp *FilePersistence) ListAll() ([]string, error) {
 
 // Exists checks if a session file exists
 func (fp *FilePersistence) Exists(id string) bool {
+	if err := validateSessionID(id); err != nil {
+		return false
+	}
 	filePath := fp.getFilePath(id)
 	_, err := os.Stat(filePath)
 	return err == nil

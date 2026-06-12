@@ -19,12 +19,6 @@ func minConfig(layout []string, cellConfigs map[string]CellConfig) *GameConfig {
 		},
 		CellConfigs: cellConfigs,
 	}
-	c.Messages.Welcome = "welcome"
-	c.Messages.Victory = "victory %d"
-	c.Messages.OutOfBattery = "dead"
-	c.Messages.ParkVisited = "park %d"
-	c.Messages.CantMove = "blocked"
-	c.Messages.HitWall = "crash"
 	c.WallCrashEndsGame = false
 	return c
 }

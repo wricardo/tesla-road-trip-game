@@ -123,26 +123,11 @@ type GameMap {
   legend: [LegendEntry!]!
   cellConfigs: [CellConfigEntry!]!
   wallCrashEndsGame: Boolean!
-  messages: MapMessages!
 }
 
 type LegendEntry { key: String!, value: String! }
 
 type CellConfigEntry { key: String!, type: String!, allowedDirections: [String!]! }
-
-type MapMessages {
-  welcome: String!
-  homeCharge: String!
-  superchargerCharge: String!
-  parkVisited: String!
-  parkAlreadyVisited: String!
-  victory: String!
-  outOfBattery: String!
-  stranded: String!
-  cantMove: String!
-  batteryStatus: String!
-  hitWall: String!
-}
 
 input GameMapInput {
   name: String!
@@ -154,26 +139,11 @@ input GameMapInput {
   legend: [LegendEntryInput!]!
   cellConfigs: [CellConfigEntryInput!] = []
   wallCrashEndsGame: Boolean!
-  messages: MapMessagesInput!
 }
 
 input LegendEntryInput { key: String!, value: String! }
 
 input CellConfigEntryInput { key: String!, type: String!, allowedDirections: [String!]! }
-
-input MapMessagesInput {
-  welcome: String!
-  homeCharge: String!
-  superchargerCharge: String!
-  parkVisited: String!
-  parkAlreadyVisited: String!
-  victory: String!
-  outOfBattery: String!
-  stranded: String!
-  cantMove: String!
-  batteryStatus: String!
-  hitWall: String!
-}
 
 # Partial update input — all fields optional; omitted fields keep existing values.
 input GameMapPatchInput {
@@ -186,21 +156,6 @@ input GameMapPatchInput {
   legend: [LegendEntryInput!]
   cellConfigs: [CellConfigEntryInput!]
   wallCrashEndsGame: Boolean
-  messages: MapMessagesPatchInput
-}
-
-input MapMessagesPatchInput {
-  welcome: String
-  homeCharge: String
-  superchargerCharge: String
-  parkVisited: String
-  parkAlreadyVisited: String
-  victory: String
-  outOfBattery: String
-  stranded: String
-  cantMove: String
-  batteryStatus: String
-  hitWall: String
 }
 
 type MapInfo {

@@ -24,18 +24,5 @@
     "W": "water",
     "B": "building"
   },
-  "wall_crash_ends_game": true,
-  "messages": {
-    "welcome": "Welcome to Easy Mode with a Trapped Park! One park requires strategic planning!",
-    "home_charge": "Home sweet home! Battery fully charged!",
-    "supercharger_charge": "Supercharger! Battery fully charged!",
-    "park_visited": "Park visited! Score: %d",
-    "park_already_visited": "Already visited this park",
-    "victory": "Excellent! All %d parks visited, including the trapped one!",
-    "out_of_battery": "Battery depleted! Try again!",
-    "stranded": "No battery left! Game Over!",
-    "cant_move": "Can't go there!",
-    "battery_status": "Battery: %d/%d",
-    "hit_wall": "You crashed into a wall! Game Over!"
-  }
+  "wall_crash_ends_game": true
 }

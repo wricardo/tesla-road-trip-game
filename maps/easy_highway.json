@@ -26,18 +26,5 @@
     "W": "water",
     "B": "building"
   },
-  "wall_crash_ends_game": true,
-  "messages": {
-    "welcome": "Welcome to Highway Cruise! Take a scenic route around the loop!",
-    "home_charge": "Home garage! Battery fully charged!",
-    "supercharger_charge": "Highway supercharger! Battery topped up!",
-    "park_visited": "Scenic park visited! Score: %d",
-    "park_already_visited": "Already visited this park",
-    "victory": "Highway tour complete! All %d parks visited!",
-    "out_of_battery": "Out of juice on the highway!",
-    "stranded": "Stranded on the highway! Game Over!",
-    "cant_move": "Can't drive there!",
-    "battery_status": "Battery: %d/%d",
-    "hit_wall": "You crashed! Game Over!"
-  }
+  "wall_crash_ends_game": true
 }

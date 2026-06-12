@@ -73,7 +73,7 @@ make dev-watch
 
 #### Server Options
 
-- `-port`: HTTP server port (default: 8080)
+- `-port`: HTTP server port (default: 8000)
 - `-host`: HTTP server host (default: localhost)
 - `-config-dir`: Directory containing game configurations (default: maps)
 - `-debug`: Enable debug logging

@@ -8,21 +8,21 @@ Tesla Road Trip Game — grid-based multi-session game server in Go where player
 
 ## Development Commands
 
-Server uses default port 8080. Use `make` for all common tasks.
+Server uses default port 8000. Use `make` for all common tasks.
 
 ### Build and Run
 ```bash
 make build          # Build binary → ./tesla-road-trip
-make run            # Build + run (port 8080)
-make dev            # Same as run, explicit port 8080
+make run            # Build + run (port 8000)
+make dev            # Same as run, explicit port 8000
 ./tesla-road-trip -port 9090              # Custom port
 ./tesla-road-trip -ngrok                  # With ngrok tunnel
 ./tesla-road-trip stdio-mcp               # MCP stdio mode
 ```
 
-**Port conflicts**: Port 8080 is often taken by other processes. `make dev-live` uses 9090 (frontend dev). Use 9191+ for standalone server to avoid conflicts. Check first: `lsof -i :PORT | grep LISTEN`.
+**Port conflicts**: Port 8000 is often taken by other processes. `make dev-live` uses 9090 (frontend dev). Use 9191+ for standalone server to avoid conflicts. Check first: `lsof -i :PORT | grep LISTEN`.
 
-**macOS port shadowing**: Both `*:8080` (wildcard) and `localhost:8080` (specific) can bind simultaneously. The wildcard listener wins for `curl localhost:8080` — always verify which server responds with a known query.
+**macOS port shadowing**: Both `*:8000` (wildcard) and `localhost:8000` (specific) can bind simultaneously. The wildcard listener wins for `curl localhost:8000` — always verify which server responds with a known query.
 
 ### TUI Client
 ```bash

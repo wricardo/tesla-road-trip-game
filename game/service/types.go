@@ -13,8 +13,8 @@ type SessionInfo struct {
 	MapName        string             `json:"map_name"`
 	CreatedAt      time.Time          `json:"created_at"`
 	LastAccessedAt time.Time          `json:"last_accessed_at"`
-	GameState      *engine.GameState  `json:"game_state,omitempty"`      // Omitted by default (use ResponseOptions.IncludeGameState)
-	GameMap        *engine.GameConfig `json:"game_map,omitempty"`        // Included by default on get_session, omitted on list_sessions
+	GameState      *engine.GameState  `json:"game_state,omitempty"` // Omitted by default (use ResponseOptions.IncludeGameState)
+	GameMap        *engine.GameConfig `json:"game_map,omitempty"`   // Included by default on get_session, omitted on list_sessions
 }
 
 // MoveResult contains the result of a move operation

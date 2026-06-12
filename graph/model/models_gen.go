@@ -84,7 +84,6 @@ type GameMap struct {
 	Legend            []*LegendEntry     `json:"legend"`
 	CellConfigs       []*CellConfigEntry `json:"cellConfigs"`
 	WallCrashEndsGame bool               `json:"wallCrashEndsGame"`
-	Messages          *MapMessages       `json:"messages"`
 }
 
 type GameMapInput struct {
@@ -97,7 +96,6 @@ type GameMapInput struct {
 	Legend            []*LegendEntryInput     `json:"legend"`
 	CellConfigs       []*CellConfigEntryInput `json:"cellConfigs,omitempty"`
 	WallCrashEndsGame bool                    `json:"wallCrashEndsGame"`
-	Messages          *MapMessagesInput       `json:"messages"`
 }
 
 type GameMapPatchInput struct {
@@ -110,7 +108,6 @@ type GameMapPatchInput struct {
 	Legend            []*LegendEntryInput     `json:"legend,omitempty"`
 	CellConfigs       []*CellConfigEntryInput `json:"cellConfigs,omitempty"`
 	WallCrashEndsGame *bool                   `json:"wallCrashEndsGame,omitempty"`
-	Messages          *MapMessagesPatchInput  `json:"messages,omitempty"`
 }
 
 type GameState struct {
@@ -160,48 +157,6 @@ type MapInfo struct {
 	Description string `json:"description"`
 	GridSize    int    `json:"gridSize"`
 	MaxBattery  int    `json:"maxBattery"`
-}
-
-type MapMessages struct {
-	Welcome            string `json:"welcome"`
-	HomeCharge         string `json:"homeCharge"`
-	SuperchargerCharge string `json:"superchargerCharge"`
-	ParkVisited        string `json:"parkVisited"`
-	ParkAlreadyVisited string `json:"parkAlreadyVisited"`
-	Victory            string `json:"victory"`
-	OutOfBattery       string `json:"outOfBattery"`
-	Stranded           string `json:"stranded"`
-	CantMove           string `json:"cantMove"`
-	BatteryStatus      string `json:"batteryStatus"`
-	HitWall            string `json:"hitWall"`
-}
-
-type MapMessagesInput struct {
-	Welcome            string `json:"welcome"`
-	HomeCharge         string `json:"homeCharge"`
-	SuperchargerCharge string `json:"superchargerCharge"`
-	ParkVisited        string `json:"parkVisited"`
-	ParkAlreadyVisited string `json:"parkAlreadyVisited"`
-	Victory            string `json:"victory"`
-	OutOfBattery       string `json:"outOfBattery"`
-	Stranded           string `json:"stranded"`
-	CantMove           string `json:"cantMove"`
-	BatteryStatus      string `json:"batteryStatus"`
-	HitWall            string `json:"hitWall"`
-}
-
-type MapMessagesPatchInput struct {
-	Welcome            *string `json:"welcome,omitempty"`
-	HomeCharge         *string `json:"homeCharge,omitempty"`
-	SuperchargerCharge *string `json:"superchargerCharge,omitempty"`
-	ParkVisited        *string `json:"parkVisited,omitempty"`
-	ParkAlreadyVisited *string `json:"parkAlreadyVisited,omitempty"`
-	Victory            *string `json:"victory,omitempty"`
-	OutOfBattery       *string `json:"outOfBattery,omitempty"`
-	Stranded           *string `json:"stranded,omitempty"`
-	CantMove           *string `json:"cantMove,omitempty"`
-	BatteryStatus      *string `json:"batteryStatus,omitempty"`
-	HitWall            *string `json:"hitWall,omitempty"`
 }
 
 type MapValidationResult struct {

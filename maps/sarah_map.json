@@ -29,18 +29,5 @@
     "S": "supercharger",
     "W": "water"
   },
-  "wall_crash_ends_game": true,
-  "messages": {
-    "welcome": "System boot initiated. Navigate the circuit board to activate all 10 data nodes!",
-    "home_charge": "Power connector! Battery fully charged!",
-    "supercharger_charge": "Capacitor bank! Energy restored to maximum!",
-    "park_visited": "Data node activated! %d nodes online.",
-    "park_already_visited": "Node already active.",
-    "victory": "All %d data nodes activated. System boot complete!",
-    "out_of_battery": "Power depleted! System shutdown.",
-    "stranded": "No power remaining. Dead in the circuit.",
-    "cant_move": "Path blocked by IC component!",
-    "battery_status": "Power: %d/%d",
-    "hit_wall": "Crashed into an IC block! Circuit damaged."
-  }
+  "wall_crash_ends_game": true
 }

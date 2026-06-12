@@ -27,31 +27,6 @@ func createTestConfig() *GameConfig {
 			"B": "building",
 		},
 		WallCrashEndsGame: false,
-		Messages: struct {
-			Welcome            string `json:"welcome"`
-			HomeCharge         string `json:"home_charge"`
-			SuperchargerCharge string `json:"supercharger_charge"`
-			ParkVisited        string `json:"park_visited"`
-			ParkAlreadyVisited string `json:"park_already_visited"`
-			Victory            string `json:"victory"`
-			OutOfBattery       string `json:"out_of_battery"`
-			Stranded           string `json:"stranded"`
-			CantMove           string `json:"cant_move"`
-			BatteryStatus      string `json:"battery_status"`
-			HitWall            string `json:"hit_wall"`
-		}{
-			Welcome:            "Welcome to engine test!",
-			HomeCharge:         "Home charged!",
-			SuperchargerCharge: "Supercharged!",
-			ParkVisited:        "Park visited! Score: %d",
-			ParkAlreadyVisited: "Already visited this park",
-			Victory:            "Victory! All %d parks visited!",
-			OutOfBattery:       "Out of battery!",
-			Stranded:           "Stranded!",
-			CantMove:           "Can't move there!",
-			BatteryStatus:      "Battery: %d/%d",
-			HitWall:            "Hit wall!",
-		},
 	}
 }
 
@@ -394,31 +369,6 @@ func TestEngine_VictoryScenario(t *testing.T) {
 			"B": "building",
 		},
 		WallCrashEndsGame: false,
-		Messages: struct {
-			Welcome            string `json:"welcome"`
-			HomeCharge         string `json:"home_charge"`
-			SuperchargerCharge string `json:"supercharger_charge"`
-			ParkVisited        string `json:"park_visited"`
-			ParkAlreadyVisited string `json:"park_already_visited"`
-			Victory            string `json:"victory"`
-			OutOfBattery       string `json:"out_of_battery"`
-			Stranded           string `json:"stranded"`
-			CantMove           string `json:"cant_move"`
-			BatteryStatus      string `json:"battery_status"`
-			HitWall            string `json:"hit_wall"`
-		}{
-			Welcome:            "Welcome!",
-			HomeCharge:         "Home!",
-			SuperchargerCharge: "Super!",
-			ParkVisited:        "Park! Score: %d",
-			ParkAlreadyVisited: "Already visited",
-			Victory:            "Victory! All %d parks!",
-			OutOfBattery:       "No battery!",
-			Stranded:           "Stranded!",
-			CantMove:           "Can't move!",
-			BatteryStatus:      "Battery: %d/%d",
-			HitWall:            "Hit wall!",
-		},
 	}
 
 	engine, err := NewEngine(config)

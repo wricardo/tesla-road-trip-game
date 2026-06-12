@@ -94,8 +94,7 @@ func toGameMap(c *engine.GameConfig) *model.GameMap {
 		copy(dirs, cc.AllowedDirections)
 		cellConfigs = append(cellConfigs, &model.CellConfigEntry{Key: k, Type: cc.Type, AllowedDirections: dirs})
 	}
-	m := c.Messages
-	return &model.GameMap{Name: c.Name, Description: c.Description, GridSize: c.GridSize, MaxBattery: c.MaxBattery, StartingBattery: c.StartingBattery, Layout: c.Layout, Legend: legend, CellConfigs: cellConfigs, WallCrashEndsGame: c.WallCrashEndsGame, Messages: &model.MapMessages{Welcome: m.Welcome, HomeCharge: m.HomeCharge, SuperchargerCharge: m.SuperchargerCharge, ParkVisited: m.ParkVisited, ParkAlreadyVisited: m.ParkAlreadyVisited, Victory: m.Victory, OutOfBattery: m.OutOfBattery, Stranded: m.Stranded, CantMove: m.CantMove, BatteryStatus: m.BatteryStatus, HitWall: m.HitWall}}
+	return &model.GameMap{Name: c.Name, Description: c.Description, GridSize: c.GridSize, MaxBattery: c.MaxBattery, StartingBattery: c.StartingBattery, Layout: c.Layout, Legend: legend, CellConfigs: cellConfigs, WallCrashEndsGame: c.WallCrashEndsGame}
 }
 
 func fromGameMapInput(in model.GameMapInput) *engine.GameConfig {
@@ -113,21 +112,7 @@ func fromGameMapInput(in model.GameMapInput) *engine.GameConfig {
 			cellConfigs[cc.Key] = engine.CellConfig{Type: cc.Type, AllowedDirections: dirs}
 		}
 	}
-	c := &engine.GameConfig{Name: in.Name, Description: in.Description, GridSize: in.GridSize, MaxBattery: in.MaxBattery, StartingBattery: in.StartingBattery, Layout: in.Layout, Legend: legend, CellConfigs: cellConfigs, WallCrashEndsGame: in.WallCrashEndsGame}
-	if in.Messages != nil {
-		c.Messages.Welcome = in.Messages.Welcome
-		c.Messages.HomeCharge = in.Messages.HomeCharge
-		c.Messages.SuperchargerCharge = in.Messages.SuperchargerCharge
-		c.Messages.ParkVisited = in.Messages.ParkVisited
-		c.Messages.ParkAlreadyVisited = in.Messages.ParkAlreadyVisited
-		c.Messages.Victory = in.Messages.Victory
-		c.Messages.OutOfBattery = in.Messages.OutOfBattery
-		c.Messages.Stranded = in.Messages.Stranded
-		c.Messages.CantMove = in.Messages.CantMove
-		c.Messages.BatteryStatus = in.Messages.BatteryStatus
-		c.Messages.HitWall = in.Messages.HitWall
-	}
-	return c
+	return &engine.GameConfig{Name: in.Name, Description: in.Description, GridSize: in.GridSize, MaxBattery: in.MaxBattery, StartingBattery: in.StartingBattery, Layout: in.Layout, Legend: legend, CellConfigs: cellConfigs, WallCrashEndsGame: in.WallCrashEndsGame}
 }
 
 // applyPatch merges non-nil patch fields onto an existing GameConfig (in place).
@@ -172,42 +157,6 @@ func applyPatch(cfg *engine.GameConfig, patch model.GameMapPatchInput) {
 	}
 	if patch.WallCrashEndsGame != nil {
 		cfg.WallCrashEndsGame = *patch.WallCrashEndsGame
-	}
-	if patch.Messages != nil {
-		m := patch.Messages
-		if m.Welcome != nil {
-			cfg.Messages.Welcome = *m.Welcome
-		}
-		if m.HomeCharge != nil {
-			cfg.Messages.HomeCharge = *m.HomeCharge
-		}
-		if m.SuperchargerCharge != nil {
-			cfg.Messages.SuperchargerCharge = *m.SuperchargerCharge
-		}
-		if m.ParkVisited != nil {
-			cfg.Messages.ParkVisited = *m.ParkVisited
-		}
-		if m.ParkAlreadyVisited != nil {
-			cfg.Messages.ParkAlreadyVisited = *m.ParkAlreadyVisited
-		}
-		if m.Victory != nil {
-			cfg.Messages.Victory = *m.Victory
-		}
-		if m.OutOfBattery != nil {
-			cfg.Messages.OutOfBattery = *m.OutOfBattery
-		}
-		if m.Stranded != nil {
-			cfg.Messages.Stranded = *m.Stranded
-		}
-		if m.CantMove != nil {
-			cfg.Messages.CantMove = *m.CantMove
-		}
-		if m.BatteryStatus != nil {
-			cfg.Messages.BatteryStatus = *m.BatteryStatus
-		}
-		if m.HitWall != nil {
-			cfg.Messages.HitWall = *m.HitWall
-		}
 	}
 }
 

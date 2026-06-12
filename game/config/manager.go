@@ -48,6 +48,10 @@ func NewManager(configDir string) (*Manager, error) {
 
 // LoadConfig loads a configuration by name
 func (m *Manager) LoadConfig(name string) (*engine.GameConfig, error) {
+	if err := validateConfigName(name); err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrInvalidConfig, err)
+	}
+
 	m.mu.RLock()
 	// Check cache first
 	if config, exists := m.configs[name]; exists {
@@ -191,6 +195,10 @@ func (m *Manager) loadDefaultConfig() error {
 
 // SaveConfig saves a configuration to disk
 func (m *Manager) SaveConfig(name string, config *engine.GameConfig) error {
+	if err := validateConfigName(name); err != nil {
+		return fmt.Errorf("%w: %v", ErrInvalidConfig, err)
+	}
+
 	// Validate config before saving
 	if err := engine.ValidateGameConfig(config); err != nil {
 		return fmt.Errorf("%w: %v", ErrInvalidConfig, err)
@@ -226,6 +234,10 @@ func (m *Manager) SaveConfig(name string, config *engine.GameConfig) error {
 // createMinimalConfig creates a minimal valid configuration
 // DeleteConfig removes a map config file and evicts it from cache.
 func (m *Manager) DeleteConfig(name string) error {
+	if err := validateConfigName(name); err != nil {
+		return fmt.Errorf("%w: %v", ErrInvalidConfig, err)
+	}
+
 	filename := name
 	if !strings.HasSuffix(filename, ".json") {
 		filename = name + ".json"
@@ -243,13 +255,31 @@ func (m *Manager) DeleteConfig(name string) error {
 	return nil
 }
 
+func validateConfigName(name string) error {
+	if name == "" {
+		return fmt.Errorf("name is required")
+	}
+	base := strings.TrimSuffix(name, ".json")
+	if base == "" || base == "." || base == ".." || filepath.IsAbs(name) || strings.ContainsAny(name, `/\\`) || strings.Contains(base, "..") {
+		return fmt.Errorf("invalid map name %q", name)
+	}
+	for _, r := range base {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' || r == '-' {
+			continue
+		}
+		return fmt.Errorf("invalid map name %q: use letters, numbers, hyphen, or underscore", name)
+	}
+	return nil
+}
+
 func (m *Manager) createMinimalConfig() *engine.GameConfig {
-	return &engine.GameConfig{
+	cfg := &engine.GameConfig{
 		Name:            "default",
 		Description:     "Default minimal configuration",
 		GridSize:        5,
 		MaxBattery:      10,
 		StartingBattery: 10,
+		Legend:          map[string]string{"R": "road", "H": "home", "P": "park", "S": "supercharger", "W": "water", "B": "building"},
 		Layout: []string{
 			"RRPRR",
 			"RRRHR",
@@ -259,4 +289,5 @@ func (m *Manager) createMinimalConfig() *engine.GameConfig {
 		},
 		WallCrashEndsGame: false,
 	}
+	return cfg
 }
