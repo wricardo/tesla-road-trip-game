@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Tesla Road Trip Game — grid-based multi-session game server in Go where players control a Tesla to collect parks while managing battery. Features: per-session configuration, GraphQL API (gqlgen), REST API, WebSocket, MCP server, SvelteKit frontend, and ngrok tunneling.
+Tesla Road Trip Game — grid-based multi-session game server in Go where players control a Tesla to collect parks while managing battery. Features: per-session configuration, GraphQL API (gqlgen), Streamable HTTP MCP endpoint, WebSocket updates, SvelteKit frontend, and ngrok tunneling.
 
 ## Development Commands
 
@@ -17,7 +17,7 @@ make run            # Build + run (port 8000)
 make dev            # Same as run, explicit port 8000
 ./tesla-road-trip -port 9090              # Custom port
 ./tesla-road-trip -ngrok                  # With ngrok tunnel
-./tesla-road-trip stdio-mcp               # MCP stdio mode
+# stdio-mcp mode is currently disabled in main.go
 ```
 
 **Port conflicts**: Port 8000 is often taken by other processes. `make dev-live` uses 9090 (frontend dev). Use 9191+ for standalone server to avoid conflicts. Check first: `lsof -i :PORT | grep LISTEN`.
@@ -89,7 +89,7 @@ Schema lives in `graph/schema.graphqls`. Do not edit `graph/generated/` directly
 ```bash
 make claude-game         # Claude with HTTP MCP (./mcp.json)
 make claude-game-stdin   # Claude with stdio MCP (./mcp-stdin.json)
-./tesla-road-trip stdio-mcp  # Standalone stdio MCP
+# Note: binary stdio-mcp mode is currently disabled; use HTTP /mcp
 ```
 
 ### Config Analysis Tool
@@ -135,20 +135,30 @@ frontend/                SvelteKit app (Tailwind, Svelte 5)
 - `game/engine` — stateless game logic; takes/returns `GameState`
 
 ### Data Flow
-1. **Session creation**: client → REST or GraphQL → `GameService.CreateSession` → `session.Manager` → persisted to `sessions/`
-2. **Move**: client → REST (`/api`) or GraphQL mutation (`move`/`bulkMove`) → `GameService.Move` → `engine.ApplyMove` → state saved → WebSocket broadcast
-3. **MCP**: stdio or HTTP `/mcp` → MCP tools → same `GameService` interface
+1. **Session creation**: client → GraphQL (or legacy `/api/sessions`) → `GameService.CreateSession` → `session.Manager` → persisted to `sessions/`
+2. **Move**: client → GraphQL mutation (`move`/`bulkMove`) → `GameService.Move` → state saved → WebSocket hub broadcast
+3. **MCP**: HTTP `/mcp` (Streamable HTTP) → MCP tools → same `GameService` interface
 
 ### GraphQL Endpoints
-- `/graphql` — GraphQL HTTP endpoint + playground (GET opens playground, POST executes)
-- `/ws` — WebSocket (upgrades for real-time subscriptions, also accepts `?sessionId=`)
+- `/graphql` — GraphQL endpoint (HTTP + graphql-ws subscriptions on same path)
+- `/playground` — GraphQL playground UI (feature-gated)
 
 ### REST Endpoints
-- `GET/POST /api` — game state / move (`?sessionId=`)
-- `POST /api/sessions` — create session (`{"map_name":"easy"}`)
-- `GET /api/sessions/{id}` — session state
-- `GET /api/maps`, `GET /api/saves`, `GET /api/history`
+- Legacy compatibility routes are intentionally narrow:
+  - `POST /api/sessions` — create session (`{"map_name":"easy"}`)
+  - `GET /api/sessions` — list sessions
+- Legacy WebSocket route: `/ws?session=<id>`
 - `GET /llms.txt` — LLM-readable server guide (auto-generated, includes public URL)
+
+### Runtime Security / Feature Gates
+
+Configured via environment variables in `.env`:
+- `GRAPHQL_INTROSPECTION` (default true)
+- `GRAPHQL_PLAYGROUND` (default true)
+- `MCP_ENABLED` (default true)
+- `ALLOWED_ORIGINS` for WebSocket origin allowlist
+- `ADMIN_API_KEY` (required for map create/update/delete in GraphQL and MCP)
+- `ALLOW_UNAUTHENTICATED_ADMIN=true` for local-only admin bypass
 
 ### Configuration System
 

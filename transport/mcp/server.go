@@ -15,6 +15,7 @@ import (
 	"github.com/toon-format/toon-go"
 	"github.com/wricardo/tesla-road-trip-game/game/engine"
 	"github.com/wricardo/tesla-road-trip-game/game/service"
+	"github.com/wricardo/tesla-road-trip-game/transport/websocket"
 )
 
 // mcpHTTPRequestKey is the context key for the incoming *http.Request.
@@ -46,12 +47,17 @@ func checkAdminKey(ctx context.Context) error {
 // Server is an MCP server backed directly by GameService.
 type Server struct {
 	svc       service.GameService
+	hub       *websocket.Hub
 	mcpServer *server.MCPServer
 }
 
 // NewServer creates an MCP server that calls GameService directly.
-func NewServer(svc service.GameService) *Server {
-	s := &Server{svc: svc}
+func NewServer(svc service.GameService, hubs ...*websocket.Hub) *Server {
+	var hub *websocket.Hub
+	if len(hubs) > 0 {
+		hub = hubs[0]
+	}
+	s := &Server{svc: svc, hub: hub}
 	s.mcpServer = server.NewMCPServer(
 		"Tesla Road Trip Game",
 		"2.0.0",
@@ -315,18 +321,46 @@ func extractSessionListOptions(req mcp.CallToolRequest) *service.SessionListOpti
 
 // filterGameState removes fields based on options
 func filterGameState(state *engine.GameState, opts *service.ResponseOptions) *engine.GameState {
+	if state == nil {
+		return nil
+	}
 	if opts == nil {
 		return state
 	}
 
+	stateCopy := *state
+
 	if opts.Minimal || !opts.IncludeGrid {
-		// Copy and remove grid
-		stateCopy := *state
 		stateCopy.Grid = nil
-		return &stateCopy
 	}
 
-	return state
+	applyHistoryFilter(&stateCopy, opts)
+	return &stateCopy
+}
+
+func applyHistoryFilter(state *engine.GameState, opts *service.ResponseOptions) {
+	if state == nil {
+		return
+	}
+	if !opts.IncludeHistory {
+		state.MoveHistory = nil
+		state.CurrentMoves = nil
+		state.CurrentMovesCount = 0
+		return
+	}
+
+	limit := opts.HistoryLimit
+	if limit <= 0 {
+		limit = 10
+	}
+
+	if len(state.MoveHistory) > limit {
+		state.MoveHistory = state.MoveHistory[len(state.MoveHistory)-limit:]
+	}
+	if len(state.CurrentMoves) > limit {
+		state.CurrentMoves = state.CurrentMoves[len(state.CurrentMoves)-limit:]
+	}
+	state.CurrentMovesCount = len(state.CurrentMoves)
 }
 
 // filterSessionInfo removes fields based on options
@@ -363,11 +397,8 @@ func filterMoveResult(result *service.MoveResult, opts *service.ResponseOptions)
 	if opts.Minimal {
 		// Keep only essential fields
 		resultCopy.GameState = nil
-	} else if !opts.IncludeGrid && resultCopy.GameState != nil {
-		// Remove grid
-		stateCopy := *resultCopy.GameState
-		stateCopy.Grid = nil
-		resultCopy.GameState = &stateCopy
+	} else if resultCopy.GameState != nil {
+		resultCopy.GameState = filterGameState(resultCopy.GameState, opts)
 	}
 
 	return &resultCopy
@@ -384,11 +415,8 @@ func filterBulkMoveResult(result *service.BulkMoveResult, opts *service.Response
 	if opts.Minimal {
 		// Keep only essential fields
 		resultCopy.GameState = nil
-	} else if !opts.IncludeGrid && resultCopy.GameState != nil {
-		// Remove grid
-		stateCopy := *resultCopy.GameState
-		stateCopy.Grid = nil
-		resultCopy.GameState = &stateCopy
+	} else if resultCopy.GameState != nil {
+		resultCopy.GameState = filterGameState(resultCopy.GameState, opts)
 	}
 
 	return &resultCopy
@@ -408,8 +436,48 @@ func toTOON(v any) string {
 	return s
 }
 
+func toTOONWithOptions(v any, opts *service.ResponseOptions) string {
+	// Convert to JSON-compatible format first (handles custom types)
+	jsonBytes, _ := json.Marshal(v)
+	var data any
+	json.Unmarshal(jsonBytes, &data)
+
+	if opts != nil && !opts.IncludeHistory {
+		pruneHistoryFields(data)
+	}
+
+	s, err := toon.MarshalString(data)
+	if err != nil {
+		return fmt.Sprintf("error: failed to marshal TOON: %v", err)
+	}
+	return s
+}
+
+func pruneHistoryFields(v any) {
+	switch node := v.(type) {
+	case map[string]any:
+		delete(node, "move_history")
+		delete(node, "current_moves")
+		delete(node, "current_moves_count")
+		for _, child := range node {
+			pruneHistoryFields(child)
+		}
+	case []any:
+		for _, child := range node {
+			pruneHistoryFields(child)
+		}
+	}
+}
+
 func errResult(err error) (*mcp.CallToolResult, error) {
 	return mcp.NewToolResultText(fmt.Sprintf("error: %v", err)), nil
+}
+
+func (s *Server) broadcastToSession(sessionID string, state *engine.GameState) {
+	if s.hub == nil {
+		return
+	}
+	s.hub.BroadcastToSession(sessionID, state)
 }
 
 func (s *Server) handleGameState(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -419,20 +487,23 @@ func (s *Server) handleGameState(ctx context.Context, req mcp.CallToolRequest) (
 	}
 	opts := extractResponseOptions(req)
 	filteredState := filterGameState(state, opts)
-	return mcp.NewToolResultText(toTOON(filteredState)), nil
+	return mcp.NewToolResultText(toTOONWithOptions(filteredState, opts)), nil
 }
 
 func (s *Server) handleMove(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	result, err := s.svc.Move(ctx, str(req, "session_id"), str(req, "direction"), boolParam(req, "reset"))
+	sessionID := str(req, "session_id")
+	result, err := s.svc.Move(ctx, sessionID, str(req, "direction"), boolParam(req, "reset"))
 	if err != nil {
 		return errResult(err)
 	}
+	s.broadcastToSession(sessionID, result.GameState)
 	opts := extractResponseOptions(req)
 	filteredResult := filterMoveResult(result, opts)
-	return mcp.NewToolResultText(toTOON(filteredResult)), nil
+	return mcp.NewToolResultText(toTOONWithOptions(filteredResult, opts)), nil
 }
 
 func (s *Server) handleBulkMove(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	sessionID := str(req, "session_id")
 	raw, _ := req.GetArguments()["moves"].([]interface{})
 	moves := make([]string, 0, len(raw))
 	for _, m := range raw {
@@ -440,21 +511,26 @@ func (s *Server) handleBulkMove(ctx context.Context, req mcp.CallToolRequest) (*
 			moves = append(moves, mv)
 		}
 	}
-	result, err := s.svc.BulkMove(ctx, str(req, "session_id"), moves, boolParam(req, "reset"))
+	result, err := s.svc.BulkMove(ctx, sessionID, moves, boolParam(req, "reset"))
 	if err != nil {
 		return errResult(err)
 	}
+	s.broadcastToSession(sessionID, result.GameState)
 	opts := extractResponseOptions(req)
 	filteredResult := filterBulkMoveResult(result, opts)
-	return mcp.NewToolResultText(toTOON(filteredResult)), nil
+	return mcp.NewToolResultText(toTOONWithOptions(filteredResult, opts)), nil
 }
 
 func (s *Server) handleReset(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	state, err := s.svc.Reset(ctx, str(req, "session_id"))
+	sessionID := str(req, "session_id")
+	state, err := s.svc.Reset(ctx, sessionID)
 	if err != nil {
 		return errResult(err)
 	}
-	return mcp.NewToolResultText(toTOON(state)), nil
+	s.broadcastToSession(sessionID, state)
+	opts := extractResponseOptions(req)
+	filteredState := filterGameState(state, opts)
+	return mcp.NewToolResultText(toTOONWithOptions(filteredState, opts)), nil
 }
 
 func (s *Server) handleMoveHistory(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -484,7 +560,7 @@ func (s *Server) handleGetSession(ctx context.Context, req mcp.CallToolRequest) 
 	}
 	opts := extractResponseOptions(req)
 	filteredSession := filterSessionInfo(session, opts)
-	return mcp.NewToolResultText(toTOON(filteredSession)), nil
+	return mcp.NewToolResultText(toTOONWithOptions(filteredSession, opts)), nil
 }
 
 func (s *Server) handleListSessions(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
