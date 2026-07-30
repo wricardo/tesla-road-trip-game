@@ -38,8 +38,10 @@
 //	server.RunStdio()
 //
 //	// HTTP mode
-//	handler := mcp.NewHTTPHandler(gameService)
-//	http.HandleFunc("/mcp", handler.Handle)
+//	hub := websocket.NewHub()
+//	go hub.Run()
+//	server := mcp.NewServer(gameService, hub)
+//	http.Handle("/mcp", server.Handler())
 //
 // AI Integration:
 //

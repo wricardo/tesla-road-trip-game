@@ -642,7 +642,7 @@ func runHTTPServer(gameService service.GameService) {
 
 	// MCP HTTP endpoint (Streamable HTTP transport).
 	if mcpEnabled {
-		mcpSrv := mcptransport.NewServer(gameService)
+		mcpSrv := mcptransport.NewServer(gameService, hub)
 		mainRouter.Handle("/mcp", mcpSrv.Handler())
 		log.Println("MCP endpoint: enabled at /mcp (set MCP_ENABLED=false to disable)")
 	} else {

@@ -146,6 +146,12 @@ make validate
 make help
 ```
 
+## 🕹️ Clients
+
+- **Web UI**: served by the Go server from the SvelteKit build at `/`.
+- **TUI**: run the terminal client from `cmd/tui`.
+- **Godot desktop**: open `godot/project.godot` in Godot 4.2+ to run a native desktop client. It is a thin GraphQL HTTP client; all authoritative game rules stay on the server. See `godot/README.md`.
+
 ## 🎲 Game Rules
 
 ### Objective
@@ -424,6 +430,8 @@ tesla-road-trip/
 ├── main.go               # Application entry point
 ├── api/                  # HTTP API handlers and routing
 ├── cmd/analyze/          # Configuration analysis tool
+├── cmd/tui/              # Terminal UI client
+├── godot/                # Godot 4 desktop client
 ├── maps/                 # Game configuration files (JSON)
 ├── docs/                 # Additional documentation
 ├── game/
