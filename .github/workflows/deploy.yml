@@ -132,16 +132,21 @@ jobs:
 
       - name: Smoke test deployed GraphQL API
         env:
-          DEPLOY_BASE_URL: ${{ secrets.DEPLOY_BASE_URL }}
           EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_PORT: ${{ vars.EC2_PORT }}
+          EC2_SSH_USER: ${{ vars.EC2_SSH_USER }}
         run: |
-          BASE_URL="${DEPLOY_BASE_URL:-}"
-          if [ -z "$BASE_URL" ]; then
-            : "${EC2_HOST:?missing EC2_HOST secret}"
-            BASE_URL="http://$EC2_HOST"
-          fi
-          sleep 2
-          response=$(curl -fsS "$BASE_URL/graphql" \
-            -H 'content-type: application/json' \
-            --data '{"query":"query { maps { mapId } }"}')
-          echo "$response" | grep -q '"maps"'
+          EC2_PORT="${EC2_PORT:-22}"
+          EC2_SSH_USER="${EC2_SSH_USER:-ubuntu}"
+          ssh -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            -p "$EC2_PORT" \
+            -i ~/.ssh/deploy_key \
+            "$EC2_SSH_USER"@"$EC2_HOST" '
+            sleep 2
+            response=$(curl -fsS http://127.0.0.1:8080/graphql \
+              -H "content-type: application/json" \
+              --data "{\"query\":\"query { maps { mapId } }\"}")
+            echo "$response" | grep -q "\"maps\""
+          '
