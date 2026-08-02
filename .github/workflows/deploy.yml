@@ -9,6 +9,8 @@ jobs:
   deploy:
     name: Build and Deploy
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
@@ -46,37 +48,71 @@ jobs:
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_HOST_FINGERPRINT: ${{ secrets.EC2_HOST_FINGERPRINT }}
+          EC2_PORT: ${{ vars.EC2_PORT }}
+          EC2_SSH_USER: ${{ vars.EC2_SSH_USER }}
         run: |
-          test -n "$EC2_HOST"
-          test -n "$EC2_SSH_KEY"
+          set -euo pipefail
+          : "${EC2_HOST:?missing EC2_HOST secret}"
+          : "${EC2_SSH_KEY:?missing EC2_SSH_KEY secret}"
+          : "${EC2_HOST_FINGERPRINT:?missing EC2_HOST_FINGERPRINT secret}"
+          EC2_PORT="${EC2_PORT:-22}"
+          EC2_SSH_USER="${EC2_SSH_USER:-ubuntu}"
           mkdir -p ~/.ssh
-          echo "$EC2_SSH_KEY" > ~/.ssh/deploy_key
+          printf '%s\n' "$EC2_SSH_KEY" | tr -d '\r' > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keygen -R "$EC2_HOST" 2>/dev/null || true
-          ssh-keyscan -T 10 -H "$EC2_HOST" > ~/.ssh/known_hosts
+          ssh-keygen -y -f ~/.ssh/deploy_key >/dev/null
+          ssh-keyscan -T 10 -p "$EC2_PORT" -t ed25519 -H "$EC2_HOST" > ~/.ssh/known_hosts
           test -s ~/.ssh/known_hosts
+          actual_fingerprint="$(ssh-keygen -lf ~/.ssh/known_hosts -E sha256 | awk '{print $2}' | head -n1)"
+          test "$actual_fingerprint" = "$EC2_HOST_FINGERPRINT"
           chmod 644 ~/.ssh/known_hosts
+
+      - name: Verify SSH access
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_PORT: ${{ vars.EC2_PORT }}
+          EC2_SSH_USER: ${{ vars.EC2_SSH_USER }}
+        run: |
+          EC2_PORT="${EC2_PORT:-22}"
+          EC2_SSH_USER="${EC2_SSH_USER:-ubuntu}"
+          ssh -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            -p "$EC2_PORT" \
+            -i ~/.ssh/deploy_key \
+            "$EC2_SSH_USER"@"$EC2_HOST" true
 
       - name: Upload to EC2
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_PORT: ${{ vars.EC2_PORT }}
+          EC2_SSH_USER: ${{ vars.EC2_SSH_USER }}
         run: |
+          EC2_PORT="${EC2_PORT:-22}"
+          EC2_SSH_USER="${EC2_SSH_USER:-ubuntu}"
           scp -o BatchMode=yes \
             -o StrictHostKeyChecking=yes \
             -o UserKnownHostsFile=~/.ssh/known_hosts \
+            -P "$EC2_PORT" \
             -i ~/.ssh/deploy_key \
             /tmp/deploy.tgz \
-            ubuntu@"$EC2_HOST":/tmp/tesla-road-trip-game-deploy.tgz
+            "$EC2_SSH_USER"@"$EC2_HOST":/tmp/tesla-road-trip-game-deploy.tgz
 
       - name: Install and restart
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_PORT: ${{ vars.EC2_PORT }}
+          EC2_SSH_USER: ${{ vars.EC2_SSH_USER }}
         run: |
+          EC2_PORT="${EC2_PORT:-22}"
+          EC2_SSH_USER="${EC2_SSH_USER:-ubuntu}"
           ssh -o BatchMode=yes \
             -o StrictHostKeyChecking=yes \
             -o UserKnownHostsFile=~/.ssh/known_hosts \
+            -p "$EC2_PORT" \
             -i ~/.ssh/deploy_key \
-            ubuntu@"$EC2_HOST" '
+            "$EC2_SSH_USER"@"$EC2_HOST" '
             sudo mkdir -p /opt/tesla-road-trip-game
             sudo tar xzf /tmp/tesla-road-trip-game-deploy.tgz \
               -C /opt/tesla-road-trip-game
