@@ -42,30 +42,27 @@ jobs:
           tar czf /tmp/deploy.tgz -C /tmp/tesla-deploy .
 
       # Setup SSH once — used by both Upload and Install steps.
-      # Use a fresh per-run known_hosts file populated from the current EC2 host
-      # key so stale runner or secret entries cannot break deploys.
+      # Use a pinned known_hosts entry from secrets to prevent MITM and avoid
+      # runtime key discovery drift.
       - name: Setup SSH
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
-          EC2_HOST_FINGERPRINT: ${{ secrets.EC2_HOST_FINGERPRINT }}
+          EC2_KNOWN_HOSTS: ${{ secrets.EC2_KNOWN_HOSTS }}
           EC2_PORT: ${{ vars.EC2_PORT }}
           EC2_SSH_USER: ${{ vars.EC2_SSH_USER }}
         run: |
           set -euo pipefail
           : "${EC2_HOST:?missing EC2_HOST secret}"
           : "${EC2_SSH_KEY:?missing EC2_SSH_KEY secret}"
-          : "${EC2_HOST_FINGERPRINT:?missing EC2_HOST_FINGERPRINT secret}"
+          : "${EC2_KNOWN_HOSTS:?missing EC2_KNOWN_HOSTS secret}"
           EC2_PORT="${EC2_PORT:-22}"
           EC2_SSH_USER="${EC2_SSH_USER:-ubuntu}"
           mkdir -p ~/.ssh
           printf '%s\n' "$EC2_SSH_KEY" | tr -d '\r' > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keygen -y -f ~/.ssh/deploy_key >/dev/null
-          ssh-keyscan -T 10 -p "$EC2_PORT" -t ed25519 -H "$EC2_HOST" > ~/.ssh/known_hosts
-          test -s ~/.ssh/known_hosts
-          actual_fingerprint="$(ssh-keygen -lf ~/.ssh/known_hosts -E sha256 | awk '{print $2}' | head -n1)"
-          test "$actual_fingerprint" = "$EC2_HOST_FINGERPRINT"
+          printf '%s\n' "$EC2_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
       - name: Verify SSH access
@@ -136,10 +133,15 @@ jobs:
       - name: Smoke test deployed GraphQL API
         env:
           DEPLOY_BASE_URL: ${{ secrets.DEPLOY_BASE_URL }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
-          test -n "$DEPLOY_BASE_URL"
+          BASE_URL="${DEPLOY_BASE_URL:-}"
+          if [ -z "$BASE_URL" ]; then
+            : "${EC2_HOST:?missing EC2_HOST secret}"
+            BASE_URL="http://$EC2_HOST"
+          fi
           sleep 2
-          response=$(curl -fsS "$DEPLOY_BASE_URL/graphql" \
+          response=$(curl -fsS "$BASE_URL/graphql" \
             -H 'content-type: application/json' \
             --data '{"query":"query { maps { mapId } }"}')
           echo "$response" | grep -q '"maps"'
