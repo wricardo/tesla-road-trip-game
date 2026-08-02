@@ -144,9 +144,15 @@ jobs:
             -p "$EC2_PORT" \
             -i ~/.ssh/deploy_key \
             "$EC2_SSH_USER"@"$EC2_HOST" '
-            sleep 2
-            response=$(curl -fsS http://127.0.0.1:8080/graphql \
-              -H "content-type: application/json" \
-              --data "{\"query\":\"query { maps { mapId } }\"}")
-            echo "$response" | grep -q "\"maps\""
+            for attempt in $(seq 1 12); do
+              if response=$(curl -fsS http://127.0.0.1:8080/graphql \
+                -H "content-type: application/json" \
+                --data "{\"query\":\"query { maps { mapId } }\"}"); then
+                if echo "$response" | grep -q "\"maps\""; then
+                  exit 0
+                fi
+              fi
+              sleep 5
+            done
+            exit 1
           '
