@@ -88,6 +88,8 @@ func (m *Manager) Create(id string, config *engine.GameConfig) (*service.Session
 		Config:         config,
 		CreatedAt:      time.Now(),
 		LastAccessedAt: time.Now(),
+		FogRadius:      1,
+		MoveDelayMs:    service.DefaultMoveDelayMs,
 	}
 
 	m.sessions[strings.ToLower(id)] = session

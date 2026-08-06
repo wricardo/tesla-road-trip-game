@@ -3,7 +3,6 @@
 	import { page } from '$app/stores';
 	import { getContextClient, queryStore, gql } from '@urql/svelte';
 	import { createClient as createWsClient } from 'graphql-ws';
-	import CaveMode from '$lib/CaveMode.svelte';
 	import { directionGlyph, hasDirections } from '$lib/directional';
 	import { MOVE_MUTATION, RESET_MUTATION } from '$lib/queries';
 
@@ -11,9 +10,18 @@
 		query GameState($sessionID: ID!) {
 			gameState(sessionID: $sessionID) {
 				battery maxBattery score victory gameOver totalMoves mapName
+				fogEnabled fogRadius
 				playerPos { x y }
-				grid { type visited id allowedDirections }
+				nearbyGrid { type visited id allowedDirections }
 				currentMoves { fromPosition { x y } toPosition { x y } success }
+			}
+		}
+	`;
+
+	const FULL_GRID_QUERY = `
+		query FullGrid($sessionID: ID!, $password: String!) {
+			gameState(sessionID: $sessionID) {
+				grid(password: $password) { type visited id allowedDirections }
 			}
 		}
 	`;
@@ -22,8 +30,9 @@
 		subscription SessionUpdated($sessionID: ID!) {
 			sessionUpdated(sessionID: $sessionID) {
 				battery maxBattery score victory gameOver totalMoves mapName
+				fogEnabled fogRadius
 				playerPos { x y }
-				grid { type visited id allowedDirections }
+				nearbyGrid { type visited id allowedDirections }
 				currentMoves { fromPosition { x y } toPosition { x y } success }
 			}
 		}
@@ -34,19 +43,18 @@
 
 	const SESSION_QUERY = `
 		query Session($id: ID!) {
-			session(id: $id) { id displayName mapName }
+			session(id: $id) {
+				id
+				displayName
+				mapName
+				gameMap { gridSize }
+			}
 		}
 	`;
 
 	const sessionQuery = queryStore({ client, query: gql(SESSION_QUERY), variables: { id: sessionId } });
 	const sessionDisplayName = $derived($sessionQuery.data?.session?.displayName ?? null);
-
-	// Initial load via query
-	const initialQuery = queryStore({
-		client,
-		query: gql(GAME_STATE_QUERY),
-		variables: { sessionID: sessionId }
-	});
+	const sessionGridSize = $derived<number | null>($sessionQuery.data?.session?.gameMap?.gridSize ?? null);
 
 	type Position = { x: number; y: number };
 	type Direction = 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
@@ -55,6 +63,7 @@
 		toPosition: Position;
 		success: boolean;
 	};
+	type Cell = { type: string; visited: boolean; id: string; allowedDirections: string[] };
 	type GameState = {
 		battery: number;
 		maxBattery: number;
@@ -63,16 +72,31 @@
 		gameOver: boolean;
 		totalMoves: number;
 		mapName: string;
+		fogEnabled: boolean;
+		fogRadius: number;
 		playerPos: Position;
-		grid: Array<Array<{ type: string; visited: boolean; id: string; allowedDirections: string[] }>>;
+		nearbyGrid: Cell[][];
 		currentMoves: MoveHistoryEntry[];
 	};
 
+	function withStableFogState(nextState: GameState, previousState: GameState | null): GameState {
+		if (!previousState) return nextState;
+		if (!previousState.fogEnabled) return nextState;
+		return {
+			...nextState,
+			fogEnabled: true,
+			fogRadius: nextState.fogRadius > 0 ? nextState.fogRadius : previousState.fogRadius
+		};
+	}
+
 	let liveState = $state<GameState | null>(null);
+	let initialLoading = $state(true);
+	let initialError = $state<string | null>(null);
 	let animatedPos = $state<Position | null>(null);
 	let animatedTrailKeys = $state<Set<string>>(new Set());
 	let isAnimatingMoves = $state(false);
 	let lastAnimationSignature = '';
+	let lastAnimationMoveCount = 0;
 	let isMoving = $state(false);
 	let isResetting = $state(false);
 	let isManualAnimating = $state(false);
@@ -80,9 +104,25 @@
 	let lastManualMove = $state<string | null>(null);
 	let manualAnimationTimer: ReturnType<typeof setTimeout> | null = null;
 
-	const gameState = $derived<GameState | null>(liveState ?? $initialQuery.data?.gameState ?? null);
-	const displayPlayerPos = $derived(animatedPos ?? gameState?.playerPos ?? null);
-	const isLargeMap = $derived((gameState?.grid.length ?? 0) >= 30);
+	const gameState = $derived<GameState | null>(liveState);
+	let fullGrid = $state<Cell[][] | null>(null);
+	let gridPasswordInput = $state('');
+	let appliedGridPassword = $state('');
+	let fullGridError = $state<string | null>(null);
+	let loadingFullGrid = $state(false);
+	let autoLoadedNonFogGrid = $state(false);
+	let fullGridMode = $state<'none' | 'auto' | 'password'>('none');
+	const isUsingFullGrid = $derived(!!fullGrid);
+	const displayPlayerPos = $derived(
+		gameState?.fogEnabled && !isUsingFullGrid
+			? (gameState.playerPos ?? null)
+			: (animatedPos ?? gameState?.playerPos ?? null)
+	);
+	const activeGrid = $derived<Cell[][]>(fullGrid ?? gameState?.nearbyGrid ?? []);
+	const showFogMaskBoard = $derived(!!gameState?.fogEnabled && !isUsingFullGrid && !!sessionGridSize);
+	const boardSize = $derived<number>(showFogMaskBoard ? (sessionGridSize ?? 0) : activeGrid.length);
+	const boardIndices = $derived<number[]>(Array.from({ length: boardSize }, (_, i) => i));
+	const isLargeMap = $derived((boardSize ?? 0) >= 30);
 
 	// Direct graphql-ws subscription — bypasses urql store compatibility issues
 	$effect(() => {
@@ -98,7 +138,7 @@
 				next(data: { data?: { sessionUpdated?: GameState } }) {
 					const gs = data.data?.sessionUpdated;
 					if (!gs) return;
-					liveState = gs;
+					liveState = withStableFogState(gs, liveState);
 				},
 				error(err) { console.error('WS error', err); },
 				complete() {}
@@ -108,8 +148,34 @@
 		return () => unsubscribe();
 	});
 
-	let caveEnabled = $state(false);
-	let caveRadius = $state(3);
+	onMount(() => {
+		let cancelled = false;
+
+		const loadInitialState = async () => {
+			initialLoading = true;
+			initialError = null;
+			try {
+				const result = await client
+					.query(gql(GAME_STATE_QUERY), { sessionID: sessionId }, { requestPolicy: 'network-only' })
+					.toPromise();
+				if (cancelled) return;
+				if (result.error) throw result.error;
+				const initialState = result.data?.gameState as GameState | undefined;
+				if (!initialState) throw new Error('Session state is unavailable');
+				liveState = withStableFogState(initialState, liveState);
+			} catch (err) {
+				if (cancelled) return;
+				initialError = err instanceof Error ? err.message : 'Failed to load session state';
+			} finally {
+				if (!cancelled) initialLoading = false;
+			}
+		};
+
+		void loadInitialState();
+		return () => {
+			cancelled = true;
+		};
+	});
 
 	let promptCopied = $state(false);
 
@@ -134,10 +200,12 @@ query {
   }
 }
 
-## Read current session state
+## Read current session state (fog-safe)
 query {
   gameState(sessionID: "${sessionId}") {
     mapName
+    fogEnabled
+    fogRadius
     playerPos { x y }
     battery
     maxBattery
@@ -145,9 +213,17 @@ query {
     victory
     gameOver
     message
-    localView3x3
-    grid { type visited id allowedDirections }
+    nearbyGrid { type visited id allowedDirections }
     visitedParks { id visited }
+  }
+}
+
+## Read full grid
+# If fogEnabled=true, pass the correct password.
+# If fogEnabled=false, password is optional.
+query {
+  gameState(sessionID: "${sessionId}") {
+    grid(password: "YOUR_GRID_PASSWORD") { type visited id allowedDirections }
   }
 }
 
@@ -157,7 +233,14 @@ mutation {
     success
     message
     attemptedTo { x y tileChar tileType passable }
-    gameState { playerPos { x y } battery score victory gameOver }
+    gameState {
+      playerPos { x y }
+      battery
+      score
+      victory
+      gameOver
+      nearbyGrid { type visited id allowedDirections }
+    }
   }
 }
 
@@ -171,24 +254,103 @@ mutation {
     stopReasonCode
     truncated
     limit
-    gameState { playerPos { x y } battery score victory gameOver }
+    gameState {
+      playerPos { x y }
+      battery
+      score
+      victory
+      gameOver
+      nearbyGrid { type visited id allowedDirections }
+    }
   }
 }
 
 bulkMove accepts at most 50 moves per call. Check success, stoppedReason, stopReasonCode, truncated, gameOver, and victory before sending another operation.
 
 ## Manage this session
-mutation { reset(sessionID: "${sessionId}") { playerPos { x y } battery score victory gameOver } }
+mutation { reset(sessionID: "${sessionId}") { playerPos { x y } battery score victory gameOver nearbyGrid { type visited id allowedDirections } } }
 query { history(sessionID: "${sessionId}", page: 1, limit: 20, order: DESC) { totalMoves moves { moveNumber action success battery } } }
 mutation { deleteSession(id: "${sessionId}") { message } }
 
-Directions: UP DOWN LEFT RIGHT. Grid coordinates are grid[y][x].`);
+Directions: UP DOWN LEFT RIGHT.
+Use nearbyGrid for fog-safe planning (window around the player).
+Use grid(password: ...) for full-map planning when authorized.
+Full grid coordinates are grid[y][x].`);
 
 	function copyPrompt() {
 		navigator.clipboard.writeText(llmPrompt);
 		promptCopied = true;
 		setTimeout(() => promptCopied = false, 2000);
 	}
+
+	async function fetchFullGrid(password: string): Promise<Cell[][]> {
+		const result = await client
+			.query(gql(FULL_GRID_QUERY), { sessionID: sessionId, password }, { requestPolicy: 'network-only' })
+			.toPromise();
+		if (result.error) throw result.error;
+		const grid = result.data?.gameState?.grid as Cell[][] | undefined;
+		if (!grid || !grid.length) throw new Error('No grid returned');
+		return grid;
+	}
+
+	async function unlockFullGrid() {
+		if (!gridPasswordInput.trim() || loadingFullGrid) return;
+		loadingFullGrid = true;
+		fullGridError = null;
+		try {
+			fullGrid = await fetchFullGrid(gridPasswordInput);
+			appliedGridPassword = gridPasswordInput;
+			fullGridMode = 'password';
+		} catch (err) {
+			fullGrid = null;
+			fullGridMode = 'none';
+			fullGridError = err instanceof Error ? err.message : 'Failed to unlock full grid';
+		} finally {
+			loadingFullGrid = false;
+		}
+	}
+
+	function clearFullGrid() {
+		fullGrid = null;
+		appliedGridPassword = '';
+		fullGridMode = 'none';
+		fullGridError = null;
+	}
+
+	async function refreshFullGridIfUnlocked() {
+		if (fullGridMode !== 'password') return;
+		if (!appliedGridPassword) return;
+		try {
+			fullGrid = await fetchFullGrid(appliedGridPassword);
+		} catch {
+			fullGrid = null;
+			fullGridMode = 'none';
+		}
+	}
+
+	$effect(() => {
+		const gs = gameState;
+		if (!gs) return;
+		if (gs.fogEnabled === true) {
+			autoLoadedNonFogGrid = false;
+			if (fullGridMode === 'auto') {
+				fullGrid = null;
+				fullGridMode = 'none';
+			}
+			return;
+		}
+		if (gs.fogEnabled !== false) return;
+		if (fullGrid || loadingFullGrid || autoLoadedNonFogGrid) return;
+		autoLoadedNonFogGrid = true;
+		void (async () => {
+			try {
+				fullGrid = await fetchFullGrid('');
+				fullGridMode = 'auto';
+			} catch {
+				// If this fails we fall back to nearbyGrid rendering.
+			}
+		})();
+	});
 
 	function keyToDirection(key: string): Direction | null {
 		switch (key.toLowerCase()) {
@@ -237,6 +399,7 @@ Directions: UP DOWN LEFT RIGHT. Grid coordinates are grid[y][x].`);
 					.filter((move) => move.success)
 					.map((move) => `${move.fromPosition.x},${move.fromPosition.y}>${move.toPosition.x},${move.toPosition.y}`)
 					.join('|');
+				lastAnimationMoveCount = (nextState.currentMoves ?? []).filter((move) => move.success).length;
 				animatedPos = null;
 				isAnimatingMoves = false;
 				isManualAnimating = false;
@@ -260,10 +423,15 @@ Directions: UP DOWN LEFT RIGHT. Grid coordinates are grid[y][x].`);
 			const move = result.data?.move;
 			if (!move) throw new Error('Move did not return a response');
 			const nextState = move.gameState as GameState | null;
-			if (move.success && nextState && from && !positionsEqual(from, nextState.playerPos)) {
-				animateManualMove(from, nextState.playerPos, nextState);
+			const normalizedNextState = nextState ? withStableFogState(nextState, liveState) : null;
+			const shouldAnimateManual = !!nextState && !(gameState?.fogEnabled && !isUsingFullGrid);
+			if (move.success && normalizedNextState && from && !positionsEqual(from, normalizedNextState.playerPos) && shouldAnimateManual) {
+				animateManualMove(from, normalizedNextState.playerPos, normalizedNextState);
 			} else {
-				if (nextState) liveState = nextState;
+				if (normalizedNextState) liveState = normalizedNextState;
+			}
+			if (gameState?.fogEnabled === false) {
+				await refreshFullGridIfUnlocked();
 			}
 			if (!move.success) moveError = move.message || `Could not move ${direction.toLowerCase()}`;
 		} catch (err) {
@@ -286,7 +454,7 @@ Directions: UP DOWN LEFT RIGHT. Grid coordinates are grid[y][x].`);
 
 			const resetState = result.data?.reset;
 			if (!resetState) throw new Error('Reset did not return a game state');
-			liveState = resetState;
+			liveState = withStableFogState(resetState, liveState);
 			lastManualMove = null;
 			animatedPos = null;
 			animatedTrailKeys = new Set();
@@ -294,6 +462,10 @@ Directions: UP DOWN LEFT RIGHT. Grid coordinates are grid[y][x].`);
 			if (manualAnimationTimer) clearTimeout(manualAnimationTimer);
 			manualAnimationTimer = null;
 			lastAnimationSignature = '';
+			lastAnimationMoveCount = 0;
+			if (gameState?.fogEnabled === false) {
+				await refreshFullGridIfUnlocked();
+			}
 		} catch (err) {
 			moveError = err instanceof Error ? err.message : 'Reset failed';
 		} finally {
@@ -343,12 +515,21 @@ Directions: UP DOWN LEFT RIGHT. Grid coordinates are grid[y][x].`);
 
 	$effect(() => {
 		if (isManualAnimating) return;
+		if (showFogMaskBoard) {
+			animatedPos = null;
+			animatedTrailKeys = new Set();
+			isAnimatingMoves = false;
+			lastAnimationSignature = '';
+			lastAnimationMoveCount = 0;
+			return;
+		}
 		const moves = gameState?.currentMoves?.filter((move) => move.success) ?? [];
 		if (!gameState || moves.length === 0) {
 			animatedPos = null;
 			animatedTrailKeys = new Set();
 			isAnimatingMoves = false;
 			lastAnimationSignature = '';
+			lastAnimationMoveCount = 0;
 			return;
 		}
 
@@ -356,19 +537,38 @@ Directions: UP DOWN LEFT RIGHT. Grid coordinates are grid[y][x].`);
 			.map((move) => `${move.fromPosition.x},${move.fromPosition.y}>${move.toPosition.x},${move.toPosition.y}`)
 			.join('|');
 		if (signature === lastAnimationSignature) return;
+		const previousSignature = lastAnimationSignature;
+		const previousMoveCount = lastAnimationMoveCount;
 		lastAnimationSignature = signature;
+		lastAnimationMoveCount = moves.length;
+
+		const isAppendOnly = previousSignature !== '' && signature.startsWith(`${previousSignature}|`);
+		if (!isAppendOnly) {
+			animatedPos = null;
+			animatedTrailKeys = new Set();
+			isAnimatingMoves = false;
+			return;
+		}
+
+		const deltaMoves = moves.slice(previousMoveCount);
+		if (deltaMoves.length === 0) return;
+		const historicalMoves = moves.slice(0, previousMoveCount);
 
 		let cancelled = false;
 		let index = 0;
 		let trail = new Set<string>();
+		for (const move of historicalMoves) {
+			trail.add(`${move.fromPosition.x},${move.fromPosition.y}`);
+			trail.add(`${move.toPosition.x},${move.toPosition.y}`);
+		}
 		isAnimatingMoves = true;
-		animatedPos = moves[0].fromPosition;
-		trail.add(`${moves[0].fromPosition.x},${moves[0].fromPosition.y}`);
+		animatedPos = deltaMoves[0].fromPosition;
+		trail.add(`${deltaMoves[0].fromPosition.x},${deltaMoves[0].fromPosition.y}`);
 		animatedTrailKeys = new Set(trail);
 
 		const step = () => {
 			if (cancelled) return;
-			const move = moves[index];
+			const move = deltaMoves[index];
 			if (!move) {
 				animatedPos = gameState.playerPos;
 				isAnimatingMoves = false;
@@ -404,9 +604,48 @@ Directions: UP DOWN LEFT RIGHT. Grid coordinates are grid[y][x].`);
 		return keys;
 	});
 
-	function cellVisible(x: number, y: number): boolean {
-		if (!caveEnabled || !displayPlayerPos) return true;
-		return Math.max(Math.abs(x - displayPlayerPos.x), Math.abs(y - displayPlayerPos.y)) <= caveRadius;
+	function toNearbyIndex(x: number, y: number): { ix: number; iy: number } | null {
+		if (!gameState) return null;
+		// nearbyGrid is centered on the authoritative server position, not the animated client position.
+		const center = gameState.playerPos;
+		const radius = gameState.fogRadius > 0 ? gameState.fogRadius : 1;
+		const minX = center.x - radius;
+		const minY = center.y - radius;
+		const ix = x - minX;
+		const iy = y - minY;
+		if (iy < 0 || iy >= gameState.nearbyGrid.length) return null;
+		if (ix < 0 || ix >= (gameState.nearbyGrid[iy]?.length ?? 0)) return null;
+		return { ix, iy };
+	}
+
+	function getRenderedCell(x: number, y: number): Cell | null {
+		if (isUsingFullGrid) {
+			return fullGrid?.[y]?.[x] ?? null;
+		}
+		if (showFogMaskBoard) {
+			const idx = toNearbyIndex(x, y);
+			if (!idx || !gameState) return null;
+			return gameState.nearbyGrid[idx.iy]?.[idx.ix] ?? null;
+		}
+		return activeGrid[y]?.[x] ?? null;
+	}
+
+	function isPlayerCell(x: number, y: number): boolean {
+		if (!displayPlayerPos) return false;
+		if (isUsingFullGrid) {
+			return x === displayPlayerPos.x && y === displayPlayerPos.y;
+		}
+		if (showFogMaskBoard && gameState?.playerPos) {
+			return x === gameState.playerPos.x && y === gameState.playerPos.y;
+		}
+		const centerY = Math.floor((activeGrid.length - 1) / 2);
+		const centerX = activeGrid[centerY] ? Math.floor((activeGrid[centerY].length - 1) / 2) : 0;
+		return x === centerX && y === centerY;
+	}
+
+	function isTrailCell(x: number, y: number): boolean {
+		if (!(isUsingFullGrid || showFogMaskBoard)) return false;
+		return trailKeys.has(`${x},${y}`);
 	}
 </script>
 
@@ -426,6 +665,9 @@ Directions: UP DOWN LEFT RIGHT. Grid coordinates are grid[y][x].`);
 							{#if gameState}
 								<span>·</span>
 								<span class="normal-case tracking-normal font-mono">{gameState.mapName}</span>
+								{#if gameState.fogEnabled}
+									<span class="normal-case tracking-normal inline-flex items-center rounded-full bg-blue-100 text-blue-700 px-2 py-0.5 text-[10px]">🌫 Fog r{gameState.fogRadius}</span>
+								{/if}
 							{/if}
 						</div>
 						<div class="mt-1 flex items-center gap-2">
@@ -482,24 +724,24 @@ Directions: UP DOWN LEFT RIGHT. Grid coordinates are grid[y][x].`);
 			</div>
 
 			<div class="p-3 sm:p-4 flex items-start justify-start board-pane">
-				{#if gameState?.grid}
-					<table class="game-board border-collapse" style={`--grid-size: ${gameState.grid.length}; --board-width: ${isLargeMap ? '92vw' : '60vw'}`}>
+				{#if boardSize > 0}
+					<table class="game-board border-collapse" style={`--grid-size: ${boardSize}; --board-width: ${isLargeMap ? '92vw' : '60vw'}`}>
 						<tbody>
-						{#each gameState.grid as row, y}
+						{#each boardIndices as y}
 							<tr>
-								{#each row as cell, x}
-									{@const visible = cellVisible(x, y)}
-									{@const isPlayer = displayPlayerPos && x === displayPlayerPos.x && y === displayPlayerPos.y}
-									{@const isTrail = visible && trailKeys.has(`${x},${y}`)}
+								{#each boardIndices as x}
+									{@const cell = getRenderedCell(x, y)}
+									{@const isPlayer = isPlayerCell(x, y)}
+									{@const isTrail = isTrailCell(x, y)}
 									<td class="game-cell text-center border transition-colors
-										{!visible ? 'bg-slate-800 border-slate-700' : cellColorClass(cell.type)}
-										{visible && isTrail && !isPlayer ? 'ring-2 ring-inset ring-sky-300' : ''}
-										{visible && cell.visited && !isPlayer ? 'opacity-60' : ''}">
+										{cell ? cellColorClass(cell.type) : 'bg-slate-300 border-slate-300'}
+										{isTrail && !isPlayer ? 'ring-2 ring-inset ring-sky-300' : ''}
+										{cell?.visited && !isPlayer ? 'opacity-60' : ''}">
 										{#if isPlayer}
-											{gameState.victory ? '🚗' : gameState.gameOver ? '💥' : '🚗'}
+											{gameState?.victory ? '🚗' : gameState?.gameOver ? '💥' : '🚗'}
 										{:else if isTrail}
 											<span class="text-sky-500 leading-none">•</span>
-										{:else if visible && hasDirections(cell)}
+										{:else if cell && hasDirections(cell)}
 											<span class={`leading-none ${cellTextClass(cell)}`}>{directionGlyph(cell.allowedDirections)}</span>
 										{/if}
 									</td>
@@ -508,16 +750,16 @@ Directions: UP DOWN LEFT RIGHT. Grid coordinates are grid[y][x].`);
 						{/each}
 						</tbody>
 					</table>
-				{:else if $initialQuery.fetching}
+				{:else if initialLoading}
 					<div class="flex items-center justify-center h-64 text-gray-400">
 						<div class="text-center">
 							<span class="text-4xl block mb-3">🚗</span>
 							<p class="text-sm font-light">Loading <code class="font-mono">{sessionId}</code>…</p>
 						</div>
 					</div>
-				{:else if $initialQuery.error}
+				{:else if initialError}
 					<div class="flex items-center justify-center h-64 text-red-400">
-						<p class="text-sm">Session not found: {$initialQuery.error.message}</p>
+						<p class="text-sm">Session not found: {initialError}</p>
 					</div>
 				{:else}
 					<div class="flex items-center justify-center h-64 text-gray-400">
@@ -575,10 +817,40 @@ Directions: UP DOWN LEFT RIGHT. Grid coordinates are grid[y][x].`);
 							<p class="text-[11px] text-gray-400 mt-2">Ignored while typing in the prompt or any form field.</p>
 						</div>
 
-						<div>
-							<span class="text-[11px] uppercase tracking-widest text-gray-400 px-1">View options</span>
-							<CaveMode bind:enabled={caveEnabled} bind:radius={caveRadius} />
-							<p class="text-xs text-gray-400 mt-2 px-1">Fog Mode is viewer-only and does not affect the AI.</p>
+						<div class="rounded-xl bg-white border border-gray-100 px-4 py-3">
+							<span class="text-[11px] uppercase tracking-widest text-gray-400">Fog / full grid</span>
+							<p class="text-xs text-gray-500 mt-1">Default view uses <code>nearbyGrid</code>. Unlock full map with the fog password.</p>
+							<div class="mt-3 flex flex-wrap items-center gap-2">
+								<input
+									type="text"
+									bind:value={gridPasswordInput}
+									placeholder="Grid password"
+									class="min-w-[13rem] flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-xs bg-white focus:outline-none focus:border-gray-400"
+								/>
+								<button
+									type="button"
+									onclick={unlockFullGrid}
+									disabled={loadingFullGrid || !gridPasswordInput.trim()}
+									class="text-xs px-3 py-1.5 rounded-full border border-blue-200 text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+								>
+									{loadingFullGrid ? 'Unlocking…' : 'Unlock full grid'}
+								</button>
+								{#if isUsingFullGrid}
+									<button
+										type="button"
+										onclick={clearFullGrid}
+										class="text-xs px-3 py-1.5 rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+									>
+										Use nearby grid
+									</button>
+								{/if}
+							</div>
+							{#if appliedGridPassword && isUsingFullGrid}
+								<p class="text-[11px] text-green-600 mt-2">Full grid unlocked for this session.</p>
+							{/if}
+							{#if fullGridError}
+								<p class="text-[11px] text-red-500 mt-2">{fullGridError}</p>
+							{/if}
 						</div>
 					</div>
 				</div>

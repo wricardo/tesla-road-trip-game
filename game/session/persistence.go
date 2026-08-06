@@ -26,10 +26,15 @@ type SessionPersistence interface {
 
 // PersistedSessionData represents the JSON structure for persisted sessions
 type PersistedSessionData struct {
-	ID             string    `json:"id"`
-	DisplayName    string    `json:"display_name,omitempty"`
-	MapName        string    `json:"map_name"`
-	CreatedAt      time.Time `json:"created_at"`
-	LastAccessedAt time.Time `json:"last_accessed_at"`
-	GameState      any       `json:"game_state"` // Will be *engine.GameState when loaded
+	ID              string    `json:"id"`
+	DisplayName     string    `json:"display_name,omitempty"`
+	MapName         string    `json:"map_name"`
+	CreatedAt       time.Time `json:"created_at"`
+	LastAccessedAt  time.Time `json:"last_accessed_at"`
+	FogEnabled      bool      `json:"fog_enabled,omitempty"`
+	FogRadius       int       `json:"fog_radius,omitempty"`
+	GridPassword    string    `json:"grid_password,omitempty"`
+	MoveDelayMs     *int      `json:"move_delay_ms,omitempty"`
+	BulkMoveDelayMs *int      `json:"bulk_move_delay_ms,omitempty"` // legacy key (backward compatibility)
+	GameState       any       `json:"game_state"`                   // Will be *engine.GameState when loaded
 }

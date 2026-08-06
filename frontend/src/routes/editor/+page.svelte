@@ -4,6 +4,7 @@
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import { directionGlyph, standardDirectionalCellConfigs, directionalChars } from '$lib/directional';
+	import uiAuthConfig from '$lib/config/ui-auth.json';
 
 	type CellType = string;
 
@@ -29,6 +30,7 @@
 	}
 
 	const client = getContextClient();
+	const mapQueryPassword = uiAuthConfig.uiMapPassword ?? '';
 
 	const cellLabels: Record<string, string> = {
 		R: 'Road',
@@ -104,6 +106,8 @@
 	let isLoadingMap = $state(false);
 	let selectedConfigId = $state('');
 	let originalMapId = $state('');
+	let duplicateSourceId = $state('');
+	let isDuplicateMode = $state(false);
 	let lastSavedMapId = $state('');
 	let hasSavedMap = $state(false);
 	const isEditMode = $derived(Boolean(originalMapId));
@@ -112,16 +116,25 @@
 		initializeGrid(gridSize);
 		await loadAvailableConfigs();
 		const requestedMap = $page.url.searchParams.get('map');
+		const requestedDuplicate = ['1', 'true', 'yes'].includes(($page.url.searchParams.get('duplicate') ?? '').toLowerCase());
 		if (requestedMap) {
 			if (configs.some((config) => config.mapId === requestedMap)) {
 				selectedConfigId = requestedMap;
-				await loadSelectedConfig();
+				await loadSelectedConfig({ duplicate: requestedDuplicate });
 			} else {
 				validationType = 'error';
 				validationMessage = `Could not find map "${requestedMap}". Starting a new map instead.`;
 			}
 		}
 	});
+
+	function suggestDuplicateName(sourceMapID: string) {
+		const base = `${sourceMapID}_copy`;
+		if (!mapExists(base)) return base;
+		let suffix = 2;
+		while (mapExists(`${base}_${suffix}`)) suffix++;
+		return `${base}_${suffix}`;
+	}
 
 	function initializeGrid(size: number) {
 		gridSize = size;
@@ -193,6 +206,8 @@
 	function resetEditor() {
 		selectedConfigId = '';
 		originalMapId = '';
+		duplicateSourceId = '';
+		isDuplicateMode = false;
 		lastSavedMapId = '';
 		hasSavedMap = false;
 		mapName = '';
@@ -352,7 +367,7 @@
 		}
 	}
 
-	async function loadSelectedConfig() {
+	async function loadSelectedConfig(options: { duplicate?: boolean } = {}) {
 		if (!selectedConfigId) {
 			resetEditor();
 			return;
@@ -362,8 +377,8 @@
 		hasSavedMap = false;
 		try {
 			const MAP_QUERY = gql`
-				query GetMap($name: String!) {
-					map(name: $name) {
+				query GetMap($name: String!, $password: String) {
+					map(name: $name, password: $password) {
 						name
 						description
 						gridSize
@@ -376,7 +391,7 @@
 				}
 			`;
 
-			const result = await client.query(MAP_QUERY, { name: selectedConfigId }, { requestPolicy: 'network-only' }).toPromise();
+			const result = await client.query(MAP_QUERY, { name: selectedConfigId, password: mapQueryPassword || null }, { requestPolicy: 'network-only' }).toPromise();
 			if (result.error) throw result.error;
 
 			const map = result.data?.map;
@@ -390,15 +405,34 @@
 
 			currentCellConfigs = map.cellConfigs?.length ? map.cellConfigs : standardDirectionalCellConfigs;
 			gridData = map.layout.map((row: string) => row.split('') as CellType[]);
-			originalMapId = selectedConfigId;
-			lastSavedMapId = selectedConfigId;
+			if (options.duplicate) {
+				originalMapId = '';
+				duplicateSourceId = selectedConfigId;
+				isDuplicateMode = true;
+				mapName = suggestDuplicateName(selectedConfigId);
+				lastSavedMapId = '';
+			} else {
+				originalMapId = selectedConfigId;
+				duplicateSourceId = '';
+				isDuplicateMode = false;
+				lastSavedMapId = selectedConfigId;
+			}
 			updateStats();
 
 			validationType = 'success';
-			validationMessage = `Loaded ${map.name} for editing.`;
-			goto(`/editor?map=${encodeURIComponent(selectedConfigId)}`, { replaceState: true, noScroll: true });
+			validationMessage = options.duplicate
+				? `Loaded ${selectedConfigId} as a duplicate draft. Save to create a new map.`
+				: `Loaded ${map.name} for editing.`;
+			goto(
+				options.duplicate
+					? `/editor?map=${encodeURIComponent(selectedConfigId)}&duplicate=1`
+					: `/editor?map=${encodeURIComponent(selectedConfigId)}`,
+				{ replaceState: true, noScroll: true }
+			);
 		} catch (error) {
 			originalMapId = '';
+			duplicateSourceId = '';
+			isDuplicateMode = false;
 			validationType = 'error';
 			validationMessage = `Error loading map: ${error instanceof Error ? error.message : 'Unknown error'}`;
 		} finally {
@@ -417,7 +451,7 @@
 			<div>
 				<p class="text-xs font-bold uppercase tracking-widest text-red-500 mb-1">🗺️ Map editor</p>
 				<h1 class="text-xl font-light text-[#171a20] tracking-tight">
-					{isEditMode ? `Edit ${mapName || originalMapId}` : 'Design a road trip map'}
+					{isEditMode ? `Edit ${mapName || originalMapId}` : isDuplicateMode ? `Duplicate ${duplicateSourceId}` : 'Design a road trip map'}
 				</h1>
 			</div>
 			<div class="flex flex-wrap gap-3">
@@ -439,6 +473,8 @@
 				<div class="flex flex-wrap gap-2">
 					{#if isEditMode}
 						<span class="shrink-0 text-[11px] text-gray-500 bg-[#f7f7f7] rounded-full px-2 py-1">Editing {originalMapId}</span>
+					{:else if isDuplicateMode}
+						<span class="shrink-0 text-[11px] text-gray-500 bg-[#f7f7f7] rounded-full px-2 py-1">Duplicating {duplicateSourceId}</span>
 					{/if}
 					<span class="shrink-0 text-[11px] text-gray-400 bg-[#f7f7f7] rounded-full px-2 py-1">{gridSize}×{gridSize}</span>
 				</div>
@@ -542,7 +578,7 @@
 
 			<section class="bg-white rounded-2xl border border-[#e8e8e8] shadow-sm p-6">
 				<h2 class="text-xl font-light text-[#393c41] mb-1">{isEditMode ? 'Edit configuration' : 'Configuration'}</h2>
-				<p class="text-sm text-gray-400 mb-5">{isEditMode ? `Saving changes updates ${originalMapId}. Change the name and use Save as new to duplicate.` : 'Matches the GameMap schema used by saved maps.'}</p>
+				<p class="text-sm text-gray-400 mb-5">{isEditMode ? `Saving changes updates ${originalMapId}. Change the name and use Save as new to duplicate.` : isDuplicateMode ? `This is a duplicate draft of ${duplicateSourceId}. Save map will create a new map.` : 'Matches the GameMap schema used by saved maps.'}</p>
 				<div class="space-y-4">
 					<div>
 						<label for="mapName" class="block text-xs font-semibold text-[#393c41] mb-1.5">Map name *</label>

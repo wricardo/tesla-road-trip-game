@@ -81,9 +81,52 @@ func DefaultUpgrader() websocket.Upgrader {
 // Message represents a WebSocket message
 type Message struct {
 	SessionID string            `json:"session_id"`
-	GameState *engine.GameState `json:"game_state,omitempty"`
+	GameState *WSGameState      `json:"game_state,omitempty"`
 	Event     string            `json:"event,omitempty"`
 	Data      interface{}       `json:"data,omitempty"`
+}
+
+// WSGameState is the websocket-safe game state payload.
+// It intentionally excludes heavy fields (grid, move_history).
+type WSGameState struct {
+	PlayerPos         engine.Position                 `json:"player_pos"`
+	Battery           int                             `json:"battery"`
+	MaxBattery        int                             `json:"max_battery"`
+	Score             int                             `json:"score"`
+	VisitedParks      map[string]bool                 `json:"visited_parks"`
+	Message           string                          `json:"message"`
+	GameOver          bool                            `json:"game_over"`
+	Victory           bool                            `json:"victory"`
+	MapName           string                          `json:"map_name"`
+	TotalMoves        int                             `json:"total_moves"`
+	LocalView         []engine.SurroundingCell        `json:"local_view,omitempty"`
+	CurrentMoves      []engine.MoveHistoryEntry       `json:"current_moves"`
+	CurrentMovesCount int                             `json:"current_moves_count"`
+	LocalView3x3      []string                        `json:"local_view_3x3,omitempty"`
+	BatteryRisk       string                          `json:"battery_risk,omitempty"`
+}
+
+func newWSGameState(state *engine.GameState) *WSGameState {
+	if state == nil {
+		return nil
+	}
+	return &WSGameState{
+		PlayerPos:         state.PlayerPos,
+		Battery:           state.Battery,
+		MaxBattery:        state.MaxBattery,
+		Score:             state.Score,
+		VisitedParks:      state.VisitedParks,
+		Message:           state.Message,
+		GameOver:          state.GameOver,
+		Victory:           state.Victory,
+		MapName:           state.MapName,
+		TotalMoves:        state.TotalMoves,
+		LocalView:         state.LocalView,
+		CurrentMoves:      state.CurrentMoves,
+		CurrentMovesCount: state.CurrentMovesCount,
+		LocalView3x3:      state.LocalView3x3,
+		BatteryRisk:       state.BatteryRisk,
+	}
 }
 
 // Client represents a WebSocket client
@@ -174,7 +217,7 @@ func (h *Hub) ServeWS(w http.ResponseWriter, r *http.Request, sessionID string) 
 func (h *Hub) BroadcastToSession(sessionID string, state *engine.GameState) {
 	message := &Message{
 		SessionID: sessionID,
-		GameState: state,
+		GameState: newWSGameState(state),
 		Event:     "state_update",
 	}
 

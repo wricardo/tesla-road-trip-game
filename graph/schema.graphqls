@@ -10,11 +10,11 @@ type Query {
   gameState(sessionID: ID!): GameState!
   history(sessionID: ID!, page: Int = 1, limit: Int = 50, order: SortOrder = DESC): HistoryResponse!
   maps: [MapInfo!]!
-  map(name: String!): GameMap!
+  map(name: String!, password: String): GameMap!
 }
 
 type Mutation {
-  createSession(mapID: String, mapName: String): Session!
+  createSession(mapID: String, mapName: String, fogEnabled: Boolean = false, fogRadius: Int = 1, gridPassword: String, moveDelayMs: Int): Session!
   deleteSession(id: ID!): DeleteSessionResult!
   updateSession(id: ID!, displayName: String!): Session!
   move(sessionID: ID!, direction: Direction!, reset: Boolean = false): MoveResult!
@@ -64,7 +64,7 @@ type Session {
 }
 
 type GameState {
-  grid: [[Cell!]!]!
+  grid(password: String): [[Cell!]!]!
   playerPos: Position!
   battery: Int!
   maxBattery: Int!
@@ -76,11 +76,13 @@ type GameState {
   mapName: String!
   moveHistory: [MoveHistoryEntry!]!
   totalMoves: Int!
-  localView: [SurroundingCell!]!
+  nearbyGrid: [[Cell!]!]!
   currentMoves: [MoveHistoryEntry!]!
   currentMovesCount: Int!
-  localView3x3: [String!]!
   batteryRisk: String!
+  fogEnabled: Boolean!
+  fogRadius: Int!
+  moveDelayMs: Int!
 }
 
 type Cell {
@@ -93,8 +95,6 @@ type Cell {
 type Position { x: Int!, y: Int! }
 
 type VisitedPark { id: String!, visited: Boolean! }
-
-type SurroundingCell { x: Int!, y: Int!, type: String! }
 
 type MoveHistoryEntry {
   action: String!
@@ -119,7 +119,7 @@ type GameMap {
   gridSize: Int!
   maxBattery: Int!
   startingBattery: Int!
-  layout: [String!]!
+  layout(password: String): [String!]!
   legend: [LegendEntry!]!
   cellConfigs: [CellConfigEntry!]!
   wallCrashEndsGame: Boolean!
@@ -199,7 +199,6 @@ type BulkMoveResult {
   gameOverCode: String!
   message: String!
   possibleMoves: [String!]!
-  localView3x3: [String!]!
   batteryRisk: String!
 }
 

@@ -22,6 +22,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/extension"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
@@ -504,6 +505,42 @@ func withHTTPRequest(next http.Handler) http.Handler {
 	})
 }
 
+// enableGraphQLOperationLogging logs every GraphQL operation on completion.
+func enableGraphQLOperationLogging(gqlSrv *handler.Server) {
+	gqlSrv.AroundOperations(func(ctx context.Context, next graphql.OperationHandler) graphql.ResponseHandler {
+		opCtx := graphql.GetOperationContext(ctx)
+
+		opName := "<anonymous>"
+		if opCtx.OperationName != "" {
+			opName = opCtx.OperationName
+		}
+
+		opType := "unknown"
+		if opCtx.Operation != nil {
+			opType = string(opCtx.Operation.Operation)
+		}
+
+		start := time.Now()
+
+		responseHandler := next(ctx)
+		return func(ctx context.Context) *graphql.Response {
+			resp := responseHandler(ctx)
+			errCount := 0
+			if resp != nil {
+				errCount = len(resp.Errors)
+			}
+			log.Printf(
+				"[graphql] op.end name=%q type=%s duration=%s errors=%d",
+				opName,
+				opType,
+				time.Since(start),
+				errCount,
+			)
+			return resp
+		}
+	})
+}
+
 func init() {
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [OPTIONS] [MODE]\n\n", os.Args[0])
@@ -604,6 +641,7 @@ func runHTTPServer(gameService service.GameService) {
 	// GraphQL is the public game API.
 	graphqlResolver := graph.NewResolver(gameService, hub)
 	gqlSrv := handler.New(generated.NewExecutableSchema(generated.Config{Resolvers: graphqlResolver}))
+	enableGraphQLOperationLogging(gqlSrv)
 	if introspectionEnabled {
 		gqlSrv.Use(extension.Introspection{})
 		log.Println("GraphQL introspection: enabled (set GRAPHQL_INTROSPECTION=false to disable)")

@@ -51,6 +51,10 @@ func (fp *FilePersistence) Save(session *service.Session) error {
 		MapName:        configID,
 		CreatedAt:      session.CreatedAt,
 		LastAccessedAt: session.LastAccessedAt,
+		FogEnabled:     session.FogEnabled,
+		FogRadius:      session.FogRadius,
+		GridPassword:   session.GridPassword,
+		MoveDelayMs:    intPtr(session.MoveDelayMs),
 		GameState:      session.Engine.GetState(),
 	}
 
@@ -121,6 +125,11 @@ func (fp *FilePersistence) Load(id string) (*service.Session, error) {
 	}
 
 	// Create session
+	fogRadius := data.FogRadius
+	if fogRadius <= 0 {
+		fogRadius = 1
+	}
+
 	session := &service.Session{
 		ID:             data.ID,
 		DisplayName:    data.DisplayName,
@@ -128,6 +137,10 @@ func (fp *FilePersistence) Load(id string) (*service.Session, error) {
 		Config:         gameConfig,
 		CreatedAt:      data.CreatedAt,
 		LastAccessedAt: data.LastAccessedAt,
+		FogEnabled:     data.FogEnabled,
+		FogRadius:      fogRadius,
+		GridPassword:   data.GridPassword,
+		MoveDelayMs:    loadMoveDelay(data.MoveDelayMs, data.BulkMoveDelayMs),
 	}
 
 	return session, nil
@@ -207,4 +220,22 @@ func (fp *FilePersistence) getConfigIDFromName(displayName string) (string, erro
 
 	// If not found, assume displayName is already the map ID
 	return displayName, nil
+}
+
+func intPtr(v int) *int {
+	return &v
+}
+
+func loadMoveDelay(primary *int, legacy *int) int {
+	v := primary
+	if v == nil {
+		v = legacy
+	}
+	if v == nil {
+		return service.DefaultMoveDelayMs
+	}
+	if *v < 0 {
+		return 0
+	}
+	return *v
 }

@@ -7,10 +7,22 @@ import (
 	"github.com/wricardo/tesla-road-trip-game/game/engine"
 )
 
+// CreateSessionOptions controls optional per-session behavior at creation time.
+type CreateSessionOptions struct {
+	FogEnabled   bool
+	FogRadius    int
+	GridPassword string
+	// MoveDelayMs controls websocket broadcasting delay for move and per-step bulkMove.
+	// nil leaves the session default unchanged.
+	MoveDelayMs *int
+}
+
+const DefaultMoveDelayMs = 300
+
 // GameService defines all game-related operations
 type GameService interface {
 	// Session Management
-	CreateSession(ctx context.Context, configName string) (*SessionInfo, error)
+	CreateSession(ctx context.Context, configName string, opts ...CreateSessionOptions) (*SessionInfo, error)
 	GetSession(ctx context.Context, sessionID string) (*SessionInfo, error)
 	ListSessions(ctx context.Context) ([]*SessionInfo, error)
 	DeleteSession(ctx context.Context, sessionID string) error
@@ -61,4 +73,8 @@ type Session struct {
 	Config         *engine.GameConfig
 	CreatedAt      time.Time
 	LastAccessedAt time.Time
+	FogEnabled     bool
+	FogRadius      int
+	GridPassword   string
+	MoveDelayMs    int
 }

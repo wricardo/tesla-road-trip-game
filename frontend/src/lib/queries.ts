@@ -22,8 +22,10 @@ export const SESSIONS_QUERY = `
           victory
           gameOver
           totalMoves
+          fogEnabled
+          fogRadius
           playerPos { x y }
-          grid { type visited id allowedDirections }
+          nearbyGrid { type visited id allowedDirections }
         }
       }
     }
@@ -57,7 +59,7 @@ export const SESSION_SUBSCRIPTION = `
       message
       mapName
       playerPos { x y }
-      grid { type visited id allowedDirections }
+      nearbyGrid { type visited id allowedDirections }
     }
   }
 `;
@@ -75,8 +77,8 @@ export const MAPS_QUERY = `
 `;
 
 export const MAP_QUERY = `
-  query Map($name: String!) {
-    map(name: $name) {
+  query Map($name: String!, $password: String) {
+    map(name: $name, password: $password) {
       name
       description
       gridSize
@@ -90,8 +92,8 @@ export const MAP_QUERY = `
 `;
 
 export const CREATE_SESSION_MUTATION = `
-  mutation CreateSession($mapID: String) {
-    createSession(mapID: $mapID) {
+  mutation CreateSession($mapID: String, $fogEnabled: Boolean, $fogRadius: Int, $gridPassword: String, $moveDelayMs: Int) {
+    createSession(mapID: $mapID, fogEnabled: $fogEnabled, fogRadius: $fogRadius, gridPassword: $gridPassword, moveDelayMs: $moveDelayMs) {
       id
       mapName
     }
@@ -112,8 +114,10 @@ export const MOVE_MUTATION = `
         gameOver
         totalMoves
         mapName
+        fogEnabled
+        fogRadius
         playerPos { x y }
-        grid { type visited id allowedDirections }
+        nearbyGrid { type visited id allowedDirections }
         currentMoves { fromPosition { x y } toPosition { x y } success }
       }
     }
@@ -130,8 +134,10 @@ export const RESET_MUTATION = `
       gameOver
       totalMoves
       mapName
+      fogEnabled
+      fogRadius
       playerPos { x y }
-      grid { type visited id allowedDirections }
+      nearbyGrid { type visited id allowedDirections }
       currentMoves { fromPosition { x y } toPosition { x y } success }
     }
   }

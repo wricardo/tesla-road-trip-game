@@ -39,6 +39,8 @@ type Config struct {
 }
 
 type ResolverRoot interface {
+	GameMap() GameMapResolver
+	GameState() GameStateResolver
 	Mutation() MutationResolver
 	Query() QueryResolver
 	Subscription() SubscriptionResolver
@@ -66,7 +68,6 @@ type ComplexityRoot struct {
 		GameOverCode   func(childComplexity int) int
 		GameState      func(childComplexity int) int
 		Limit          func(childComplexity int) int
-		LocalView3x3   func(childComplexity int) int
 		Message        func(childComplexity int) int
 		MovesExecuted  func(childComplexity int) int
 		PossibleMoves  func(childComplexity int) int
@@ -111,7 +112,7 @@ type ComplexityRoot struct {
 		CellConfigs       func(childComplexity int) int
 		Description       func(childComplexity int) int
 		GridSize          func(childComplexity int) int
-		Layout            func(childComplexity int) int
+		Layout            func(childComplexity int, password *string) int
 		Legend            func(childComplexity int) int
 		MaxBattery        func(childComplexity int) int
 		Name              func(childComplexity int) int
@@ -124,14 +125,16 @@ type ComplexityRoot struct {
 		BatteryRisk       func(childComplexity int) int
 		CurrentMoves      func(childComplexity int) int
 		CurrentMovesCount func(childComplexity int) int
+		FogEnabled        func(childComplexity int) int
+		FogRadius         func(childComplexity int) int
 		GameOver          func(childComplexity int) int
-		Grid              func(childComplexity int) int
-		LocalView         func(childComplexity int) int
-		LocalView3x3      func(childComplexity int) int
+		Grid              func(childComplexity int, password *string) int
 		MapName           func(childComplexity int) int
 		MaxBattery        func(childComplexity int) int
 		Message           func(childComplexity int) int
+		MoveDelayMs       func(childComplexity int) int
 		MoveHistory       func(childComplexity int) int
+		NearbyGrid        func(childComplexity int) int
 		PlayerPos         func(childComplexity int) int
 		Score             func(childComplexity int) int
 		TotalMoves        func(childComplexity int) int
@@ -192,7 +195,7 @@ type ComplexityRoot struct {
 	Mutation struct {
 		BulkMove      func(childComplexity int, sessionID string, moves []model.Direction, reset *bool) int
 		CreateMap     func(childComplexity int, name string, mapArg model.GameMapInput) int
-		CreateSession func(childComplexity int, mapID *string, mapName *string) int
+		CreateSession func(childComplexity int, mapID *string, mapName *string, fogEnabled *bool, fogRadius *int, gridPassword *string, moveDelayMs *int) int
 		DeleteSession func(childComplexity int, id string) int
 		Move          func(childComplexity int, sessionID string, direction model.Direction, reset *bool) int
 		Reset         func(childComplexity int, sessionID string) int
@@ -209,7 +212,7 @@ type ComplexityRoot struct {
 	Query struct {
 		GameState       func(childComplexity int, sessionID string) int
 		History         func(childComplexity int, sessionID string, page *int, limit *int, order *model.SortOrder) int
-		Map             func(childComplexity int, name string) int
+		Map             func(childComplexity int, name string, password *string) int
 		Maps            func(childComplexity int) int
 		Session         func(childComplexity int, id string) int
 		Sessions        func(childComplexity int, sort *model.SessionSort, order *model.SortOrder, limit *int) int
@@ -254,12 +257,6 @@ type ComplexityRoot struct {
 		SessionUpdated func(childComplexity int, sessionID string) int
 	}
 
-	SurroundingCell struct {
-		Type func(childComplexity int) int
-		X    func(childComplexity int) int
-		Y    func(childComplexity int) int
-	}
-
 	UnifiedSession struct {
 		CreatedAt      func(childComplexity int) int
 		GameMap        func(childComplexity int) int
@@ -280,8 +277,14 @@ type ComplexityRoot struct {
 	}
 }
 
+type GameMapResolver interface {
+	Layout(ctx context.Context, obj *model.GameMap, password *string) ([]string, error)
+}
+type GameStateResolver interface {
+	Grid(ctx context.Context, obj *model.GameState, password *string) ([][]*model.Cell, error)
+}
 type MutationResolver interface {
-	CreateSession(ctx context.Context, mapID *string, mapName *string) (*model.Session, error)
+	CreateSession(ctx context.Context, mapID *string, mapName *string, fogEnabled *bool, fogRadius *int, gridPassword *string, moveDelayMs *int) (*model.Session, error)
 	DeleteSession(ctx context.Context, id string) (*model.DeleteSessionResult, error)
 	UpdateSession(ctx context.Context, id string, displayName string) (*model.Session, error)
 	Move(ctx context.Context, sessionID string, direction model.Direction, reset *bool) (*model.MoveResult, error)
@@ -298,7 +301,7 @@ type QueryResolver interface {
 	GameState(ctx context.Context, sessionID string) (*model.GameState, error)
 	History(ctx context.Context, sessionID string, page *int, limit *int, order *model.SortOrder) (*model.HistoryResponse, error)
 	Maps(ctx context.Context) ([]*model.MapInfo, error)
-	Map(ctx context.Context, name string) (*model.GameMap, error)
+	Map(ctx context.Context, name string, password *string) (*model.GameMap, error)
 }
 type SubscriptionResolver interface {
 	SessionUpdated(ctx context.Context, sessionID string) (<-chan *model.GameState, error)
@@ -421,13 +424,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.BulkMoveResult.Limit(childComplexity), true
-
-	case "BulkMoveResult.localView3x3":
-		if e.complexity.BulkMoveResult.LocalView3x3 == nil {
-			break
-		}
-
-		return e.complexity.BulkMoveResult.LocalView3x3(childComplexity), true
 
 	case "BulkMoveResult.message":
 		if e.complexity.BulkMoveResult.Message == nil {
@@ -637,7 +633,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			break
 		}
 
-		return e.complexity.GameMap.Layout(childComplexity), true
+		args, err := ec.field_GameMap_layout_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.GameMap.Layout(childComplexity, args["password"].(*string)), true
 
 	case "GameMap.legend":
 		if e.complexity.GameMap.Legend == nil {
@@ -702,6 +703,20 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.GameState.CurrentMovesCount(childComplexity), true
 
+	case "GameState.fogEnabled":
+		if e.complexity.GameState.FogEnabled == nil {
+			break
+		}
+
+		return e.complexity.GameState.FogEnabled(childComplexity), true
+
+	case "GameState.fogRadius":
+		if e.complexity.GameState.FogRadius == nil {
+			break
+		}
+
+		return e.complexity.GameState.FogRadius(childComplexity), true
+
 	case "GameState.gameOver":
 		if e.complexity.GameState.GameOver == nil {
 			break
@@ -714,21 +729,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			break
 		}
 
-		return e.complexity.GameState.Grid(childComplexity), true
-
-	case "GameState.localView":
-		if e.complexity.GameState.LocalView == nil {
-			break
+		args, err := ec.field_GameState_grid_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
 		}
 
-		return e.complexity.GameState.LocalView(childComplexity), true
-
-	case "GameState.localView3x3":
-		if e.complexity.GameState.LocalView3x3 == nil {
-			break
-		}
-
-		return e.complexity.GameState.LocalView3x3(childComplexity), true
+		return e.complexity.GameState.Grid(childComplexity, args["password"].(*string)), true
 
 	case "GameState.mapName":
 		if e.complexity.GameState.MapName == nil {
@@ -751,12 +757,26 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.GameState.Message(childComplexity), true
 
+	case "GameState.moveDelayMs":
+		if e.complexity.GameState.MoveDelayMs == nil {
+			break
+		}
+
+		return e.complexity.GameState.MoveDelayMs(childComplexity), true
+
 	case "GameState.moveHistory":
 		if e.complexity.GameState.MoveHistory == nil {
 			break
 		}
 
 		return e.complexity.GameState.MoveHistory(childComplexity), true
+
+	case "GameState.nearbyGrid":
+		if e.complexity.GameState.NearbyGrid == nil {
+			break
+		}
+
+		return e.complexity.GameState.NearbyGrid(childComplexity), true
 
 	case "GameState.playerPos":
 		if e.complexity.GameState.PlayerPos == nil {
@@ -1051,7 +1071,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Mutation.CreateSession(childComplexity, args["mapID"].(*string), args["mapName"].(*string)), true
+		return e.complexity.Mutation.CreateSession(childComplexity, args["mapID"].(*string), args["mapName"].(*string), args["fogEnabled"].(*bool), args["fogRadius"].(*int), args["gridPassword"].(*string), args["moveDelayMs"].(*int)), true
 
 	case "Mutation.deleteSession":
 		if e.complexity.Mutation.DeleteSession == nil {
@@ -1173,7 +1193,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Query.Map(childComplexity, args["name"].(string)), true
+		return e.complexity.Query.Map(childComplexity, args["name"].(string), args["password"].(*string)), true
 
 	case "Query.maps":
 		if e.complexity.Query.Maps == nil {
@@ -1405,27 +1425,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Subscription.SessionUpdated(childComplexity, args["sessionID"].(string)), true
 
-	case "SurroundingCell.type":
-		if e.complexity.SurroundingCell.Type == nil {
-			break
-		}
-
-		return e.complexity.SurroundingCell.Type(childComplexity), true
-
-	case "SurroundingCell.x":
-		if e.complexity.SurroundingCell.X == nil {
-			break
-		}
-
-		return e.complexity.SurroundingCell.X(childComplexity), true
-
-	case "SurroundingCell.y":
-		if e.complexity.SurroundingCell.Y == nil {
-			break
-		}
-
-		return e.complexity.SurroundingCell.Y(childComplexity), true
-
 	case "UnifiedSession.createdAt":
 		if e.complexity.UnifiedSession.CreatedAt == nil {
 			break
@@ -1634,11 +1633,11 @@ type Query {
   gameState(sessionID: ID!): GameState!
   history(sessionID: ID!, page: Int = 1, limit: Int = 50, order: SortOrder = DESC): HistoryResponse!
   maps: [MapInfo!]!
-  map(name: String!): GameMap!
+  map(name: String!, password: String): GameMap!
 }
 
 type Mutation {
-  createSession(mapID: String, mapName: String): Session!
+  createSession(mapID: String, mapName: String, fogEnabled: Boolean = false, fogRadius: Int = 1, gridPassword: String, moveDelayMs: Int): Session!
   deleteSession(id: ID!): DeleteSessionResult!
   updateSession(id: ID!, displayName: String!): Session!
   move(sessionID: ID!, direction: Direction!, reset: Boolean = false): MoveResult!
@@ -1688,7 +1687,7 @@ type Session {
 }
 
 type GameState {
-  grid: [[Cell!]!]!
+  grid(password: String): [[Cell!]!]!
   playerPos: Position!
   battery: Int!
   maxBattery: Int!
@@ -1700,11 +1699,13 @@ type GameState {
   mapName: String!
   moveHistory: [MoveHistoryEntry!]!
   totalMoves: Int!
-  localView: [SurroundingCell!]!
+  nearbyGrid: [[Cell!]!]!
   currentMoves: [MoveHistoryEntry!]!
   currentMovesCount: Int!
-  localView3x3: [String!]!
   batteryRisk: String!
+  fogEnabled: Boolean!
+  fogRadius: Int!
+  moveDelayMs: Int!
 }
 
 type Cell {
@@ -1717,8 +1718,6 @@ type Cell {
 type Position { x: Int!, y: Int! }
 
 type VisitedPark { id: String!, visited: Boolean! }
-
-type SurroundingCell { x: Int!, y: Int!, type: String! }
 
 type MoveHistoryEntry {
   action: String!
@@ -1743,7 +1742,7 @@ type GameMap {
   gridSize: Int!
   maxBattery: Int!
   startingBattery: Int!
-  layout: [String!]!
+  layout(password: String): [String!]!
   legend: [LegendEntry!]!
   cellConfigs: [CellConfigEntry!]!
   wallCrashEndsGame: Boolean!
@@ -1823,7 +1822,6 @@ type BulkMoveResult {
   gameOverCode: String!
   message: String!
   possibleMoves: [String!]!
-  localView3x3: [String!]!
   batteryRisk: String!
 }
 
@@ -1873,6 +1871,62 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 // endregion ************************** generated!.gotpl **************************
 
 // region    ***************************** args.gotpl *****************************
+
+func (ec *executionContext) field_GameMap_layout_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_GameMap_layout_argsPassword(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["password"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_GameMap_layout_argsPassword(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	if _, ok := rawArgs["password"]; !ok {
+		var zeroVal *string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("password"))
+	if tmp, ok := rawArgs["password"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_GameState_grid_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_GameState_grid_argsPassword(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["password"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_GameState_grid_argsPassword(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	if _, ok := rawArgs["password"]; !ok {
+		var zeroVal *string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("password"))
+	if tmp, ok := rawArgs["password"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
+	return zeroVal, nil
+}
 
 func (ec *executionContext) field_Mutation_bulkMove_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
@@ -2012,6 +2066,26 @@ func (ec *executionContext) field_Mutation_createSession_args(ctx context.Contex
 		return nil, err
 	}
 	args["mapName"] = arg1
+	arg2, err := ec.field_Mutation_createSession_argsFogEnabled(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["fogEnabled"] = arg2
+	arg3, err := ec.field_Mutation_createSession_argsFogRadius(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["fogRadius"] = arg3
+	arg4, err := ec.field_Mutation_createSession_argsGridPassword(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["gridPassword"] = arg4
+	arg5, err := ec.field_Mutation_createSession_argsMoveDelayMs(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["moveDelayMs"] = arg5
 	return args, nil
 }
 func (ec *executionContext) field_Mutation_createSession_argsMapID(
@@ -2047,6 +2121,78 @@ func (ec *executionContext) field_Mutation_createSession_argsMapName(
 	}
 
 	var zeroVal *string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_createSession_argsFogEnabled(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*bool, error) {
+	if _, ok := rawArgs["fogEnabled"]; !ok {
+		var zeroVal *bool
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("fogEnabled"))
+	if tmp, ok := rawArgs["fogEnabled"]; ok {
+		return ec.unmarshalOBoolean2ᚖbool(ctx, tmp)
+	}
+
+	var zeroVal *bool
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_createSession_argsFogRadius(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int, error) {
+	if _, ok := rawArgs["fogRadius"]; !ok {
+		var zeroVal *int
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("fogRadius"))
+	if tmp, ok := rawArgs["fogRadius"]; ok {
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	var zeroVal *int
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_createSession_argsGridPassword(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	if _, ok := rawArgs["gridPassword"]; !ok {
+		var zeroVal *string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("gridPassword"))
+	if tmp, ok := rawArgs["gridPassword"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_createSession_argsMoveDelayMs(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int, error) {
+	if _, ok := rawArgs["moveDelayMs"]; !ok {
+		var zeroVal *int
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("moveDelayMs"))
+	if tmp, ok := rawArgs["moveDelayMs"]; ok {
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	var zeroVal *int
 	return zeroVal, nil
 }
 
@@ -2471,6 +2617,11 @@ func (ec *executionContext) field_Query_map_args(ctx context.Context, rawArgs ma
 		return nil, err
 	}
 	args["name"] = arg0
+	arg1, err := ec.field_Query_map_argsPassword(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["password"] = arg1
 	return args, nil
 }
 func (ec *executionContext) field_Query_map_argsName(
@@ -2488,6 +2639,24 @@ func (ec *executionContext) field_Query_map_argsName(
 	}
 
 	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_map_argsPassword(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	if _, ok := rawArgs["password"]; !ok {
+		var zeroVal *string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("password"))
+	if tmp, ok := rawArgs["password"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
 	return zeroVal, nil
 }
 
@@ -3228,16 +3397,20 @@ func (ec *executionContext) fieldContext_BulkMoveResult_gameState(_ context.Cont
 				return ec.fieldContext_GameState_moveHistory(ctx, field)
 			case "totalMoves":
 				return ec.fieldContext_GameState_totalMoves(ctx, field)
-			case "localView":
-				return ec.fieldContext_GameState_localView(ctx, field)
+			case "nearbyGrid":
+				return ec.fieldContext_GameState_nearbyGrid(ctx, field)
 			case "currentMoves":
 				return ec.fieldContext_GameState_currentMoves(ctx, field)
 			case "currentMovesCount":
 				return ec.fieldContext_GameState_currentMovesCount(ctx, field)
-			case "localView3x3":
-				return ec.fieldContext_GameState_localView3x3(ctx, field)
 			case "batteryRisk":
 				return ec.fieldContext_GameState_batteryRisk(ctx, field)
+			case "fogEnabled":
+				return ec.fieldContext_GameState_fogEnabled(ctx, field)
+			case "fogRadius":
+				return ec.fieldContext_GameState_fogRadius(ctx, field)
+			case "moveDelayMs":
+				return ec.fieldContext_GameState_moveDelayMs(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type GameState", field.Name)
 		},
@@ -4038,50 +4211,6 @@ func (ec *executionContext) _BulkMoveResult_possibleMoves(ctx context.Context, f
 }
 
 func (ec *executionContext) fieldContext_BulkMoveResult_possibleMoves(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "BulkMoveResult",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _BulkMoveResult_localView3x3(ctx context.Context, field graphql.CollectedField, obj *model.BulkMoveResult) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_BulkMoveResult_localView3x3(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.LocalView3x3, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.([]string)
-	fc.Result = res
-	return ec.marshalNString2ᚕstringᚄ(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_BulkMoveResult_localView3x3(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "BulkMoveResult",
 		Field:      field,
@@ -4906,7 +5035,7 @@ func (ec *executionContext) _GameMap_layout(ctx context.Context, field graphql.C
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Layout, nil
+		return ec.resolvers.GameMap().Layout(rctx, obj, fc.Args["password"].(*string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -4923,15 +5052,26 @@ func (ec *executionContext) _GameMap_layout(ctx context.Context, field graphql.C
 	return ec.marshalNString2ᚕstringᚄ(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_GameMap_layout(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_GameMap_layout(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "GameMap",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
 		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_GameMap_layout_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -5096,7 +5236,7 @@ func (ec *executionContext) _GameState_grid(ctx context.Context, field graphql.C
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Grid, nil
+		return ec.resolvers.GameState().Grid(rctx, obj, fc.Args["password"].(*string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -5113,12 +5253,12 @@ func (ec *executionContext) _GameState_grid(ctx context.Context, field graphql.C
 	return ec.marshalNCell2ᚕᚕᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐCellᚄ(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_GameState_grid(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_GameState_grid(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "GameState",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "type":
@@ -5132,6 +5272,17 @@ func (ec *executionContext) fieldContext_GameState_grid(_ context.Context, field
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Cell", field.Name)
 		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_GameState_grid_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -5648,8 +5799,8 @@ func (ec *executionContext) fieldContext_GameState_totalMoves(_ context.Context,
 	return fc, nil
 }
 
-func (ec *executionContext) _GameState_localView(ctx context.Context, field graphql.CollectedField, obj *model.GameState) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_GameState_localView(ctx, field)
+func (ec *executionContext) _GameState_nearbyGrid(ctx context.Context, field graphql.CollectedField, obj *model.GameState) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_GameState_nearbyGrid(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -5662,7 +5813,7 @@ func (ec *executionContext) _GameState_localView(ctx context.Context, field grap
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.LocalView, nil
+		return obj.NearbyGrid, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -5674,12 +5825,12 @@ func (ec *executionContext) _GameState_localView(ctx context.Context, field grap
 		}
 		return graphql.Null
 	}
-	res := resTmp.([]*model.SurroundingCell)
+	res := resTmp.([][]*model.Cell)
 	fc.Result = res
-	return ec.marshalNSurroundingCell2ᚕᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐSurroundingCellᚄ(ctx, field.Selections, res)
+	return ec.marshalNCell2ᚕᚕᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐCellᚄ(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_GameState_localView(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_GameState_nearbyGrid(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "GameState",
 		Field:      field,
@@ -5687,14 +5838,16 @@ func (ec *executionContext) fieldContext_GameState_localView(_ context.Context, 
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
-			case "x":
-				return ec.fieldContext_SurroundingCell_x(ctx, field)
-			case "y":
-				return ec.fieldContext_SurroundingCell_y(ctx, field)
 			case "type":
-				return ec.fieldContext_SurroundingCell_type(ctx, field)
+				return ec.fieldContext_Cell_type(ctx, field)
+			case "visited":
+				return ec.fieldContext_Cell_visited(ctx, field)
+			case "id":
+				return ec.fieldContext_Cell_id(ctx, field)
+			case "allowedDirections":
+				return ec.fieldContext_Cell_allowedDirections(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type SurroundingCell", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type Cell", field.Name)
 		},
 	}
 	return fc, nil
@@ -5804,50 +5957,6 @@ func (ec *executionContext) fieldContext_GameState_currentMovesCount(_ context.C
 	return fc, nil
 }
 
-func (ec *executionContext) _GameState_localView3x3(ctx context.Context, field graphql.CollectedField, obj *model.GameState) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_GameState_localView3x3(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.LocalView3x3, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.([]string)
-	fc.Result = res
-	return ec.marshalNString2ᚕstringᚄ(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_GameState_localView3x3(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "GameState",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _GameState_batteryRisk(ctx context.Context, field graphql.CollectedField, obj *model.GameState) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_GameState_batteryRisk(ctx, field)
 	if err != nil {
@@ -5887,6 +5996,138 @@ func (ec *executionContext) fieldContext_GameState_batteryRisk(_ context.Context
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameState_fogEnabled(ctx context.Context, field graphql.CollectedField, obj *model.GameState) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_GameState_fogEnabled(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.FogEnabled, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_GameState_fogEnabled(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameState_fogRadius(ctx context.Context, field graphql.CollectedField, obj *model.GameState) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_GameState_fogRadius(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.FogRadius, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_GameState_fogRadius(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameState_moveDelayMs(ctx context.Context, field graphql.CollectedField, obj *model.GameState) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_GameState_moveDelayMs(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.MoveDelayMs, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_GameState_moveDelayMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -7168,16 +7409,20 @@ func (ec *executionContext) fieldContext_MoveResult_gameState(_ context.Context,
 				return ec.fieldContext_GameState_moveHistory(ctx, field)
 			case "totalMoves":
 				return ec.fieldContext_GameState_totalMoves(ctx, field)
-			case "localView":
-				return ec.fieldContext_GameState_localView(ctx, field)
+			case "nearbyGrid":
+				return ec.fieldContext_GameState_nearbyGrid(ctx, field)
 			case "currentMoves":
 				return ec.fieldContext_GameState_currentMoves(ctx, field)
 			case "currentMovesCount":
 				return ec.fieldContext_GameState_currentMovesCount(ctx, field)
-			case "localView3x3":
-				return ec.fieldContext_GameState_localView3x3(ctx, field)
 			case "batteryRisk":
 				return ec.fieldContext_GameState_batteryRisk(ctx, field)
+			case "fogEnabled":
+				return ec.fieldContext_GameState_fogEnabled(ctx, field)
+			case "fogRadius":
+				return ec.fieldContext_GameState_fogRadius(ctx, field)
+			case "moveDelayMs":
+				return ec.fieldContext_GameState_moveDelayMs(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type GameState", field.Name)
 		},
@@ -7417,7 +7662,7 @@ func (ec *executionContext) _Mutation_createSession(ctx context.Context, field g
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().CreateSession(rctx, fc.Args["mapID"].(*string), fc.Args["mapName"].(*string))
+		return ec.resolvers.Mutation().CreateSession(rctx, fc.Args["mapID"].(*string), fc.Args["mapName"].(*string), fc.Args["fogEnabled"].(*bool), fc.Args["fogRadius"].(*int), fc.Args["gridPassword"].(*string), fc.Args["moveDelayMs"].(*int))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -7756,8 +8001,6 @@ func (ec *executionContext) fieldContext_Mutation_bulkMove(ctx context.Context, 
 				return ec.fieldContext_BulkMoveResult_message(ctx, field)
 			case "possibleMoves":
 				return ec.fieldContext_BulkMoveResult_possibleMoves(ctx, field)
-			case "localView3x3":
-				return ec.fieldContext_BulkMoveResult_localView3x3(ctx, field)
 			case "batteryRisk":
 				return ec.fieldContext_BulkMoveResult_batteryRisk(ctx, field)
 			}
@@ -7841,16 +8084,20 @@ func (ec *executionContext) fieldContext_Mutation_reset(ctx context.Context, fie
 				return ec.fieldContext_GameState_moveHistory(ctx, field)
 			case "totalMoves":
 				return ec.fieldContext_GameState_totalMoves(ctx, field)
-			case "localView":
-				return ec.fieldContext_GameState_localView(ctx, field)
+			case "nearbyGrid":
+				return ec.fieldContext_GameState_nearbyGrid(ctx, field)
 			case "currentMoves":
 				return ec.fieldContext_GameState_currentMoves(ctx, field)
 			case "currentMovesCount":
 				return ec.fieldContext_GameState_currentMovesCount(ctx, field)
-			case "localView3x3":
-				return ec.fieldContext_GameState_localView3x3(ctx, field)
 			case "batteryRisk":
 				return ec.fieldContext_GameState_batteryRisk(ctx, field)
+			case "fogEnabled":
+				return ec.fieldContext_GameState_fogEnabled(ctx, field)
+			case "fogRadius":
+				return ec.fieldContext_GameState_fogRadius(ctx, field)
+			case "moveDelayMs":
+				return ec.fieldContext_GameState_moveDelayMs(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type GameState", field.Name)
 		},
@@ -8436,16 +8683,20 @@ func (ec *executionContext) fieldContext_Query_gameState(ctx context.Context, fi
 				return ec.fieldContext_GameState_moveHistory(ctx, field)
 			case "totalMoves":
 				return ec.fieldContext_GameState_totalMoves(ctx, field)
-			case "localView":
-				return ec.fieldContext_GameState_localView(ctx, field)
+			case "nearbyGrid":
+				return ec.fieldContext_GameState_nearbyGrid(ctx, field)
 			case "currentMoves":
 				return ec.fieldContext_GameState_currentMoves(ctx, field)
 			case "currentMovesCount":
 				return ec.fieldContext_GameState_currentMovesCount(ctx, field)
-			case "localView3x3":
-				return ec.fieldContext_GameState_localView3x3(ctx, field)
 			case "batteryRisk":
 				return ec.fieldContext_GameState_batteryRisk(ctx, field)
+			case "fogEnabled":
+				return ec.fieldContext_GameState_fogEnabled(ctx, field)
+			case "fogRadius":
+				return ec.fieldContext_GameState_fogRadius(ctx, field)
+			case "moveDelayMs":
+				return ec.fieldContext_GameState_moveDelayMs(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type GameState", field.Name)
 		},
@@ -8607,7 +8858,7 @@ func (ec *executionContext) _Query_map(ctx context.Context, field graphql.Collec
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().Map(rctx, fc.Args["name"].(string))
+		return ec.resolvers.Query().Map(rctx, fc.Args["name"].(string), fc.Args["password"].(*string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -9079,16 +9330,20 @@ func (ec *executionContext) fieldContext_Session_gameState(_ context.Context, fi
 				return ec.fieldContext_GameState_moveHistory(ctx, field)
 			case "totalMoves":
 				return ec.fieldContext_GameState_totalMoves(ctx, field)
-			case "localView":
-				return ec.fieldContext_GameState_localView(ctx, field)
+			case "nearbyGrid":
+				return ec.fieldContext_GameState_nearbyGrid(ctx, field)
 			case "currentMoves":
 				return ec.fieldContext_GameState_currentMoves(ctx, field)
 			case "currentMovesCount":
 				return ec.fieldContext_GameState_currentMovesCount(ctx, field)
-			case "localView3x3":
-				return ec.fieldContext_GameState_localView3x3(ctx, field)
 			case "batteryRisk":
 				return ec.fieldContext_GameState_batteryRisk(ctx, field)
+			case "fogEnabled":
+				return ec.fieldContext_GameState_fogEnabled(ctx, field)
+			case "fogRadius":
+				return ec.fieldContext_GameState_fogRadius(ctx, field)
+			case "moveDelayMs":
+				return ec.fieldContext_GameState_moveDelayMs(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type GameState", field.Name)
 		},
@@ -10013,16 +10268,20 @@ func (ec *executionContext) fieldContext_Subscription_sessionUpdated(ctx context
 				return ec.fieldContext_GameState_moveHistory(ctx, field)
 			case "totalMoves":
 				return ec.fieldContext_GameState_totalMoves(ctx, field)
-			case "localView":
-				return ec.fieldContext_GameState_localView(ctx, field)
+			case "nearbyGrid":
+				return ec.fieldContext_GameState_nearbyGrid(ctx, field)
 			case "currentMoves":
 				return ec.fieldContext_GameState_currentMoves(ctx, field)
 			case "currentMovesCount":
 				return ec.fieldContext_GameState_currentMovesCount(ctx, field)
-			case "localView3x3":
-				return ec.fieldContext_GameState_localView3x3(ctx, field)
 			case "batteryRisk":
 				return ec.fieldContext_GameState_batteryRisk(ctx, field)
+			case "fogEnabled":
+				return ec.fieldContext_GameState_fogEnabled(ctx, field)
+			case "fogRadius":
+				return ec.fieldContext_GameState_fogRadius(ctx, field)
+			case "moveDelayMs":
+				return ec.fieldContext_GameState_moveDelayMs(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type GameState", field.Name)
 		},
@@ -10118,150 +10377,22 @@ func (ec *executionContext) fieldContext_Subscription_lobbyUpdated(_ context.Con
 				return ec.fieldContext_GameState_moveHistory(ctx, field)
 			case "totalMoves":
 				return ec.fieldContext_GameState_totalMoves(ctx, field)
-			case "localView":
-				return ec.fieldContext_GameState_localView(ctx, field)
+			case "nearbyGrid":
+				return ec.fieldContext_GameState_nearbyGrid(ctx, field)
 			case "currentMoves":
 				return ec.fieldContext_GameState_currentMoves(ctx, field)
 			case "currentMovesCount":
 				return ec.fieldContext_GameState_currentMovesCount(ctx, field)
-			case "localView3x3":
-				return ec.fieldContext_GameState_localView3x3(ctx, field)
 			case "batteryRisk":
 				return ec.fieldContext_GameState_batteryRisk(ctx, field)
+			case "fogEnabled":
+				return ec.fieldContext_GameState_fogEnabled(ctx, field)
+			case "fogRadius":
+				return ec.fieldContext_GameState_fogRadius(ctx, field)
+			case "moveDelayMs":
+				return ec.fieldContext_GameState_moveDelayMs(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type GameState", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _SurroundingCell_x(ctx context.Context, field graphql.CollectedField, obj *model.SurroundingCell) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_SurroundingCell_x(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.X, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(int)
-	fc.Result = res
-	return ec.marshalNInt2int(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_SurroundingCell_x(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SurroundingCell",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _SurroundingCell_y(ctx context.Context, field graphql.CollectedField, obj *model.SurroundingCell) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_SurroundingCell_y(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Y, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(int)
-	fc.Result = res
-	return ec.marshalNInt2int(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_SurroundingCell_y(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SurroundingCell",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _SurroundingCell_type(ctx context.Context, field graphql.CollectedField, obj *model.SurroundingCell) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_SurroundingCell_type(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Type, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_SurroundingCell_type(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SurroundingCell",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -10462,16 +10593,20 @@ func (ec *executionContext) fieldContext_UnifiedSession_gameState(_ context.Cont
 				return ec.fieldContext_GameState_moveHistory(ctx, field)
 			case "totalMoves":
 				return ec.fieldContext_GameState_totalMoves(ctx, field)
-			case "localView":
-				return ec.fieldContext_GameState_localView(ctx, field)
+			case "nearbyGrid":
+				return ec.fieldContext_GameState_nearbyGrid(ctx, field)
 			case "currentMoves":
 				return ec.fieldContext_GameState_currentMoves(ctx, field)
 			case "currentMovesCount":
 				return ec.fieldContext_GameState_currentMovesCount(ctx, field)
-			case "localView3x3":
-				return ec.fieldContext_GameState_localView3x3(ctx, field)
 			case "batteryRisk":
 				return ec.fieldContext_GameState_batteryRisk(ctx, field)
+			case "fogEnabled":
+				return ec.fieldContext_GameState_fogEnabled(ctx, field)
+			case "fogRadius":
+				return ec.fieldContext_GameState_fogRadius(ctx, field)
+			case "moveDelayMs":
+				return ec.fieldContext_GameState_moveDelayMs(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type GameState", field.Name)
 		},
@@ -13156,11 +13291,6 @@ func (ec *executionContext) _BulkMoveResult(ctx context.Context, sel ast.Selecti
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "localView3x3":
-			out.Values[i] = ec._BulkMoveResult_localView3x3(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		case "batteryRisk":
 			out.Values[i] = ec._BulkMoveResult_batteryRisk(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -13399,47 +13529,78 @@ func (ec *executionContext) _GameMap(ctx context.Context, sel ast.SelectionSet, 
 		case "name":
 			out.Values[i] = ec._GameMap_name(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "description":
 			out.Values[i] = ec._GameMap_description(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "gridSize":
 			out.Values[i] = ec._GameMap_gridSize(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "maxBattery":
 			out.Values[i] = ec._GameMap_maxBattery(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "startingBattery":
 			out.Values[i] = ec._GameMap_startingBattery(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "layout":
-			out.Values[i] = ec._GameMap_layout(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._GameMap_layout(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "legend":
 			out.Values[i] = ec._GameMap_legend(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "cellConfigs":
 			out.Values[i] = ec._GameMap_cellConfigs(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "wallCrashEndsGame":
 			out.Values[i] = ec._GameMap_wallCrashEndsGame(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
@@ -13476,89 +13637,130 @@ func (ec *executionContext) _GameState(ctx context.Context, sel ast.SelectionSet
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("GameState")
 		case "grid":
-			out.Values[i] = ec._GameState_grid(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._GameState_grid(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "playerPos":
 			out.Values[i] = ec._GameState_playerPos(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "battery":
 			out.Values[i] = ec._GameState_battery(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "maxBattery":
 			out.Values[i] = ec._GameState_maxBattery(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "score":
 			out.Values[i] = ec._GameState_score(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "visitedParks":
 			out.Values[i] = ec._GameState_visitedParks(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "message":
 			out.Values[i] = ec._GameState_message(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "gameOver":
 			out.Values[i] = ec._GameState_gameOver(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "victory":
 			out.Values[i] = ec._GameState_victory(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "mapName":
 			out.Values[i] = ec._GameState_mapName(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "moveHistory":
 			out.Values[i] = ec._GameState_moveHistory(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "totalMoves":
 			out.Values[i] = ec._GameState_totalMoves(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
-		case "localView":
-			out.Values[i] = ec._GameState_localView(ctx, field, obj)
+		case "nearbyGrid":
+			out.Values[i] = ec._GameState_nearbyGrid(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "currentMoves":
 			out.Values[i] = ec._GameState_currentMoves(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "currentMovesCount":
 			out.Values[i] = ec._GameState_currentMovesCount(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "localView3x3":
-			out.Values[i] = ec._GameState_localView3x3(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "batteryRisk":
 			out.Values[i] = ec._GameState_batteryRisk(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "fogEnabled":
+			out.Values[i] = ec._GameState_fogEnabled(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "fogRadius":
+			out.Values[i] = ec._GameState_fogRadius(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "moveDelayMs":
+			out.Values[i] = ec._GameState_moveDelayMs(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
@@ -14530,55 +14732,6 @@ func (ec *executionContext) _Subscription(ctx context.Context, sel ast.Selection
 	default:
 		panic("unknown field " + strconv.Quote(fields[0].Name))
 	}
-}
-
-var surroundingCellImplementors = []string{"SurroundingCell"}
-
-func (ec *executionContext) _SurroundingCell(ctx context.Context, sel ast.SelectionSet, obj *model.SurroundingCell) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, surroundingCellImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("SurroundingCell")
-		case "x":
-			out.Values[i] = ec._SurroundingCell_x(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "y":
-			out.Values[i] = ec._SurroundingCell_y(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "type":
-			out.Values[i] = ec._SurroundingCell_type(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
 }
 
 var unifiedSessionImplementors = []string{"UnifiedSession"}
@@ -15866,60 +16019,6 @@ func (ec *executionContext) marshalNString2ᚕstringᚄ(ctx context.Context, sel
 	}
 
 	return ret
-}
-
-func (ec *executionContext) marshalNSurroundingCell2ᚕᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐSurroundingCellᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.SurroundingCell) graphql.Marshaler {
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		fc := &graphql.FieldContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithFieldContext(ctx, fc)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalNSurroundingCell2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐSurroundingCell(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
-func (ec *executionContext) marshalNSurroundingCell2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐSurroundingCell(ctx context.Context, sel ast.SelectionSet, v *model.SurroundingCell) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._SurroundingCell(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNUnifiedSession2ᚕᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐUnifiedSessionᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.UnifiedSession) graphql.Marshaler {
