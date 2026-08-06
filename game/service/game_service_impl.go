@@ -42,7 +42,7 @@ func NewGameService(sessions SessionManager, configs ConfigManager) GameService 
 }
 
 // CreateSession creates a new game session
-func (s *gameServiceImpl) CreateSession(ctx context.Context, mapName string) (*SessionInfo, error) {
+func (s *gameServiceImpl) CreateSession(ctx context.Context, mapName string, opts ...CreateSessionOptions) (*SessionInfo, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -70,10 +70,34 @@ func (s *gameServiceImpl) CreateSession(ctx context.Context, mapName string) (*S
 		config = s.configs.GetDefault()
 	}
 
+	var createOpts CreateSessionOptions
+	if len(opts) > 0 {
+		createOpts = opts[0]
+	}
+	if err := validateCreateSessionOptions(createOpts); err != nil {
+		return nil, err
+	}
+	if createOpts.FogRadius <= 0 {
+		createOpts.FogRadius = 1
+	}
+
 	// Let session manager generate a proper 4-character ID
 	session, err := s.sessions.Create("", config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create session: %w", err)
+	}
+	// Attach fog settings to session metadata.
+	session.FogEnabled = createOpts.FogEnabled
+	session.FogRadius = createOpts.FogRadius
+	session.GridPassword = createOpts.GridPassword
+	if createOpts.MoveDelayMs != nil {
+		session.MoveDelayMs = *createOpts.MoveDelayMs
+	} else if session.MoveDelayMs == 0 {
+		session.MoveDelayMs = DefaultMoveDelayMs
+	}
+	applySessionVisibilityMeta(session, session.Engine.GetState())
+	if err := s.sessions.Save(session.ID); err != nil {
+		fmt.Printf("Warning: Failed to persist session %s after creation: %v\n", session.ID, err)
 	}
 
 	// Determine the map identifier to return - prefer the input mapName if provided,
@@ -93,6 +117,40 @@ func (s *gameServiceImpl) CreateSession(ctx context.Context, mapName string) (*S
 	}, nil
 }
 
+func validateCreateSessionOptions(opts CreateSessionOptions) error {
+	if opts.MoveDelayMs != nil && *opts.MoveDelayMs < 0 {
+		return fmt.Errorf("move delay must be >= 0")
+	}
+	if !opts.FogEnabled {
+		return nil
+	}
+	if opts.FogRadius < 1 {
+		return fmt.Errorf("fog radius must be >= 1 when fog mode is enabled")
+	}
+	if strings.TrimSpace(opts.GridPassword) == "" {
+		return fmt.Errorf("grid password is required when fog mode is enabled")
+	}
+	return nil
+}
+
+func applySessionVisibilityMeta(session *Session, state *engine.GameState) {
+	if session == nil || state == nil {
+		return
+	}
+	radius := session.FogRadius
+	if radius <= 0 {
+		radius = 1
+	}
+	state.FogEnabled = session.FogEnabled
+	state.FogRadius = radius
+	state.GridPassword = session.GridPassword
+	delay := session.MoveDelayMs
+	if delay < 0 {
+		delay = 0
+	}
+	state.MoveDelayMs = delay
+}
+
 // GetSession retrieves session information
 func (s *gameServiceImpl) GetSession(ctx context.Context, sessionID string) (*SessionInfo, error) {
 	s.mu.RLock()
@@ -104,6 +162,8 @@ func (s *gameServiceImpl) GetSession(ctx context.Context, sessionID string) (*Se
 	}
 
 	s.sessions.UpdateLastAccessed(sessionID)
+	state := session.Engine.GetState()
+	applySessionVisibilityMeta(session, state)
 
 	return &SessionInfo{
 		ID:             session.ID,
@@ -111,7 +171,7 @@ func (s *gameServiceImpl) GetSession(ctx context.Context, sessionID string) (*Se
 		MapName:        s.getMapID(session.Config.Name),
 		CreatedAt:      session.CreatedAt,
 		LastAccessedAt: session.LastAccessedAt,
-		GameState:      session.Engine.GetState(),
+		GameState:      state,
 		GameMap:        session.Config,
 	}, nil
 }
@@ -125,13 +185,15 @@ func (s *gameServiceImpl) ListSessions(ctx context.Context) ([]*SessionInfo, err
 	result := make([]*SessionInfo, 0, len(sessions))
 
 	for _, sess := range sessions {
+		state := sess.Engine.GetState()
+		applySessionVisibilityMeta(sess, state)
 		result = append(result, &SessionInfo{
 			ID:             sess.ID,
 			DisplayName:    sess.DisplayName,
 			MapName:        s.getMapID(sess.Config.Name),
 			CreatedAt:      sess.CreatedAt,
 			LastAccessedAt: sess.LastAccessedAt,
-			GameState:      sess.Engine.GetState(),
+			GameState:      state,
 			GameMap:        sess.Config,
 		})
 	}
@@ -160,6 +222,8 @@ func (s *gameServiceImpl) UpdateSessionDisplayName(ctx context.Context, sessionI
 	if err != nil {
 		return nil, fmt.Errorf("session not found after update: %w", err)
 	}
+	state := session.Engine.GetState()
+	applySessionVisibilityMeta(session, state)
 
 	return &SessionInfo{
 		ID:             session.ID,
@@ -167,7 +231,7 @@ func (s *gameServiceImpl) UpdateSessionDisplayName(ctx context.Context, sessionI
 		MapName:        s.getMapID(session.Config.Name),
 		CreatedAt:      session.CreatedAt,
 		LastAccessedAt: session.LastAccessedAt,
-		GameState:      session.Engine.GetState(),
+		GameState:      state,
 		GameMap:        session.Config,
 	}, nil
 }
@@ -198,6 +262,7 @@ func (s *gameServiceImpl) Move(ctx context.Context, sessionID, direction string,
 	success := sess.Engine.Move(direction)
 	newPos := sess.Engine.GetPlayerPosition()
 	state := sess.Engine.GetState()
+	applySessionVisibilityMeta(sess, state)
 
 	// Build result
 	result := &MoveResult{
@@ -412,6 +477,7 @@ func (s *gameServiceImpl) BulkMove(ctx context.Context, sessionID string, moves 
 	}
 
 	result.GameState = sess.Engine.GetState()
+	applySessionVisibilityMeta(sess, result.GameState)
 	// Ensure backward-compat mirror
 	result.TotalMoves = len(moves)
 
@@ -487,6 +553,7 @@ func (s *gameServiceImpl) Reset(ctx context.Context, sessionID string) (*engine.
 
 	s.sessions.UpdateLastAccessed(sessionID)
 	state := sess.Engine.Reset()
+	applySessionVisibilityMeta(sess, state)
 	// Enrich state with decision aids
 	state.LocalView3x3 = buildLocal3x3(state)
 	state.BatteryRisk = riskCode(engine.AnalyzeBatteryRisk(state))
@@ -511,6 +578,7 @@ func (s *gameServiceImpl) GetGameState(ctx context.Context, sessionID string) (*
 
 	s.sessions.UpdateLastAccessed(sessionID)
 	state := sess.Engine.GetState()
+	applySessionVisibilityMeta(sess, state)
 	// Enrich state with decision aids
 	state.LocalView3x3 = buildLocal3x3(state)
 	state.BatteryRisk = riskCode(engine.AnalyzeBatteryRisk(state))

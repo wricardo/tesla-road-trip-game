@@ -1,6 +1,7 @@
 package session
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -45,6 +46,10 @@ func TestFilePersistence(t *testing.T) {
 		Config:         gameConfig,
 		CreatedAt:      time.Now(),
 		LastAccessedAt: time.Now(),
+		FogEnabled:     true,
+		FogRadius:      2,
+		GridPassword:   "secret",
+		MoveDelayMs:    300,
 	}
 
 	t.Run("Save and Load Session", func(t *testing.T) {
@@ -74,6 +79,51 @@ func TestFilePersistence(t *testing.T) {
 		}
 		if loadedSession.Engine.GetState().Battery != session.Engine.GetState().Battery {
 			t.Errorf("Expected battery %d, got %d", session.Engine.GetState().Battery, loadedSession.Engine.GetState().Battery)
+		}
+		if !loadedSession.FogEnabled {
+			t.Errorf("Expected fog enabled to persist")
+		}
+		if loadedSession.FogRadius != 2 {
+			t.Errorf("Expected fog radius 2, got %d", loadedSession.FogRadius)
+		}
+		if loadedSession.GridPassword != "secret" {
+			t.Errorf("Expected grid password to persist")
+		}
+		if loadedSession.MoveDelayMs != 300 {
+			t.Errorf("Expected move delay 300, got %d", loadedSession.MoveDelayMs)
+		}
+	})
+
+	t.Run("Load legacy session without fog fields", func(t *testing.T) {
+		legacyID := "legacy"
+		legacyState := session.Engine.GetState()
+		legacyData := PersistedSessionData{
+			ID:             legacyID,
+			MapName:        "easy",
+			CreatedAt:      time.Now(),
+			LastAccessedAt: time.Now(),
+			GameState:      legacyState,
+		}
+		bytes, err := json.MarshalIndent(legacyData, "", "  ")
+		if err != nil {
+			t.Fatalf("marshal legacy data: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(tempDir, legacyID+".json"), bytes, 0644); err != nil {
+			t.Fatalf("write legacy session: %v", err)
+		}
+
+		loadedSession, err := persistence.Load(legacyID)
+		if err != nil {
+			t.Fatalf("failed to load legacy session: %v", err)
+		}
+		if loadedSession.FogEnabled {
+			t.Fatalf("expected legacy session fog disabled by default")
+		}
+		if loadedSession.FogRadius != 1 {
+			t.Fatalf("expected legacy session fog radius default 1, got %d", loadedSession.FogRadius)
+		}
+		if loadedSession.MoveDelayMs != service.DefaultMoveDelayMs {
+			t.Fatalf("expected legacy session move delay default %d, got %d", service.DefaultMoveDelayMs, loadedSession.MoveDelayMs)
 		}
 	})
 

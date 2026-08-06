@@ -11,8 +11,22 @@
 		query GameState($sessionID: ID!) {
 			gameState(sessionID: $sessionID) {
 				battery maxBattery score victory gameOver totalMoves
+				fogEnabled fogRadius
 				playerPos { x y }
 				grid { type visited id allowedDirections }
+				nearbyGrid { type visited id allowedDirections }
+				currentMoves { fromPosition { x y } toPosition { x y } success }
+			}
+		}
+	`;
+
+	const FOG_GAME_STATE_QUERY = `
+		query GameState($sessionID: ID!) {
+			gameState(sessionID: $sessionID) {
+				battery maxBattery score victory gameOver totalMoves
+				fogEnabled fogRadius
+				playerPos { x y }
+				nearbyGrid { type visited id allowedDirections }
 				currentMoves { fromPosition { x y } toPosition { x y } success }
 			}
 		}
@@ -22,8 +36,22 @@
 		subscription SessionUpdated($sessionID: ID!) {
 			sessionUpdated(sessionID: $sessionID) {
 				battery maxBattery score victory gameOver totalMoves
+				fogEnabled fogRadius
 				playerPos { x y }
 				grid { type visited id allowedDirections }
+				nearbyGrid { type visited id allowedDirections }
+				currentMoves { fromPosition { x y } toPosition { x y } success }
+			}
+		}
+	`;
+
+	const FOG_SESSION_SUBSCRIPTION = `
+		subscription SessionUpdated($sessionID: ID!) {
+			sessionUpdated(sessionID: $sessionID) {
+				battery maxBattery score victory gameOver totalMoves
+				fogEnabled fogRadius
+				playerPos { x y }
+				nearbyGrid { type visited id allowedDirections }
 				currentMoves { fromPosition { x y } toPosition { x y } success }
 			}
 		}
@@ -31,12 +59,15 @@
 
 	type Position = { x: number; y: number };
 	type MoveEntry = { fromPosition: Position; toPosition: Position; success: boolean };
+	type Cell = { type: string; visited: boolean; id: string; allowedDirections: string[] };
 	type SessionState = {
 		id: string;
 		battery: number; maxBattery: number; score: number;
 		victory: boolean; gameOver: boolean; totalMoves: number;
+		fogEnabled: boolean; fogRadius: number;
 		playerPos: { x: number; y: number };
-		grid: Array<Array<{ type: string; visited: boolean; id: string; allowedDirections: string[] }>>;
+		grid?: Cell[][];
+		nearbyGrid?: Cell[][];
 		currentMoves: MoveEntry[];
 	};
 
@@ -44,8 +75,8 @@
 	const sessionsResult = queryStore({ client, query: gql(SESSIONS_QUERY) });
 	const mapsResult = queryStore({ client, query: gql(MAPS_QUERY) });
 
-	let maps = $state<{ mapId: string; name: string }[]>([]);
-	let allSessions = $state<{ id: string; mapName: string }[]>([]);
+	let maps = $state<{ mapId: string; name: string; gridSize: number }[]>([]);
+	let allSessions = $state<{ id: string; mapName: string; gameState?: { fogEnabled?: boolean; fogRadius?: number } }[]>([]);
 
 	// selected map from URL ?map=
 	const selectedMap = $derived($page.url.searchParams.get('map') ?? '');
@@ -59,6 +90,16 @@
 			? allSessions.filter((s) => s.mapName === selectedMap).map((s) => s.id)
 			: []
 	);
+	const sessionMetaByID = $derived.by(() => {
+		const m = new Map<string, { fogEnabled: boolean; fogRadius: number }>();
+		for (const s of allSessions) {
+			m.set(s.id, {
+				fogEnabled: !!s.gameState?.fogEnabled,
+				fogRadius: s.gameState?.fogRadius ?? 1
+			});
+		}
+		return m;
+	});
 
 	const selectedIds = $derived<string[]>(
 		selectedMap
@@ -72,6 +113,7 @@
 	let animatedTrails = $state<Map<string, Set<string>>>(new Map());
 	let animatingIds = $state<Set<string>>(new Set());
 	const animationSignatures = new Map<string, string>();
+	const animationMoveCounts = new Map<string, number>();
 	const animationTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 	$effect(() => {
@@ -82,12 +124,44 @@
 		});
 	});
 
+	const selectedMapGridSize = $derived(maps.find((m) => m.mapId === selectedMap)?.gridSize ?? 0);
+
+	function projectNearbyCell(state: SessionState, x: number, y: number): Cell | null {
+		const nearby = state.nearbyGrid;
+		if (!nearby?.length) return null;
+		const radius = state.fogRadius > 0 ? state.fogRadius : 1;
+		const minX = state.playerPos.x - radius;
+		const minY = state.playerPos.y - radius;
+		const ix = x - minX;
+		const iy = y - minY;
+		if (iy < 0 || iy >= nearby.length) return null;
+		if (ix < 0 || ix >= (nearby[iy]?.length ?? 0)) return null;
+		return nearby[iy]?.[ix] ?? null;
+	}
+
 	const baseGrid = $derived.by(() => {
 		for (const id of sessionOrder) {
 			const s = states.get(id);
-			if (s?.grid) return s.grid;
+			if (s?.grid?.length) return s.grid;
 		}
-		return null;
+		const size = selectedMapGridSize;
+		if (size <= 0) return null;
+		const rows: Array<Array<Cell | null>> = [];
+		for (let y = 0; y < size; y++) {
+			const row: Array<Cell | null> = [];
+			for (let x = 0; x < size; x++) {
+				let cell: Cell | null = null;
+				for (const id of sessionOrder) {
+					const state = states.get(id);
+					if (!state) continue;
+					cell = projectNearbyCell(state, x, y);
+					if (cell) break;
+				}
+				row.push(cell);
+			}
+			rows.push(row);
+		}
+		return rows;
 	});
 
 	function setAnimatedPosition(id: string, pos: Position | null) {
@@ -125,26 +199,51 @@
 		if (moves.length === 0) {
 			stopAnimation(id);
 			animationSignatures.delete(id);
+			animationMoveCounts.delete(id);
 			return;
 		}
 
 		const signature = moves
 			.map((move) => `${move.fromPosition.x},${move.fromPosition.y}>${move.toPosition.x},${move.toPosition.y}`)
 			.join('|');
-		if (animationSignatures.get(id) === signature) return;
+		const previousSignature = animationSignatures.get(id);
+		const previousMoveCount = animationMoveCounts.get(id) ?? 0;
+		if (previousSignature === signature) return;
+
 		animationSignatures.set(id, signature);
+		animationMoveCounts.set(id, moves.length);
+		if (!previousSignature) {
+			// First snapshot for a session may already include long history; render at current position.
+			stopAnimation(id);
+			return;
+		}
+
+		const isAppendOnly = signature.startsWith(`${previousSignature}|`);
+		if (!isAppendOnly) {
+			// History diverged (reset/rewind/reconnect). Avoid replaying the full path.
+			stopAnimation(id);
+			return;
+		}
+
+		const deltaMoves = moves.slice(previousMoveCount);
+		if (deltaMoves.length === 0) return;
+		const historicalMoves = moves.slice(0, previousMoveCount);
 
 		stopAnimation(id);
 		let index = 0;
 		const trail = new Set<string>();
+		for (const move of historicalMoves) {
+			trail.add(`${move.fromPosition.x},${move.fromPosition.y}`);
+			trail.add(`${move.toPosition.x},${move.toPosition.y}`);
+		}
 		setAnimating(id, true);
-		setAnimatedPosition(id, moves[0].fromPosition);
-		trail.add(`${moves[0].fromPosition.x},${moves[0].fromPosition.y}`);
+		setAnimatedPosition(id, deltaMoves[0].fromPosition);
+		trail.add(`${deltaMoves[0].fromPosition.x},${deltaMoves[0].fromPosition.y}`);
 		setAnimatedTrail(id, new Set(trail));
 
 		const step = () => {
 			const latest = states.get(id);
-			const move = moves[index];
+			const move = deltaMoves[index];
 			if (!latest || !move) {
 				setAnimatedPosition(id, latest?.playerPos ?? state.playerPos);
 				setAnimating(id, false);
@@ -222,6 +321,8 @@
 		wsUnsubs.set(id, () => {});
 
 		// initial state via fetch
+		const meta = sessionMetaByID.get(id);
+		const isFogSession = !!meta?.fogEnabled;
 		const graphqlUrl = typeof window !== 'undefined'
 			? `${window.location.origin}/graphql`
 			: 'http://localhost:8080/graphql';
@@ -229,7 +330,7 @@
 			const res = await fetch(graphqlUrl, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ query: GAME_STATE_QUERY, variables: { sessionID: id } })
+				body: JSON.stringify({ query: isFogSession ? FOG_GAME_STATE_QUERY : GAME_STATE_QUERY, variables: { sessionID: id } })
 			});
 			const json = await res.json();
 			const gs = json?.data?.gameState;
@@ -242,7 +343,7 @@
 			: 'ws://localhost:8080/graphql';
 		const wsc = createWsClient({ url: WS_URL });
 		const unsub = wsc.subscribe(
-			{ query: SESSION_SUBSCRIPTION, variables: { sessionID: id } },
+			{ query: isFogSession ? FOG_SESSION_SUBSCRIPTION : SESSION_SUBSCRIPTION, variables: { sessionID: id } },
 			{
 				next(data: { data?: { sessionUpdated?: Omit<SessionState, 'id'> } }) {
 					const gs = data.data?.sessionUpdated;
@@ -260,6 +361,7 @@
 		wsUnsubs.delete(id);
 		stopAnimation(id);
 		animationSignatures.delete(id);
+		animationMoveCounts.delete(id);
 		states.delete(id);
 		states = new Map(states);
 	}
@@ -357,12 +459,12 @@
 								{#each row as cell, x}
 									{@const players = playerMap.get(`${x},${y}`) ?? []}
 									{@const hasPlayer = players.length > 0}
-											{@const trailIdxs = !hasPlayer && cell.type === 'road' ? (trailMap.get(`${x},${y}`) ?? []) : []}
+									{@const trailIdxs = !hasPlayer ? (trailMap.get(`${x},${y}`) ?? []) : []}
 									{@const isTrail = trailIdxs.length > 0}
 									<td class="w-9 h-9 text-center text-base border transition-colors
-										{cellColorClass(cell.type)}
+										{cell ? cellColorClass(cell.type) : 'bg-slate-100 border-slate-200'}
 										{isTrail && !hasPlayer ? 'ring-2 ring-inset ring-sky-300' : ''}
-										{cell.visited && !hasPlayer && !isTrail ? 'opacity-40' : ''}">
+										{cell?.visited && !hasPlayer && !isTrail ? 'opacity-40' : ''}">
 										{#if hasPlayer}
 											{#if players.length === 1}
 												{!states.get(sessionOrder[players[0]])?.victory && states.get(sessionOrder[players[0]])?.gameOver ? '💥' : carColors[players[0] % carColors.length]}
@@ -379,7 +481,7 @@
 													<span class="inline-block rounded-full w-1 h-1 shrink-0" style="background:{dotColors[idx % dotColors.length]}"></span>
 												{/each}
 											</span>
-										{:else if hasDirections(cell)}
+										{:else if cell && hasDirections(cell)}
 											<span class="text-orange-500 font-bold leading-none">{directionGlyph(cell.allowedDirections)}</span>
 										{/if}
 									</td>
@@ -418,6 +520,7 @@
 			</div>
 			{#each availableIds as id, i}
 				{@const s = states.get(id)}
+				{@const meta = sessionMetaByID.get(id)}
 				<label class="bg-white rounded-xl border border-[#e8e8e8] px-3 py-2.5 shadow-sm hover:shadow-md transition-shadow flex items-start gap-2 cursor-pointer">
 					<input
 						type="checkbox"
@@ -431,6 +534,9 @@
 							<div class="min-w-0">
 								<div class="font-mono text-xs font-medium text-[#393c41] truncate">{id}</div>
 								<div class="text-[11px] text-gray-400">{s ? `${s.score} parks · ${s.totalMoves} moves` : 'Loading…'}</div>
+								{#if meta?.fogEnabled}
+									<div class="mt-1 inline-flex items-center rounded-full bg-blue-100 text-blue-700 px-2 py-0.5 text-[10px]">🌫 Fog r{meta.fogRadius}</div>
+								{/if}
 							</div>
 							{#if s}
 								<span class="text-xs shrink-0 {s.victory ? 'text-green-500' : s.gameOver ? 'text-red-500' : 'text-gray-400'}">

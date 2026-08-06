@@ -3,6 +3,7 @@ package graph
 import (
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/wricardo/tesla-road-trip-game/game/engine"
@@ -22,15 +23,33 @@ func toSession(s *service.SessionInfo) *model.Session {
 	if s.DisplayName != "" {
 		dn = &s.DisplayName
 	}
-	return &model.Session{ID: s.ID, DisplayName: dn, MapName: s.MapName, CreatedAt: timeString(s.CreatedAt), LastAccessedAt: timeString(s.LastAccessedAt), GameState: toGameState(s.GameState), GameMap: toGameMap(s.GameMap)}
+	gs := toGameState(s.GameState)
+	gm := toGameMap(s.GameMap)
+	if gm != nil && s.GameState != nil {
+		gameMapLayoutPolicy.Store(gm, gridPolicy{fogEnabled: s.GameState.FogEnabled, gridPassword: s.GameState.GridPassword})
+	}
+	return &model.Session{ID: s.ID, DisplayName: dn, MapName: s.MapName, CreatedAt: timeString(s.CreatedAt), LastAccessedAt: timeString(s.LastAccessedAt), GameState: gs, GameMap: gm}
 }
 
 func toUnifiedSession(s *service.SessionInfo) *model.UnifiedSession {
 	if s == nil {
 		return nil
 	}
-	return &model.UnifiedSession{SessionID: s.ID, CreatedAt: timeString(s.CreatedAt), LastAccessedAt: timeString(s.LastAccessedAt), GameState: toGameState(s.GameState), GameMap: toGameMap(s.GameMap)}
+	gs := toGameState(s.GameState)
+	gm := toGameMap(s.GameMap)
+	if gm != nil && s.GameState != nil {
+		gameMapLayoutPolicy.Store(gm, gridPolicy{fogEnabled: s.GameState.FogEnabled, gridPassword: s.GameState.GridPassword})
+	}
+	return &model.UnifiedSession{SessionID: s.ID, CreatedAt: timeString(s.CreatedAt), LastAccessedAt: timeString(s.LastAccessedAt), GameState: gs, GameMap: gm}
 }
+
+type gridPolicy struct {
+	fogEnabled   bool
+	gridPassword string
+}
+
+var gameStateGridPolicy sync.Map // map[*model.GameState]gridPolicy
+var gameMapLayoutPolicy sync.Map // map[*model.GameMap]gridPolicy
 
 func toGameState(gs *engine.GameState) *model.GameState {
 	if gs == nil {
@@ -54,11 +73,39 @@ func toGameState(gs *engine.GameState) *model.GameState {
 	for _, k := range visitedKeys {
 		visited = append(visited, &model.VisitedPark{ID: k, Visited: gs.VisitedParks[k]})
 	}
-	local := make([]*model.SurroundingCell, len(gs.LocalView))
-	for i, c := range gs.LocalView {
-		local[i] = &model.SurroundingCell{X: c.X, Y: c.Y, Type: string(c.Type)}
+	local := buildLocalViewGrid(gs)
+	out := &model.GameState{Grid: grid, PlayerPos: toPosition(gs.PlayerPos), Battery: gs.Battery, MaxBattery: gs.MaxBattery, Score: gs.Score, VisitedParks: visited, Message: gs.Message, GameOver: gs.GameOver, Victory: gs.Victory, MapName: gs.MapName, MoveHistory: toMoveHistory(gs.MoveHistory), TotalMoves: gs.TotalMoves, NearbyGrid: local, CurrentMoves: toMoveHistory(gs.CurrentMoves), CurrentMovesCount: gs.CurrentMovesCount, BatteryRisk: gs.BatteryRisk, FogEnabled: gs.FogEnabled, FogRadius: gs.FogRadius, MoveDelayMs: gs.MoveDelayMs}
+	gameStateGridPolicy.Store(out, gridPolicy{fogEnabled: gs.FogEnabled, gridPassword: gs.GridPassword})
+	return out
+}
+
+func buildLocalViewGrid(gs *engine.GameState) [][]*model.Cell {
+	if gs == nil {
+		return nil
 	}
-	return &model.GameState{Grid: grid, PlayerPos: toPosition(gs.PlayerPos), Battery: gs.Battery, MaxBattery: gs.MaxBattery, Score: gs.Score, VisitedParks: visited, Message: gs.Message, GameOver: gs.GameOver, Victory: gs.Victory, MapName: gs.MapName, MoveHistory: toMoveHistory(gs.MoveHistory), TotalMoves: gs.TotalMoves, LocalView: local, CurrentMoves: toMoveHistory(gs.CurrentMoves), CurrentMovesCount: gs.CurrentMovesCount, LocalView3x3: gs.LocalView3x3, BatteryRisk: gs.BatteryRisk}
+	radius := 1
+	if gs.FogEnabled && gs.FogRadius > 0 {
+		radius = gs.FogRadius
+	}
+	size := radius*2 + 1
+	local := make([][]*model.Cell, 0, size)
+	px, py := gs.PlayerPos.X, gs.PlayerPos.Y
+	for dy := -radius; dy <= radius; dy++ {
+		row := make([]*model.Cell, 0, size)
+		for dx := -radius; dx <= radius; dx++ {
+			x, y := px+dx, py+dy
+			if y < 0 || y >= len(gs.Grid) || x < 0 || x >= len(gs.Grid[y]) {
+				row = append(row, &model.Cell{Type: string(engine.Building), Visited: false, ID: "", AllowedDirections: nil})
+				continue
+			}
+			c := gs.Grid[y][x]
+			dirs := make([]string, len(c.AllowedDirections))
+			copy(dirs, c.AllowedDirections)
+			row = append(row, &model.Cell{Type: string(c.Type), Visited: c.Visited, ID: c.ID, AllowedDirections: dirs})
+		}
+		local = append(local, row)
+	}
+	return local
 }
 
 func toMoveHistory(entries []engine.MoveHistoryEntry) []*model.MoveHistoryEntry {
@@ -202,7 +249,7 @@ func toBulkResult(r *service.BulkMoveResult) *model.BulkMoveResult {
 	for i, s := range r.Steps {
 		steps[i] = toStep(s)
 	}
-	return &model.BulkMoveResult{MovesExecuted: r.MovesExecuted, TotalMoves: r.TotalMoves, RequestedMoves: r.RequestedMoves, Success: r.Success, GameState: toGameState(r.GameState), Events: toEvents(r.Events), StoppedReason: r.StoppedReason, StopReasonCode: r.StopReasonCode, StoppedOnMove: r.StoppedOnMove, Truncated: r.Truncated, Limit: r.Limit, StartPos: toPosition(r.StartPos), EndPos: toPosition(r.EndPos), StartBattery: r.StartBattery, EndBattery: r.EndBattery, ScoreDelta: r.ScoreDelta, Steps: steps, AttemptedTo: toAttempt(r.AttemptedTo), GameOver: r.GameOver, GameOverCode: r.GameOverCode, Message: r.Message, PossibleMoves: r.PossibleMoves, LocalView3x3: r.LocalView3x3, BatteryRisk: r.BatteryRisk}
+	return &model.BulkMoveResult{MovesExecuted: r.MovesExecuted, TotalMoves: r.TotalMoves, RequestedMoves: r.RequestedMoves, Success: r.Success, GameState: toGameState(r.GameState), Events: toEvents(r.Events), StoppedReason: r.StoppedReason, StopReasonCode: r.StopReasonCode, StoppedOnMove: r.StoppedOnMove, Truncated: r.Truncated, Limit: r.Limit, StartPos: toPosition(r.StartPos), EndPos: toPosition(r.EndPos), StartBattery: r.StartBattery, EndBattery: r.EndBattery, ScoreDelta: r.ScoreDelta, Steps: steps, AttemptedTo: toAttempt(r.AttemptedTo), GameOver: r.GameOver, GameOverCode: r.GameOverCode, Message: r.Message, PossibleMoves: r.PossibleMoves, BatteryRisk: r.BatteryRisk}
 }
 func toHistory(h *service.HistoryResponse) *model.HistoryResponse {
 	if h == nil {

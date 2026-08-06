@@ -22,3 +22,11 @@ models:
       - github.com/99designs/gqlgen/graphql.IntID
       - github.com/99designs/gqlgen/graphql.Int64ID
       - github.com/99designs/gqlgen/graphql.Int32ID
+  GameState:
+    fields:
+      grid:
+        resolver: true
+  GameMap:
+    fields:
+      layout:
+        resolver: true

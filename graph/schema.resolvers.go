@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	goSort "sort"
+	"time"
 
 	"github.com/wricardo/tesla-road-trip-game/game/engine"
 	"github.com/wricardo/tesla-road-trip-game/game/service"
@@ -15,15 +16,60 @@ import (
 	"github.com/wricardo/tesla-road-trip-game/graph/model"
 )
 
+// Layout is the resolver for the layout field.
+func (r *gameMapResolver) Layout(ctx context.Context, obj *model.GameMap, password *string) ([]string, error) {
+	policyAny, ok := gameMapLayoutPolicy.Load(obj)
+	if !ok {
+		return obj.Layout, nil
+	}
+	policy, ok := policyAny.(gridPolicy)
+	if !ok || !policy.fogEnabled {
+		return obj.Layout, nil
+	}
+	if password == nil || *password != policy.gridPassword {
+		return nil, fmt.Errorf("forbidden: map layout password required when fog mode is enabled")
+	}
+	return obj.Layout, nil
+}
+
+// Grid is the resolver for the grid field.
+func (r *gameStateResolver) Grid(ctx context.Context, obj *model.GameState, password *string) ([][]*model.Cell, error) {
+	policyAny, ok := gameStateGridPolicy.Load(obj)
+	if !ok {
+		return obj.Grid, nil
+	}
+	policy, ok := policyAny.(gridPolicy)
+	if !ok || !policy.fogEnabled {
+		return obj.Grid, nil
+	}
+	if password == nil || *password != policy.gridPassword {
+		return nil, fmt.Errorf("forbidden: grid password required when fog mode is enabled")
+	}
+	return obj.Grid, nil
+}
+
 // CreateSession is the resolver for the createSession field.
-func (r *mutationResolver) CreateSession(ctx context.Context, mapID *string, mapName *string) (*model.Session, error) {
+func (r *mutationResolver) CreateSession(ctx context.Context, mapID *string, mapName *string, fogEnabled *bool, fogRadius *int, gridPassword *string, moveDelayMs *int) (*model.Session, error) {
 	id := ""
 	if mapID != nil {
 		id = *mapID
 	} else if mapName != nil {
 		id = *mapName
 	}
-	s, err := r.Service.CreateSession(ctx, id)
+	opts := service.CreateSessionOptions{}
+	if fogEnabled != nil {
+		opts.FogEnabled = *fogEnabled
+	}
+	if fogRadius != nil {
+		opts.FogRadius = *fogRadius
+	}
+	if gridPassword != nil {
+		opts.GridPassword = *gridPassword
+	}
+	if moveDelayMs != nil {
+		opts.MoveDelayMs = moveDelayMs
+	}
+	s, err := r.Service.CreateSession(ctx, id, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -58,6 +104,17 @@ func (r *mutationResolver) Move(ctx context.Context, sessionID string, direction
 		return nil, err
 	}
 	if r.Hub != nil {
+		delayMs := 0
+		if result.GameState != nil {
+			delayMs = result.GameState.MoveDelayMs
+		}
+		if delayMs > 0 {
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(time.Duration(delayMs) * time.Millisecond):
+			}
+		}
 		r.Hub.BroadcastToSession(sessionID, result.GameState)
 	}
 	return toMoveResult(result), nil
@@ -72,6 +129,14 @@ func (r *mutationResolver) BulkMove(ctx context.Context, sessionID string, moves
 	dirs := make([]string, len(moves))
 	for i, move := range moves {
 		dirs[i] = directionString(move)
+	}
+	state, err := r.Service.GetGameState(ctx, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	delayMs := state.MoveDelayMs
+	if delayMs > 0 {
+		return r.bulkMoveWithStepBroadcast(ctx, sessionID, dirs, resetValue, time.Duration(delayMs)*time.Millisecond)
 	}
 	result, err := r.Service.BulkMove(ctx, sessionID, dirs, resetValue)
 	if err != nil {
@@ -262,7 +327,10 @@ func (r *queryResolver) Maps(ctx context.Context) ([]*model.MapInfo, error) {
 }
 
 // Map is the resolver for the map field.
-func (r *queryResolver) Map(ctx context.Context, name string) (*model.GameMap, error) {
+func (r *queryResolver) Map(ctx context.Context, name string, password *string) (*model.GameMap, error) {
+	if err := checkUIMapPassword(password); err != nil {
+		return nil, err
+	}
 	cfg, err := r.Service.LoadMap(ctx, name)
 	if err != nil {
 		return nil, err
@@ -302,6 +370,12 @@ func (r *subscriptionResolver) LobbyUpdated(ctx context.Context) (<-chan *model.
 	return out, nil
 }
 
+// GameMap returns generated.GameMapResolver implementation.
+func (r *Resolver) GameMap() generated.GameMapResolver { return &gameMapResolver{r} }
+
+// GameState returns generated.GameStateResolver implementation.
+func (r *Resolver) GameState() generated.GameStateResolver { return &gameStateResolver{r} }
+
 // Mutation returns generated.MutationResolver implementation.
 func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResolver{r} }
 
@@ -311,6 +385,8 @@ func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 // Subscription returns generated.SubscriptionResolver implementation.
 func (r *Resolver) Subscription() generated.SubscriptionResolver { return &subscriptionResolver{r} }
 
+type gameMapResolver struct{ *Resolver }
+type gameStateResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
 type subscriptionResolver struct{ *Resolver }

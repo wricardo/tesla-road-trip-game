@@ -1,24 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/gorilla/websocket"
 )
-
-type wsMessage struct {
-	SessionID string          `json:"session_id"`
-	Event     string          `json:"event"`
-	GameState json.RawMessage `json:"game_state"`
-	Data      json.RawMessage `json:"data"`
-}
 
 func main() {
 	url := flag.String("url", "ws://localhost:9191/ws?session=9c1a", "WebSocket URL")
@@ -26,11 +18,10 @@ func main() {
 
 	c, _, err := websocket.DefaultDialer.Dial(*url, nil)
 	if err != nil {
-		log.Fatalf("dial failed: %v", err)
+		fmt.Fprintf(os.Stderr, "dial failed: %v\n", err)
+		os.Exit(1)
 	}
 	defer c.Close()
-
-	log.Printf("connected: %s", *url)
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
@@ -39,27 +30,26 @@ func main() {
 	go func() {
 		defer close(done)
 		for {
-			msgType, payload, err := c.ReadMessage()
+			_, payload, err := c.ReadMessage()
 			if err != nil {
-				log.Printf("read error: %v", err)
+				fmt.Fprintf(os.Stderr, "read error: %v\n", err)
 				return
 			}
 
-			ts := time.Now().Format(time.RFC3339Nano)
-			fmt.Printf("[%s] type=%d bytes=%d\n", ts, msgType, len(payload))
-
-			var m wsMessage
-			if err := json.Unmarshal(payload, &m); err == nil {
-				fmt.Printf("  session=%s event=%s\n", m.SessionID, m.Event)
+			if !json.Valid(payload) {
+				continue
 			}
-			fmt.Printf("  raw=%s\n", string(payload))
+
+			var compact bytes.Buffer
+			if err := json.Compact(&compact, payload); err != nil {
+				continue
+			}
+			fmt.Println(compact.String())
 		}
 	}()
 
 	select {
 	case <-sigCh:
-		log.Printf("received interrupt, shutting down")
 	case <-done:
 	}
 }
-

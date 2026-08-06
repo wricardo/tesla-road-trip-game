@@ -4,6 +4,7 @@
 	import { page } from '$app/stores';
 	import { MAPS_QUERY, MAP_QUERY, CREATE_SESSION_MUTATION, UPDATE_SESSION_MUTATION } from '$lib/queries';
 	import { directionsForChar, directionGlyph, type CellConfigEntry } from '$lib/directional';
+	import uiAuthConfig from '$lib/config/ui-auth.json';
 
 	type LegendEntry = { key: string; value: string };
 	type MapPreview = {
@@ -18,12 +19,17 @@
 	};
 
 	const client = getContextClient();
+	const mapQueryPassword = uiAuthConfig.uiMapPassword ?? '';
 	const mapsResult = queryStore({ client, query: gql(MAPS_QUERY) });
 	const maps = $derived($mapsResult?.data?.maps ?? []);
 
 	let showCreate = $state(false);
 	let selectedMap = $state($page.url.searchParams.get('map') ?? '');
 	let sessionName = $state('');
+	let fogEnabled = $state(false);
+	let fogRadius = $state(1);
+	let moveDelayMs = $state(300);
+	let gridPassword = $state('');
 	let createError = $state('');
 	let creating = $state(false);
 	let preview = $state<MapPreview | null>(null);
@@ -43,7 +49,7 @@
 		const requestID = ++previewRequest;
 		previewLoading = true;
 		previewError = '';
-		client.query(gql(MAP_QUERY), { name: mapID }).toPromise().then((result) => {
+		client.query(gql(MAP_QUERY), { name: mapID, password: mapQueryPassword || null }).toPromise().then((result) => {
 			if (requestID !== previewRequest) return;
 			previewLoading = false;
 			if (result.error) {
@@ -74,7 +80,23 @@
 		if (creating) return;
 		creating = true;
 		createError = '';
-		const result = await client.mutation(gql(CREATE_SESSION_MUTATION), { mapID: selectedMap || null }).toPromise();
+		if (!Number.isFinite(moveDelayMs) || moveDelayMs < 0) {
+			createError = 'Move delay must be 0 or greater';
+			creating = false;
+			return;
+		}
+		if (fogEnabled && !gridPassword.trim()) {
+			createError = 'Grid password is required when fog mode is enabled';
+			creating = false;
+			return;
+		}
+		const result = await client.mutation(gql(CREATE_SESSION_MUTATION), {
+			mapID: selectedMap || null,
+			fogEnabled,
+			fogRadius: fogEnabled ? fogRadius : 1,
+			gridPassword: fogEnabled ? gridPassword : null,
+			moveDelayMs: Math.trunc(moveDelayMs)
+		}).toPromise();
 		creating = false;
 		if (result.error) { createError = result.error.message; return; }
 		const id = result.data?.createSession?.id;
@@ -152,6 +174,42 @@
 					/>
 				</div>
 
+				<div class="mb-4 rounded-2xl border border-gray-200 bg-white p-3">
+					<div class="flex items-center justify-between mb-2">
+						<p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Fog mode</p>
+						<label class="inline-flex items-center gap-2 text-xs text-gray-600">
+							<input type="checkbox" bind:checked={fogEnabled} class="rounded border-gray-300" />
+							Enable
+						</label>
+					</div>
+					{#if fogEnabled}
+						<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+							<div>
+								<label for="fog-radius" class="block text-xs font-semibold text-[#393c41] mb-1.5">Radius</label>
+								<input id="fog-radius" type="number" min="1" bind:value={fogRadius} class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:border-gray-400" />
+							</div>
+							<div>
+								<label for="grid-password" class="block text-xs font-semibold text-[#393c41] mb-1.5">Grid password</label>
+								<input id="grid-password" type="text" bind:value={gridPassword} placeholder="required when fog is on" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:border-gray-400" />
+							</div>
+						</div>
+						<p class="text-xs text-gray-400 mt-2">Full grid access requires this password via GraphQL <code>grid(password: ...)</code>.</p>
+					{/if}
+				</div>
+
+				<div class="mb-4 rounded-2xl border border-gray-200 bg-white p-3">
+					<label for="move-delay" class="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1.5">Move delay (ms)</label>
+					<input
+						id="move-delay"
+						type="number"
+						min="0"
+						step="1"
+						bind:value={moveDelayMs}
+						class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:border-gray-400"
+					/>
+					<p class="text-xs text-gray-400 mt-2">Applies to move and bulkMove websocket updates. Use 0 to disable delay.</p>
+				</div>
+
 				<div class="mb-5 rounded-2xl border border-gray-200 bg-white p-3">
 					<div class="flex items-start justify-between gap-3 mb-3">
 						<div>
@@ -205,4 +263,3 @@
 		</div>
 	</div>
 </div>
-

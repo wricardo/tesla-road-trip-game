@@ -219,6 +219,79 @@ func TestGameService_CreateSession(t *testing.T) {
 	}
 }
 
+func TestGameService_CreateSession_FogOptions(t *testing.T) {
+	ctx := context.Background()
+	sessions := NewMockSessionManager()
+	configs := NewMockConfigManager()
+	svc := service.NewGameService(sessions, configs)
+
+	tests := []struct {
+		name    string
+		opts    service.CreateSessionOptions
+		wantErr bool
+	}{
+		{
+			name: "fog disabled accepts defaults",
+			opts: service.CreateSessionOptions{},
+		},
+		{
+			name: "fog enabled with valid radius and password",
+			opts: service.CreateSessionOptions{FogEnabled: true, FogRadius: 2, GridPassword: "secret"},
+		},
+		{
+			name:    "fog enabled requires radius",
+			opts:    service.CreateSessionOptions{FogEnabled: true, FogRadius: 0, GridPassword: "secret"},
+			wantErr: true,
+		},
+		{
+			name:    "fog enabled requires password",
+			opts:    service.CreateSessionOptions{FogEnabled: true, FogRadius: 2},
+			wantErr: true,
+		},
+		{
+			name: "move delay can be disabled",
+			opts: service.CreateSessionOptions{MoveDelayMs: intPtr(0)},
+		},
+		{
+			name:    "move delay rejects negative values",
+			opts:    service.CreateSessionOptions{MoveDelayMs: intPtr(-1)},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			session, err := svc.CreateSession(ctx, "test", tt.opts)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("CreateSession() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if tt.wantErr {
+				return
+			}
+			if session == nil || session.GameState == nil {
+				t.Fatalf("expected session/game state")
+			}
+			if tt.opts.FogEnabled {
+				if !session.GameState.FogEnabled {
+					t.Fatalf("expected fog enabled on game state")
+				}
+				if session.GameState.FogRadius != tt.opts.FogRadius {
+					t.Fatalf("expected fog radius %d, got %d", tt.opts.FogRadius, session.GameState.FogRadius)
+				}
+			}
+			expectedDelay := service.DefaultMoveDelayMs
+			if tt.opts.MoveDelayMs != nil {
+				expectedDelay = *tt.opts.MoveDelayMs
+			}
+			if session.GameState.MoveDelayMs != expectedDelay {
+				t.Fatalf("expected move delay %d, got %d", expectedDelay, session.GameState.MoveDelayMs)
+			}
+		})
+	}
+}
+
+func intPtr(v int) *int { return &v }
+
 func TestGameService_Move(t *testing.T) {
 	ctx := context.Background()
 	sessions := NewMockSessionManager()

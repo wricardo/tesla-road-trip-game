@@ -40,7 +40,7 @@ type MockGameService struct {
 }
 
 // Session Management
-func (m *MockGameService) CreateSession(ctx context.Context, configName string) (*service.SessionInfo, error) {
+func (m *MockGameService) CreateSession(ctx context.Context, configName string, opts ...service.CreateSessionOptions) (*service.SessionInfo, error) {
 	if m.CreateSessionFunc != nil {
 		return m.CreateSessionFunc(ctx, configName)
 	}

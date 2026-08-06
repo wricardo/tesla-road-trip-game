@@ -115,6 +115,12 @@ type GameState struct {
 	// Computed helper views (not required for core game logic)
 	LocalView3x3 []string `json:"local_view_3x3,omitempty"`
 	BatteryRisk  string   `json:"battery_risk,omitempty"`
+
+	// Fog-of-war session options (used by API/GraphQL presentation layer)
+	FogEnabled   bool   `json:"fog_enabled,omitempty"`
+	FogRadius    int    `json:"fog_radius,omitempty"`
+	GridPassword string `json:"grid_password,omitempty"`
+	MoveDelayMs  int    `json:"move_delay_ms,omitempty"`
 }
 
 // MoveHistoryEntry represents a single move in the game history

@@ -40,7 +40,6 @@ type BulkMoveResult struct {
 	GameOverCode   string       `json:"gameOverCode"`
 	Message        string       `json:"message"`
 	PossibleMoves  []string     `json:"possibleMoves"`
-	LocalView3x3   []string     `json:"localView3x3"`
 	BatteryRisk    string       `json:"batteryRisk"`
 }
 
@@ -123,11 +122,13 @@ type GameState struct {
 	MapName           string              `json:"mapName"`
 	MoveHistory       []*MoveHistoryEntry `json:"moveHistory"`
 	TotalMoves        int                 `json:"totalMoves"`
-	LocalView         []*SurroundingCell  `json:"localView"`
+	NearbyGrid        [][]*Cell           `json:"nearbyGrid"`
 	CurrentMoves      []*MoveHistoryEntry `json:"currentMoves"`
 	CurrentMovesCount int                 `json:"currentMovesCount"`
-	LocalView3x3      []string            `json:"localView3x3"`
 	BatteryRisk       string              `json:"batteryRisk"`
+	FogEnabled        bool                `json:"fogEnabled"`
+	FogRadius         int                 `json:"fogRadius"`
+	MoveDelayMs       int                 `json:"moveDelayMs"`
 }
 
 type HistoryResponse struct {
@@ -230,12 +231,6 @@ type StepInfo struct {
 }
 
 type Subscription struct {
-}
-
-type SurroundingCell struct {
-	X    int    `json:"x"`
-	Y    int    `json:"y"`
-	Type string `json:"type"`
 }
 
 type UnifiedSession struct {

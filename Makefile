@@ -1,7 +1,7 @@
 # Tesla Road Trip Game - Makefile
 # Development tooling for the Tesla Road Trip Game server
 
-.PHONY: help build build-tui tui test test-verbose test-coverage clean run dev dev-live fmt fmt-check lint vet vet-safe vet-all deps validate claude-game claude-game-stdin verify tools status
+.PHONY: help build build-frontend build-tui tui test test-verbose test-coverage clean run dev dev-live fmt fmt-check lint vet vet-safe vet-all deps validate claude-game claude-game-stdin verify tools status
 
 # Default target
 help:
@@ -11,7 +11,7 @@ help:
 	@echo "  build        - Build the game server binary"
 	@echo "  build-tui    - Build the terminal UI client binary"
 	@echo "  tui          - Build and run the TUI client"
-	@echo "  run          - Run the game server (default config)"
+	@echo "  run          - Build frontend + backend and run server (default config)"
 	@echo "  dev          - Run backend in development mode on port 8000"
 	@echo "  dev-backend  - Run backend on port 9090 for frontend live dev"
 	@echo "  frontend-dev - Run Svelte frontend with live reload on port 5173"
@@ -49,6 +49,10 @@ build:
 	@echo "Building Tesla Road Trip Game server..."
 	go build -o tesla-road-trip .
 
+build-frontend:
+	@echo "Building frontend static bundle..."
+	cd frontend && npm run build
+
 build-tui:
 	@echo "Building TUI client..."
 	go build -o tesla-road-trip-tui ./cmd/tui
@@ -76,7 +80,19 @@ test-coverage:
 	@echo "Coverage report saved to coverage.html"
 
 # Development targets
-run: build
+run: build-frontend build
+	@echo "Stopping any existing listener on :8000..."
+	@pids=$$(lsof -tiTCP:8000 -sTCP:LISTEN 2>/dev/null || true); \
+	if [ -n "$$pids" ]; then \
+		echo "Stopping port 8000: $$pids"; \
+		kill $$pids 2>/dev/null || true; \
+		sleep 1; \
+		pids2=$$(lsof -tiTCP:8000 -sTCP:LISTEN 2>/dev/null || true); \
+		if [ -n "$$pids2" ]; then \
+			echo "Force stopping port 8000: $$pids2"; \
+			kill -9 $$pids2 2>/dev/null || true; \
+		fi; \
+	fi
 	@echo "Starting Tesla Road Trip Game server..."
 	./tesla-road-trip
 

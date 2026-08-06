@@ -2,6 +2,7 @@
 	import { getContextClient, queryStore, gql } from '@urql/svelte';
 	import { directionsForChar, directionGlyph, type CellConfigEntry } from '$lib/directional';
 	import { MAPS_QUERY, MAP_QUERY } from '$lib/queries';
+	import uiAuthConfig from '$lib/config/ui-auth.json';
 
 	type MapInfo = {
 		mapId: string;
@@ -24,6 +25,7 @@
 	type MapCard = MapInfo & { preview?: GameMap; error?: string };
 
 	const client = getContextClient();
+	const mapQueryPassword = uiAuthConfig.uiMapPassword ?? '';
 	const mapsResult = queryStore({ client, query: gql(MAPS_QUERY) });
 
 	let cards = $state<MapCard[]>([]);
@@ -43,7 +45,7 @@
 
 		Promise.all(
 			maps.map(async (map) => {
-				const result = await client.query(gql(MAP_QUERY), { name: map.mapId }).toPromise();
+				const result = await client.query(gql(MAP_QUERY), { name: map.mapId, password: mapQueryPassword || null }).toPromise();
 				if (result.error) return { ...map, error: result.error.message };
 				return { ...map, preview: result.data?.map as GameMap };
 			})
@@ -152,6 +154,7 @@
 						<div class="flex items-center justify-between gap-3 text-xs text-gray-400">
 							<span>Battery {map.maxBattery}</span>
 							<div class="flex items-center gap-3">
+								<a href={`/editor?map=${map.mapId}&duplicate=1`} class="font-medium text-gray-500 hover:text-[#393c41] transition-colors">Duplicate</a>
 								<a href={`/editor?map=${map.mapId}`} class="font-medium text-gray-500 hover:text-[#393c41] transition-colors">Edit</a>
 								<a href={`/?map=${map.mapId}`} class="font-medium text-[#393c41] hover:text-black transition-colors">Use map →</a>
 							</div>

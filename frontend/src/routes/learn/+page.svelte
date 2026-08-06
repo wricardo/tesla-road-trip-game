@@ -11,7 +11,7 @@ BASE_URL="http://tesla.wricardo.net"
 curl -s "$BASE_URL/graphql" \
   -H 'Content-Type: application/json' \
   --data "$(jq -nc --arg id "$SESSION_ID" '{
-    query: "query($id: ID!) { gameState(sessionID: $id) { battery maxBattery score victory gameOver localView3x3 playerPos { x y } grid { type allowedDirections } } }",
+    query: "query($id: ID!) { gameState(sessionID: $id) { battery maxBattery score victory gameOver playerPos { x y } nearbyGrid { type allowedDirections } } }",
     variables: { id: $id }
   }')"`;
 

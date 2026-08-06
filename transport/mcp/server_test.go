@@ -14,18 +14,27 @@ import (
 )
 
 type mockGameService struct {
-	moveFunc     func(ctx context.Context, sessionID, direction string, reset bool) (*service.MoveResult, error)
-	bulkMoveFunc func(ctx context.Context, sessionID string, moves []string, reset bool) (*service.BulkMoveResult, error)
-	resetFunc    func(ctx context.Context, sessionID string) (*engine.GameState, error)
+	moveFunc          func(ctx context.Context, sessionID, direction string, reset bool) (*service.MoveResult, error)
+	bulkMoveFunc      func(ctx context.Context, sessionID string, moves []string, reset bool) (*service.BulkMoveResult, error)
+	resetFunc         func(ctx context.Context, sessionID string) (*engine.GameState, error)
+	createSessionFunc func(ctx context.Context, configName string, opts ...service.CreateSessionOptions) (*service.SessionInfo, error)
+	historyFunc       func(ctx context.Context, sessionID string, opts service.HistoryOptions) (*service.HistoryResponse, error)
+	listSessionsFunc  func(ctx context.Context) ([]*service.SessionInfo, error)
 }
 
-func (m *mockGameService) CreateSession(ctx context.Context, configName string) (*service.SessionInfo, error) {
+func (m *mockGameService) CreateSession(ctx context.Context, configName string, opts ...service.CreateSessionOptions) (*service.SessionInfo, error) {
+	if m.createSessionFunc != nil {
+		return m.createSessionFunc(ctx, configName, opts...)
+	}
 	return &service.SessionInfo{}, nil
 }
 func (m *mockGameService) GetSession(ctx context.Context, sessionID string) (*service.SessionInfo, error) {
 	return &service.SessionInfo{}, nil
 }
 func (m *mockGameService) ListSessions(ctx context.Context) ([]*service.SessionInfo, error) {
+	if m.listSessionsFunc != nil {
+		return m.listSessionsFunc(ctx)
+	}
 	return []*service.SessionInfo{}, nil
 }
 func (m *mockGameService) DeleteSession(ctx context.Context, sessionID string) error { return nil }
@@ -54,6 +63,9 @@ func (m *mockGameService) GetGameState(ctx context.Context, sessionID string) (*
 	return &engine.GameState{}, nil
 }
 func (m *mockGameService) GetMoveHistory(ctx context.Context, sessionID string, opts service.HistoryOptions) (*service.HistoryResponse, error) {
+	if m.historyFunc != nil {
+		return m.historyFunc(ctx, sessionID, opts)
+	}
 	return &service.HistoryResponse{}, nil
 }
 func (m *mockGameService) ListMaps(ctx context.Context) ([]*service.MapInfo, error) {
@@ -306,5 +318,99 @@ func TestHandleMove_DefaultOutputOmitsHistoryFields(t *testing.T) {
 	text := result.Content[0].(mcp.TextContent).Text
 	if strings.Contains(text, "move_history") || strings.Contains(text, "current_moves") || strings.Contains(text, "current_moves_count") {
 		t.Fatalf("expected history fields omitted from default output, got: %s", text)
+	}
+}
+
+func TestHandleCreateSession_UsesGraphQLStyleArgsAndPrecedence(t *testing.T) {
+	moveDelay := 120
+	mockSvc := &mockGameService{
+		createSessionFunc: func(ctx context.Context, configName string, opts ...service.CreateSessionOptions) (*service.SessionInfo, error) {
+			if configName != "map-id" {
+				t.Fatalf("expected map_id precedence, got %q", configName)
+			}
+			if len(opts) != 1 {
+				t.Fatalf("expected single CreateSessionOptions, got %d", len(opts))
+			}
+			if !opts[0].FogEnabled {
+				t.Fatalf("expected fog_enabled to be true")
+			}
+			if opts[0].FogRadius != 2 {
+				t.Fatalf("expected fog_radius=2, got %d", opts[0].FogRadius)
+			}
+			if opts[0].GridPassword != "pw" {
+				t.Fatalf("expected grid_password to be propagated")
+			}
+			if opts[0].MoveDelayMs == nil || *opts[0].MoveDelayMs != moveDelay {
+				t.Fatalf("expected move_delay_ms=%d, got %+v", moveDelay, opts[0].MoveDelayMs)
+			}
+			return &service.SessionInfo{ID: "s1"}, nil
+		},
+	}
+	server := NewServer(mockSvc)
+
+	_, err := server.handleCreateSession(context.Background(), mcp.CallToolRequest{Params: mcp.CallToolParams{Arguments: map[string]interface{}{
+		"map_id":        "map-id",
+		"map_name":      "map-name",
+		"fog_enabled":   true,
+		"fog_radius":    2.0,
+		"grid_password": "pw",
+		"move_delay_ms": float64(moveDelay),
+	}}})
+	if err != nil {
+		t.Fatalf("handleCreateSession returned error: %v", err)
+	}
+}
+
+func TestHandleMoveHistory_AcceptsGraphQLPaginationArgs(t *testing.T) {
+	mockSvc := &mockGameService{
+		historyFunc: func(ctx context.Context, sessionID string, opts service.HistoryOptions) (*service.HistoryResponse, error) {
+			if sessionID != "s-1" {
+				t.Fatalf("unexpected sessionID %q", sessionID)
+			}
+			if opts.Page != 3 || opts.Limit != 25 || opts.Order != "asc" {
+				t.Fatalf("unexpected history opts: %+v", opts)
+			}
+			return &service.HistoryResponse{}, nil
+		},
+	}
+	server := NewServer(mockSvc)
+
+	_, err := server.handleMoveHistory(context.Background(), mcp.CallToolRequest{Params: mcp.CallToolParams{Arguments: map[string]interface{}{
+		"session_id": "s-1",
+		"page":       3.0,
+		"limit":      25.0,
+		"order":      "ASC",
+	}}})
+	if err != nil {
+		t.Fatalf("handleMoveHistory returned error: %v", err)
+	}
+}
+
+func TestHandleListSessions_ReturnsGraphQLLikeEnvelope(t *testing.T) {
+	now := time.Now()
+	mockSvc := &mockGameService{
+		listSessionsFunc: func(ctx context.Context) ([]*service.SessionInfo, error) {
+			return []*service.SessionInfo{
+				{ID: "older", CreatedAt: now.Add(-2 * time.Hour), LastAccessedAt: now.Add(-30 * time.Minute)},
+				{ID: "newer", CreatedAt: now.Add(-1 * time.Hour), LastAccessedAt: now.Add(-10 * time.Minute)},
+			}, nil
+		},
+	}
+	server := NewServer(mockSvc)
+
+	result, err := server.handleListSessions(context.Background(), mcp.CallToolRequest{Params: mcp.CallToolParams{Arguments: map[string]interface{}{
+		"sort":  "CREATED",
+		"order": "ASC",
+		"limit": 1.0,
+	}}})
+	if err != nil {
+		t.Fatalf("handleListSessions returned error: %v", err)
+	}
+	text := result.Content[0].(mcp.TextContent).Text
+	if !strings.Contains(text, "count") || !strings.Contains(text, "total") || !strings.Contains(text, "sessions") {
+		t.Fatalf("expected GraphQL-style envelope fields in output, got: %s", text)
+	}
+	if !strings.Contains(text, "older") || strings.Contains(text, "newer") {
+		t.Fatalf("expected created asc sort + limit to keep only oldest session, got: %s", text)
 	}
 }

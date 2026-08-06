@@ -16,6 +16,8 @@
 		victory: boolean;
 		gameOver: boolean;
 		totalMoves: number;
+		fogEnabled: boolean;
+		fogRadius: number;
 	};
 
 	let sessionMap = $state<Map<string, SessionCard>>(new Map());
@@ -36,7 +38,9 @@
 				score: s.gameState.score,
 				victory: s.gameState.victory,
 				gameOver: s.gameState.gameOver,
-				totalMoves: s.gameState.totalMoves
+				totalMoves: s.gameState.totalMoves,
+				fogEnabled: s.gameState.fogEnabled,
+				fogRadius: s.gameState.fogRadius
 			});
 		}
 		sessionMap = m;
@@ -144,7 +148,12 @@
 								<button onclick={(e) => startEdit(s, e)} class="text-gray-300 hover:text-gray-500 transition-colors flex-shrink-0" title="Rename">✎</button>
 							{/if}
 						</div>
-						<span class="text-xs text-gray-400 bg-gray-100 rounded-full px-2 py-0.5 flex-shrink-0">{s.mapName}</span>
+						<div class="flex items-center gap-2 flex-shrink-0">
+							{#if s.fogEnabled}
+								<span class="text-xs text-blue-700 bg-blue-100 rounded-full px-2 py-0.5" title={`Fog radius ${s.fogRadius}`}>🌫 Fog r{s.fogRadius}</span>
+							{/if}
+							<span class="text-xs text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">{s.mapName}</span>
+						</div>
 					</div>
 					<div class="mb-3">
 						<div class="flex justify-between text-xs text-gray-400 mb-1"><span>Battery</span><span>{s.battery}/{s.maxBattery}</span></div>
