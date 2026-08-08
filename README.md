@@ -61,14 +61,6 @@ make dev-watch
 # Custom port
 ./tesla-road-trip -port 9090
 
-# Enable ngrok tunnel for public access
-./tesla-road-trip --ngrok
-
-# With ngrok auth token (or set NGROK_AUTHTOKEN env var)
-./tesla-road-trip --ngrok --ngrok-auth "your-auth-token"
-
-# With custom ngrok domain
-./tesla-road-trip --ngrok --ngrok-domain "your-domain.ngrok-free.app"
 ```
 
 #### Server Options
@@ -77,32 +69,7 @@ make dev-watch
 - `-host`: HTTP server host (default: localhost)
 - `-config-dir`: Directory containing game configurations (default: maps)
 - `-debug`: Enable debug logging
-- `-ngrok`: Enable ngrok tunnel for public access
-- `-ngrok-auth`: Ngrok auth token (alternatively use NGROK_AUTHTOKEN env var)
-- `-ngrok-domain`: Custom ngrok domain (optional)
-
-#### Ngrok Integration
-
-The server includes built-in ngrok support for exposing your local game server to the internet:
-
-```bash
-# Basic ngrok usage (requires NGROK_AUTHTOKEN env var or --ngrok-auth flag)
-export NGROK_AUTHTOKEN="your-auth-token"
-./tesla-road-trip --ngrok
-
-# Or use a .env file (recommended)
-cp .env.example .env
-# Edit .env with your credentials
-./tesla-road-trip  # Automatically loads .env file
-
-# Output will show both local and ngrok URLs:
-# Loaded environment variables from .env file
-# 🚀 Ngrok tunnel established: https://abc123.ngrok-free.app
-#   GraphQL API (ngrok): https://abc123.ngrok-free.app/graphql
-#   GraphQL playground (ngrok): https://abc123.ngrok-free.app/playground
-#   WebSocket (ngrok): https://abc123.ngrok-free.app/ws?session=<session_id>
-#   Game UI (ngrok): https://abc123.ngrok-free.app/
-```
+- `-public-url`: Public base URL used in `/llms.txt` (defaults to local host/port)
 
 ##### Environment Variables (.env file)
 
@@ -113,18 +80,10 @@ The server automatically loads environment variables from a `.env` file if prese
 cp .env.example .env
 
 # Edit with your values
-NGROK_AUTH_TOKEN=your-auth-token-here  # Supports both NGROK_AUTHTOKEN and NGROK_AUTH_TOKEN
-NGROK_ENABLED=true                     # Automatically enable ngrok (true or 1)
-NGROK_DOMAIN=your-domain.ngrok-free.app # Optional custom domain
+GRAPHQL_INTROSPECTION=true
+GRAPHQL_PLAYGROUND=true
+MCP_ENABLED=true
 ```
-
-Environment variables can be used instead of or in combination with command-line flags. Command-line flags take precedence over environment variables.
-
-This is useful for:
-- Testing webhooks and callbacks
-- Sharing your game with others for testing
-- Integrating with external services
-- GraphQL access from remote AI assistants
 
 ### Development Workflow
 
@@ -510,3 +469,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 **Happy Gaming! 🎮⚡🌳**
+...
