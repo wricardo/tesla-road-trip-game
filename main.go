@@ -5,7 +5,7 @@
 //  2. "stdio-mcp" – runs an MCP stdio server and spins up an internal HTTP API if none is available
 //
 // Flags control host/port, config directory, debug logging, version output,
-// and optional ngrok tunneling for easy external access during development.
+// and public URL rendering for /llms.txt.
 package main
 
 import (
@@ -36,8 +36,6 @@ import (
 	"github.com/wricardo/tesla-road-trip-game/graph/generated"
 	mcptransport "github.com/wricardo/tesla-road-trip-game/transport/mcp"
 	"github.com/wricardo/tesla-road-trip-game/transport/websocket"
-	"golang.ngrok.com/ngrok"
-	ngrokConfig "golang.ngrok.com/ngrok/config"
 )
 
 // Version information
@@ -48,16 +46,13 @@ const (
 
 // Configuration flags control how the server starts and which services are enabled.
 var (
-	port         = flag.Int("port", 8000, "HTTP server port")
-	host         = flag.String("host", "localhost", "HTTP server host")
-	configDir    = flag.String("config-dir", getConfigDirDefault(), "Directory containing game configurations")
-	sessionsDir  = flag.String("sessions-dir", getSessionsDirDefault(), "Directory for persisted game sessions")
-	debug        = flag.Bool("debug", false, "Enable debug logging")
-	version      = flag.Bool("version", false, "Show version information")
-	ngrokEnabled = flag.Bool("ngrok", false, "Enable ngrok tunnel")
-	ngrokAuth    = flag.String("ngrok-auth", "", "Ngrok auth token (or use NGROK_AUTHTOKEN env var)")
-	ngrokDomain  = flag.String("ngrok-domain", "", "Custom ngrok domain (optional)")
-	publicURL    = flag.String("public-url", "", "Public base URL served in llms.txt (e.g. https://myserver.com). Defaults to http://<host>:<port>")
+	port        = flag.Int("port", 8000, "HTTP server port")
+	host        = flag.String("host", "localhost", "HTTP server host")
+	configDir   = flag.String("config-dir", getConfigDirDefault(), "Directory containing game configurations")
+	sessionsDir = flag.String("sessions-dir", getSessionsDirDefault(), "Directory for persisted game sessions")
+	debug       = flag.Bool("debug", false, "Enable debug logging")
+	version     = flag.Bool("version", false, "Show version information")
+	publicURL   = flag.String("public-url", "", "Public base URL served in llms.txt (e.g. https://myserver.com). Defaults to http://<host>:<port>")
 )
 
 var llmsTxtTemplate = template.Must(template.New("llms").Parse(`# Tesla Road Trip Game — LLM Guide
@@ -617,7 +612,6 @@ func main() {
 }
 
 // runHTTPServer starts the HTTP server with GraphQL, WebSocket hub, and an /mcp proxy endpoint.
-// If ngrok is enabled (via flag or environment), it also provisions a public tunnel.
 func runHTTPServer(gameService service.GameService) {
 	// Create WebSocket hub
 	hub := websocket.NewHub()
@@ -698,10 +692,6 @@ func runHTTPServer(gameService service.GameService) {
 		IdleTimeout:  60 * time.Second,
 	}
 
-	// Setup graceful shutdown context
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	// Handle shutdown signals
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
@@ -723,86 +713,9 @@ func runHTTPServer(gameService service.GameService) {
 		}
 	}()
 
-	// Check if ngrok should be enabled (from flag or environment)
-	ngrokShouldRun := *ngrokEnabled
-	if !ngrokShouldRun {
-		// Check environment variable if flag not set
-		if envEnabled := os.Getenv("NGROK_ENABLED"); envEnabled == "true" || envEnabled == "1" {
-			ngrokShouldRun = true
-		}
-	}
-
-	// Start ngrok tunnel if enabled
-	if ngrokShouldRun {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
-			// Get auth token from flag or environment (support both naming conventions)
-			authToken := *ngrokAuth
-			if authToken == "" {
-				authToken = os.Getenv("NGROK_AUTHTOKEN")
-				if authToken == "" {
-					authToken = os.Getenv("NGROK_AUTH_TOKEN") // Also support underscore version
-				}
-			}
-
-			if authToken == "" {
-				log.Println("WARNING: Ngrok enabled but no auth token provided (use --ngrok-auth, NGROK_AUTHTOKEN, or NGROK_AUTH_TOKEN env var)")
-				return
-			}
-
-			log.Println("Starting ngrok tunnel...")
-
-			// Get domain from flag or environment
-			domain := *ngrokDomain
-			if domain == "" {
-				domain = os.Getenv("NGROK_DOMAIN")
-			}
-
-			// Configure ngrok endpoint
-			var tunnel ngrokConfig.Tunnel
-			if domain != "" {
-				tunnel = ngrokConfig.HTTPEndpoint(ngrokConfig.WithDomain(domain))
-				log.Printf("Using custom ngrok domain: %s", domain)
-			} else {
-				tunnel = ngrokConfig.HTTPEndpoint()
-			}
-
-			// Start ngrok tunnel
-			tun, err := ngrok.Listen(ctx,
-				tunnel,
-				ngrok.WithAuthtoken(authToken),
-			)
-			if err != nil {
-				log.Printf("Failed to start ngrok tunnel: %v", err)
-				return
-			}
-			defer func() {
-				if err := tun.Close(); err != nil {
-					log.Printf("Failed to close ngrok tunnel: %v", err)
-				}
-			}()
-
-			ngrokURL := tun.URL()
-			log.Printf("🚀 Ngrok tunnel established: %s", ngrokURL)
-			log.Printf("  GraphQL API (ngrok): %s/graphql", ngrokURL)
-			log.Printf("  GraphQL playground (ngrok): %s/playground", ngrokURL)
-			log.Printf("  WebSocket (ngrok): %s/ws?session=<session_id>", ngrokURL)
-			log.Printf("  Game UI (ngrok): %s/", ngrokURL)
-
-			// Serve HTTP through ngrok tunnel
-			if err := http.Serve(tun, mainRouter); err != nil && err != http.ErrServerClosed {
-				log.Printf("Ngrok server error: %v", err)
-			}
-			log.Println("Ngrok tunnel closed")
-		}()
-	}
-
 	// Wait for shutdown signal
 	sig := <-stop
 	log.Printf("Received signal: %v. Shutting down...", sig)
-	cancel()
 
 	// Graceful shutdown with timeout
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)

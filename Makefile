@@ -40,7 +40,7 @@ help:
 	@echo "  claude-game-stdin - Start Claude with stdin MCP config"
 	@echo ""
 	@echo "Utilities:"
-	@echo "  status       - Check server status and ngrok tunnel"
+	@echo "  status       - Check server status"
 	@echo "  clean        - Clean build artifacts"
 	@echo "  help         - Show this help message"
 
@@ -233,42 +233,6 @@ status:
 			lsof -i :8000; \
 		else \
 			echo "   Port 8000 is available"; \
-		fi; \
-	fi
-	@echo ""
-	@echo "Checking ngrok tunnel:"
-	@if command -v ngrok >/dev/null 2>&1; then \
-		if curl -s http://127.0.0.1:4040/api/tunnels 2>/dev/null | grep -q '"public_url"'; then \
-			echo "✅ ngrok tunnel is active:"; \
-			curl -s http://127.0.0.1:4040/api/tunnels | grep -o '"public_url":"[^"]*"' | cut -d'"' -f4 | while read url; do \
-				echo "   Public URL: $$url"; \
-				if curl -s $$url/api >/dev/null 2>&1; then \
-					echo "   ✅ Tunnel endpoint responds"; \
-				else \
-					echo "   ❌ Tunnel endpoint not responding"; \
-				fi; \
-			done; \
-		else \
-			echo "❌ Standalone ngrok tunnel not found"; \
-		fi; \
-	else \
-		echo "⚠️  ngrok CLI not installed"; \
-	fi
-	@echo "   Checking for embedded ngrok in server logs:"
-	@if curl -s http://localhost:8000/api >/dev/null 2>&1; then \
-		echo "   🔍 Found tesla-road-trip server on port 8000 (may have embedded ngrok)"; \
-		NGROK_DOMAIN=$$(grep NGROK_DOMAIN .env 2>/dev/null | cut -d= -f2); \
-		if [ -n "$$NGROK_DOMAIN" ]; then \
-			echo "   Testing ngrok domain: https://$$NGROK_DOMAIN"; \
-			if curl -s https://$$NGROK_DOMAIN/api >/dev/null 2>&1; then \
-				echo "   ✅ ngrok tunnel responds: https://$$NGROK_DOMAIN"; \
-				echo "      Public API: https://$$NGROK_DOMAIN/api"; \
-				echo "      Public UI: https://$$NGROK_DOMAIN"; \
-			else \
-				echo "   ❌ ngrok tunnel not responding: https://$$NGROK_DOMAIN"; \
-			fi; \
-		else \
-			echo "   ℹ️  Set NGROK_DOMAIN in .env to test tunnel"; \
 		fi; \
 	fi
 	@echo ""

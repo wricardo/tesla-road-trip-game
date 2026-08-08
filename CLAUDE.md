@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Tesla Road Trip Game — grid-based multi-session game server in Go where players control a Tesla to collect parks while managing battery. Features: per-session configuration, GraphQL API (gqlgen), Streamable HTTP MCP endpoint, WebSocket updates, SvelteKit frontend, and ngrok tunneling.
+Tesla Road Trip Game — grid-based multi-session game server in Go where players control a Tesla to collect parks while managing battery. Features: per-session configuration, GraphQL API (gqlgen), Streamable HTTP MCP endpoint, WebSocket updates, and SvelteKit frontend.
 
 ## Development Commands
 
@@ -16,7 +16,7 @@ make build          # Build binary → ./tesla-road-trip
 make run            # Build + run (port 8000)
 make dev            # Same as run, explicit port 8000
 ./tesla-road-trip -port 9090              # Custom port
-./tesla-road-trip -ngrok                  # With ngrok tunnel
+./tesla-road-trip -public-url https://example.com  # Set public URL in /llms.txt
 # stdio-mcp mode is currently disabled in main.go
 ```
 
@@ -183,8 +183,8 @@ mv -f src dst
 rm -f file       # rm -rf dir
 ```
 
-### ngrok Integration
-`-ngrok` flag starts an ngrok tunnel. Auth token via `-ngrok-auth` flag or `NGROK_AUTHTOKEN` env var. Domain via `-ngrok-domain`. Public URL is served in `/llms.txt`.
+### Public URL
+Use `-public-url` to set the base URL rendered in `/llms.txt` when exposing the service behind a tunnel or reverse proxy.
 
 ## AI Strategy Guidelines (Gameplay)
 
