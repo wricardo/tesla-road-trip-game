@@ -9,7 +9,7 @@
 	const GAME_STATE_QUERY = `
 		query GameState($sessionID: ID!) {
 			gameState(sessionID: $sessionID) {
-				battery maxBattery score victory gameOver totalMoves mapName
+				battery maxBattery score victory gameOver totalMoves resetCount mapName
 				fogEnabled fogRadius
 				playerPos { x y }
 				nearbyGrid { type visited id allowedDirections }
@@ -29,7 +29,7 @@
 	const SESSION_SUBSCRIPTION = `
 		subscription SessionUpdated($sessionID: ID!) {
 			sessionUpdated(sessionID: $sessionID) {
-				battery maxBattery score victory gameOver totalMoves mapName
+				battery maxBattery score victory gameOver totalMoves resetCount mapName
 				fogEnabled fogRadius
 				playerPos { x y }
 				nearbyGrid { type visited id allowedDirections }
@@ -71,6 +71,7 @@
 		victory: boolean;
 		gameOver: boolean;
 		totalMoves: number;
+		resetCount: number;
 		mapName: string;
 		fogEnabled: boolean;
 		fogRadius: number;
@@ -701,7 +702,7 @@ Full grid coordinates are grid[y][x].`);
 							</div>
 						</div>
 
-						<div class="grid grid-cols-3 gap-2 text-center">
+						<div class="grid grid-cols-4 gap-2 text-center">
 							<div class="bg-gray-50 rounded-xl px-4 py-2">
 								<div class="text-xl font-light leading-tight">{gameState.score}</div>
 								<div class="text-[11px] text-gray-400">Parks</div>
@@ -709,6 +710,10 @@ Full grid coordinates are grid[y][x].`);
 							<div class="bg-gray-50 rounded-xl px-4 py-2">
 								<div class="text-xl font-light leading-tight">{gameState.totalMoves}</div>
 								<div class="text-[11px] text-gray-400">Moves</div>
+							</div>
+							<div class="bg-gray-50 rounded-xl px-4 py-2">
+								<div class="text-xl font-light leading-tight">{gameState.resetCount}</div>
+								<div class="text-[11px] text-gray-400">Resets</div>
 							</div>
 							<div class="bg-gray-50 rounded-xl px-4 py-2">
 								<div class="text-lg leading-tight {gameState.victory ? 'text-green-500' : gameState.gameOver ? 'text-red-500' : 'text-gray-300'}">
@@ -774,7 +779,7 @@ Full grid coordinates are grid[y][x].`);
 
 			<div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-xs text-gray-400 px-4 pb-3">
 				<div class="flex flex-wrap items-center gap-x-4 gap-y-1">
-					<span><span class="text-sky-400">•</span> movement trail{isAnimatingMoves ? ' · animating route…' : ''}</span>
+					<span><span class="text-sky-400">•</span> movement trail</span>
 					<span class="flex items-center gap-x-3 gap-y-1 flex-wrap">
 						<span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-sm bg-red-500"></span> Home</span>
 						<span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-sm bg-emerald-500"></span> Park</span>

@@ -195,10 +195,10 @@ func TestCreateSession(t *testing.T) {
 			setupMock: func(m *MockGameService) {
 				m.CreateSessionFunc = func(ctx context.Context, configName string) (*service.SessionInfo, error) {
 					return &service.SessionInfo{
-						ID:             "sess-123",
-						MapName:        "default",
-						CreatedAt:      time.Now(),
-						LastAccessedAt: time.Now(),
+						ID:           "sess-123",
+						MapName:      "default",
+						CreatedAt:    time.Now(),
+						LastActionAt: time.Now(),
 					}, nil
 				}
 			},

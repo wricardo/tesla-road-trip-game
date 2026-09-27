@@ -105,6 +105,7 @@ type GameState struct {
 	MapName      string             `json:"map_name"`
 	MoveHistory  []MoveHistoryEntry `json:"move_history"`
 	TotalMoves   int                `json:"total_moves"`
+	ResetCount   int                `json:"reset_count"`
 	LocalView    []SurroundingCell  `json:"local_view,omitempty"` // 8 surrounding cells
 
 	// CurrentMoves tracks only the moves since the last reset. It mirrors MoveHistory entries
@@ -132,4 +133,43 @@ type MoveHistoryEntry struct {
 	Timestamp    int64    `json:"timestamp"`
 	Success      bool     `json:"success"`
 	MoveNumber   int      `json:"move_number"`
+}
+
+// Clone returns a deep copy of the game state. Use it to hand state to
+// consumers (e.g. subscription fan-out) that must not observe later mutations.
+func (gs *GameState) Clone() *GameState {
+	if gs == nil {
+		return nil
+	}
+	out := *gs
+	if gs.Grid != nil {
+		out.Grid = make([][]Cell, len(gs.Grid))
+		for y, row := range gs.Grid {
+			out.Grid[y] = make([]Cell, len(row))
+			for x, c := range row {
+				if c.AllowedDirections != nil {
+					c.AllowedDirections = append([]string(nil), c.AllowedDirections...)
+				}
+				out.Grid[y][x] = c
+			}
+		}
+	}
+	if gs.VisitedParks != nil {
+		out.VisitedParks = make(map[string]bool, len(gs.VisitedParks))
+		for k, v := range gs.VisitedParks {
+			out.VisitedParks[k] = v
+		}
+	}
+	out.MoveHistory = cloneSlice(gs.MoveHistory)
+	out.CurrentMoves = cloneSlice(gs.CurrentMoves)
+	out.LocalView = cloneSlice(gs.LocalView)
+	out.LocalView3x3 = cloneSlice(gs.LocalView3x3)
+	return &out
+}
+
+func cloneSlice[T any](s []T) []T {
+	if s == nil {
+		return nil
+	}
+	return append(make([]T, 0, len(s)), s...)
 }

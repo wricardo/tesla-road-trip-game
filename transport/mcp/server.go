@@ -259,7 +259,7 @@ func (s *Server) registerTools() {
 		Name:        "list_sessions",
 		Description: "List all active game sessions.",
 		InputSchema: mcp.ToolInputSchema{Type: "object", Properties: map[string]interface{}{
-			"sort":  map[string]interface{}{"type": "string", "enum": []string{"CREATED", "ACCESSED", "created", "accessed"}},
+			"sort":  map[string]interface{}{"type": "string", "enum": []string{"CREATED", "ACTION", "created", "action"}},
 			"order": map[string]interface{}{"type": "string", "enum": []string{"ASC", "DESC", "asc", "desc"}},
 			"limit": map[string]interface{}{"type": "integer"},
 		}},
@@ -869,12 +869,12 @@ func (s *Server) handleListSessions(ctx context.Context, req mcp.CallToolRequest
 	}
 	sortField := strings.ToLower(str(req, "sort"))
 	if sortField != "created" {
-		sortField = "accessed"
+		sortField = "action"
 	}
 	order := parseSortOrder(str(req, "order"))
 
 	goSort.Slice(sessions, func(i, j int) bool {
-		ti, tj := sessions[i].LastAccessedAt, sessions[j].LastAccessedAt
+		ti, tj := sessions[i].LastActionAt, sessions[j].LastActionAt
 		if sortField == "created" {
 			ti, tj = sessions[i].CreatedAt, sessions[j].CreatedAt
 		}
@@ -932,11 +932,11 @@ func (s *Server) handleUnifiedSessions(ctx context.Context, req mcp.CallToolRequ
 	unified := make([]map[string]interface{}, 0, len(sessions))
 	for _, sess := range sessions {
 		unified = append(unified, map[string]interface{}{
-			"session_id":       sess.ID,
-			"created_at":       sess.CreatedAt,
-			"last_accessed_at": sess.LastAccessedAt,
-			"game_state":       sess.GameState,
-			"game_map":         sess.GameMap,
+			"session_id":     sess.ID,
+			"created_at":     sess.CreatedAt,
+			"last_action_at": sess.LastActionAt,
+			"game_state":     sess.GameState,
+			"game_map":       sess.GameMap,
 		})
 	}
 

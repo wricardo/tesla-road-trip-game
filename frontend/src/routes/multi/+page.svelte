@@ -76,7 +76,7 @@
 	const mapsResult = queryStore({ client, query: gql(MAPS_QUERY) });
 
 	let maps = $state<{ mapId: string; name: string; gridSize: number }[]>([]);
-	let allSessions = $state<{ id: string; mapName: string; gameState?: { fogEnabled?: boolean; fogRadius?: number } }[]>([]);
+	let allSessions = $state<{ id: string; displayName?: string | null; mapName: string; gameState?: { fogEnabled?: boolean; fogRadius?: number } }[]>([]);
 
 	// selected map from URL ?map=
 	const selectedMap = $derived($page.url.searchParams.get('map') ?? '');
@@ -91,9 +91,10 @@
 			: []
 	);
 	const sessionMetaByID = $derived.by(() => {
-		const m = new Map<string, { fogEnabled: boolean; fogRadius: number }>();
+		const m = new Map<string, { displayName: string; fogEnabled: boolean; fogRadius: number }>();
 		for (const s of allSessions) {
 			m.set(s.id, {
+				displayName: s.displayName?.trim() ?? '',
 				fogEnabled: !!s.gameState?.fogEnabled,
 				fogRadius: s.gameState?.fogRadius ?? 1
 			});
@@ -532,7 +533,12 @@
 					<div class="flex-1 min-w-0">
 						<div class="flex items-center justify-between gap-1">
 							<div class="min-w-0">
-								<div class="font-mono text-xs font-medium text-[#393c41] truncate">{id}</div>
+								{#if meta?.displayName}
+									<div class="text-sm font-medium text-[#393c41] truncate">{meta.displayName}</div>
+									<div class="font-mono text-[11px] text-gray-400 truncate">{id}</div>
+								{:else}
+									<div class="font-mono text-xs font-medium text-[#393c41] truncate">{id}</div>
+								{/if}
 								<div class="text-[11px] text-gray-400">{s ? `${s.score} parks · ${s.totalMoves} moves` : 'Loading…'}</div>
 								{#if meta?.fogEnabled}
 									<div class="mt-1 inline-flex items-center rounded-full bg-blue-100 text-blue-700 px-2 py-0.5 text-[10px]">🌫 Fog r{meta.fogRadius}</div>

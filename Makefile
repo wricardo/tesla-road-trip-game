@@ -1,7 +1,7 @@
 # Tesla Road Trip Game - Makefile
 # Development tooling for the Tesla Road Trip Game server
 
-.PHONY: help build build-frontend build-tui tui test test-verbose test-coverage clean run dev dev-live fmt fmt-check lint vet vet-safe vet-all deps validate claude-game claude-game-stdin verify tools status
+.PHONY: help build build-frontend build-tui tui test test-verbose test-coverage clean run dev restart dev-live fmt fmt-check lint vet vet-safe vet-all deps validate claude-game claude-game-stdin verify tools status
 
 # Default target
 help:
@@ -41,6 +41,7 @@ help:
 	@echo ""
 	@echo "Utilities:"
 	@echo "  status       - Check server status"
+	@echo "  restart      - Kill local :8000 listener, rebuild, and restart in background"
 	@echo "  clean        - Clean build artifacts"
 	@echo "  help         - Show this help message"
 
@@ -99,6 +100,24 @@ run: build-frontend build
 dev: build
 	@echo "Starting development server (Ctrl+C to stop)..."
 	./tesla-road-trip -port 8000
+
+restart: build-frontend build
+	@echo "Restarting local server on :8000..."
+	@pids=$$(lsof -tiTCP:8000 -sTCP:LISTEN 2>/dev/null || true); \
+	if [ -n "$$pids" ]; then \
+		echo "Stopping port 8000: $$pids"; \
+		kill $$pids 2>/dev/null || true; \
+		sleep 1; \
+		pids2=$$(lsof -tiTCP:8000 -sTCP:LISTEN 2>/dev/null || true); \
+		if [ -n "$$pids2" ]; then \
+			echo "Force stopping port 8000: $$pids2"; \
+			kill -9 $$pids2 2>/dev/null || true; \
+		fi; \
+	fi
+	@nohup ./tesla-road-trip -port 8000 > /tmp/tesla-road-trip.log 2>&1 & echo $$! > .server.pid
+	@echo "Started tesla-road-trip PID $$(cat .server.pid)"
+	@echo "Log: /tmp/tesla-road-trip.log"
+	@sleep 1; lsof -i :8000 -sTCP:LISTEN -n -P || true
 
 dev-backend:
 	@echo "Starting backend on http://localhost:9090 (Ctrl+C to stop)..."

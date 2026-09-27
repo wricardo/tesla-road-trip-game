@@ -8,13 +8,13 @@ import (
 
 // SessionInfo provides information about a game session
 type SessionInfo struct {
-	ID             string             `json:"id"`
-	DisplayName    string             `json:"display_name,omitempty"`
-	MapName        string             `json:"map_name"`
-	CreatedAt      time.Time          `json:"created_at"`
-	LastAccessedAt time.Time          `json:"last_accessed_at"`
-	GameState      *engine.GameState  `json:"game_state,omitempty"` // Omitted by default (use ResponseOptions.IncludeGameState)
-	GameMap        *engine.GameConfig `json:"game_map,omitempty"`   // Included by default on get_session, omitted on list_sessions
+	ID           string             `json:"id"`
+	DisplayName  string             `json:"display_name,omitempty"`
+	MapName      string             `json:"map_name"`
+	CreatedAt    time.Time          `json:"created_at"`
+	LastActionAt time.Time          `json:"last_action_at"`
+	GameState    *engine.GameState  `json:"game_state,omitempty"` // Omitted by default (use ResponseOptions.IncludeGameState)
+	GameMap      *engine.GameConfig `json:"game_map,omitempty"`   // Included by default on get_session, omitted on list_sessions
 }
 
 // MoveResult contains the result of a move operation

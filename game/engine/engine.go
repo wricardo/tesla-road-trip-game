@@ -84,6 +84,7 @@ func (e *GameEngine) Reset() *GameState {
 	// Preserve cumulative history and totals across resets
 	prevHistory := e.state.MoveHistory
 	prevTotal := e.state.TotalMoves
+	prevResetCount := e.state.ResetCount
 
 	// Reinitialize core state from config
 	e.state = InitGameStateFromConfig(e.config)
@@ -91,6 +92,7 @@ func (e *GameEngine) Reset() *GameState {
 	// Restore cumulative history and totals; clear only the current segment
 	e.state.MoveHistory = prevHistory
 	e.state.TotalMoves = prevTotal
+	e.state.ResetCount = prevResetCount + 1
 	e.state.CurrentMoves = []MoveHistoryEntry{}
 	e.state.CurrentMovesCount = 0
 

@@ -647,7 +647,11 @@ func runHTTPServer(gameService service.GameService) {
 	gqlSrv.AddTransport(transport.Options{})
 	gqlSrv.AddTransport(&transport.Websocket{
 		KeepAlivePingInterval: 10 * time.Second,
-		Upgrader:              websocket.DefaultUpgrader(),
+		// graphql-transport-ws clients must answer pings; connections that miss
+		// pongs for 2x this interval are closed so dead peers do not hold
+		// subscriptions open until the kernel TCP timeout.
+		PingPongInterval: 10 * time.Second,
+		Upgrader:         websocket.DefaultUpgrader(),
 	})
 	mainRouter.Handle("/graphql", withHTTPRequest(gqlSrv))
 	if playgroundEnabled {
@@ -685,10 +689,13 @@ func runHTTPServer(gameService service.GameService) {
 	mainRouter.Handle("/", apiServer)
 
 	httpServer := &http.Server{
-		Addr:         addr,
-		Handler:      mainRouter,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
+		Addr:    addr,
+		Handler: mainRouter,
+		// Keep read timeout bounded, but allow long-running GraphQL mutations (e.g. bulkMove
+		// with per-step delay) to complete without the server closing the socket mid-response.
+		ReadTimeout: 15 * time.Second,
+		// No write timeout to avoid EOF on valid long responses.
+		WriteTimeout: 0,
 		IdleTimeout:  60 * time.Second,
 	}
 

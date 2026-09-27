@@ -248,8 +248,16 @@ func TestEngine_Reset(t *testing.T) {
 	if len(newState.CurrentMoves) != 0 || newState.CurrentMovesCount != 0 {
 		t.Errorf("Expected current moves cleared after reset, got len=%d count=%d", len(newState.CurrentMoves), newState.CurrentMovesCount)
 	}
+	if newState.ResetCount != 1 {
+		t.Errorf("Expected reset count to be 1 after first reset, got %d", newState.ResetCount)
+	}
 	if engine.IsGameOver() {
 		t.Error("Expected game not to be over after reset")
+	}
+
+	secondResetState := engine.Reset()
+	if secondResetState.ResetCount != 2 {
+		t.Errorf("Expected reset count to increment to 2, got %d", secondResetState.ResetCount)
 	}
 }
 
@@ -463,5 +471,46 @@ func TestEngine_ErrorHandling(t *testing.T) {
 	success = engine.Move("")
 	if success {
 		t.Error("Expected move to fail with empty direction")
+	}
+}
+
+func TestGameStateCloneIsDeep(t *testing.T) {
+	orig := &GameState{
+		Grid:         [][]Cell{{{Type: Road, AllowedDirections: []string{"up"}}}},
+		VisitedParks: map[string]bool{"p1": true},
+		MoveHistory:  []MoveHistoryEntry{{Action: "up"}},
+		CurrentMoves: []MoveHistoryEntry{{Action: "up"}},
+		LocalView:    []SurroundingCell{{X: 1}},
+		LocalView3x3: []string{"RRR"},
+		Battery:      5,
+	}
+	c := orig.Clone()
+
+	orig.Grid[0][0].Type = Building
+	orig.Grid[0][0].AllowedDirections[0] = "down"
+	orig.VisitedParks["p2"] = true
+	orig.MoveHistory[0].Action = "down"
+	orig.CurrentMoves[0].Action = "down"
+	orig.LocalView[0].X = 9
+	orig.LocalView3x3[0] = "BBB"
+	orig.Battery = 0
+
+	if c.Grid[0][0].Type != Road || c.Grid[0][0].AllowedDirections[0] != "up" {
+		t.Error("grid not deep copied")
+	}
+	if len(c.VisitedParks) != 1 {
+		t.Error("visited parks not copied")
+	}
+	if c.MoveHistory[0].Action != "up" || c.CurrentMoves[0].Action != "up" {
+		t.Error("move history not copied")
+	}
+	if c.LocalView[0].X != 1 || c.LocalView3x3[0] != "RRR" {
+		t.Error("local view not copied")
+	}
+	if c.Battery != 5 {
+		t.Error("scalar fields not copied")
+	}
+	if (*GameState)(nil).Clone() != nil {
+		t.Error("nil clone should be nil")
 	}
 }

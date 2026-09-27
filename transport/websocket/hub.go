@@ -80,30 +80,30 @@ func DefaultUpgrader() websocket.Upgrader {
 
 // Message represents a WebSocket message
 type Message struct {
-	SessionID string            `json:"session_id"`
-	GameState *WSGameState      `json:"game_state,omitempty"`
-	Event     string            `json:"event,omitempty"`
-	Data      interface{}       `json:"data,omitempty"`
+	SessionID string       `json:"session_id"`
+	GameState *WSGameState `json:"game_state,omitempty"`
+	Event     string       `json:"event,omitempty"`
+	Data      interface{}  `json:"data,omitempty"`
 }
 
 // WSGameState is the websocket-safe game state payload.
 // It intentionally excludes heavy fields (grid, move_history).
 type WSGameState struct {
-	PlayerPos         engine.Position                 `json:"player_pos"`
-	Battery           int                             `json:"battery"`
-	MaxBattery        int                             `json:"max_battery"`
-	Score             int                             `json:"score"`
-	VisitedParks      map[string]bool                 `json:"visited_parks"`
-	Message           string                          `json:"message"`
-	GameOver          bool                            `json:"game_over"`
-	Victory           bool                            `json:"victory"`
-	MapName           string                          `json:"map_name"`
-	TotalMoves        int                             `json:"total_moves"`
-	LocalView         []engine.SurroundingCell        `json:"local_view,omitempty"`
-	CurrentMoves      []engine.MoveHistoryEntry       `json:"current_moves"`
-	CurrentMovesCount int                             `json:"current_moves_count"`
-	LocalView3x3      []string                        `json:"local_view_3x3,omitempty"`
-	BatteryRisk       string                          `json:"battery_risk,omitempty"`
+	PlayerPos         engine.Position           `json:"player_pos"`
+	Battery           int                       `json:"battery"`
+	MaxBattery        int                       `json:"max_battery"`
+	Score             int                       `json:"score"`
+	VisitedParks      map[string]bool           `json:"visited_parks"`
+	Message           string                    `json:"message"`
+	GameOver          bool                      `json:"game_over"`
+	Victory           bool                      `json:"victory"`
+	MapName           string                    `json:"map_name"`
+	TotalMoves        int                       `json:"total_moves"`
+	LocalView         []engine.SurroundingCell  `json:"local_view,omitempty"`
+	CurrentMoves      []engine.MoveHistoryEntry `json:"current_moves"`
+	CurrentMovesCount int                       `json:"current_moves_count"`
+	LocalView3x3      []string                  `json:"local_view_3x3,omitempty"`
+	BatteryRisk       string                    `json:"battery_risk,omitempty"`
 }
 
 func newWSGameState(state *engine.GameState) *WSGameState {
@@ -158,8 +158,8 @@ type Hub struct {
 
 	// GraphQL subscription channels per session
 	mu          sync.RWMutex
-	sessionSubs map[string]map[chan *engine.GameState]bool
-	lobbySubs   map[chan *engine.GameState]bool
+	sessionSubs map[string]map[chan *StateUpdate]bool
+	lobbySubs   map[chan *StateUpdate]bool
 }
 
 // NewHub creates a new WebSocket hub with origin policy from ALLOWED_ORIGINS env.
@@ -168,8 +168,8 @@ func NewHub() *Hub {
 		upgrader:    newUpgraderFromEnv(),
 		sessions:    make(map[string]map[*Client]bool),
 		broadcast:   make(chan *Message),
-		sessionSubs: make(map[string]map[chan *engine.GameState]bool),
-		lobbySubs:   make(map[chan *engine.GameState]bool),
+		sessionSubs: make(map[string]map[chan *StateUpdate]bool),
+		lobbySubs:   make(map[chan *StateUpdate]bool),
 		register:    make(chan *Client),
 		unregister:  make(chan *Client),
 	}
@@ -246,32 +246,38 @@ func (h *Hub) BroadcastToSession(sessionID string, state *engine.GameState) {
 	}
 	h.sessionsMu.Unlock()
 
-	// Fan out to GraphQL subscription channels
+	// Fan out to GraphQL subscription channels. All subscribers share one
+	// immutable snapshot so the live engine state is never handed out and
+	// conversion work is done once per broadcast, not once per subscriber.
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	if subs, ok := h.sessionSubs[sessionID]; ok {
-		for ch := range subs {
-			select {
-			case ch <- state:
-			default:
-			}
+	subs := h.sessionSubs[sessionID]
+	if len(subs) == 0 && len(h.lobbySubs) == 0 {
+		return
+	}
+	update := &StateUpdate{State: state.Clone()}
+	for ch := range subs {
+		select {
+		case ch <- update:
+		default:
 		}
 	}
 	for ch := range h.lobbySubs {
 		select {
-		case ch <- state:
+		case ch <- update:
 		default:
 		}
 	}
 }
 
-// SubscribeSession returns a channel that receives GameState on every change for sessionID.
-// Cancel ctx to unsubscribe.
-func (h *Hub) SubscribeSession(ctx context.Context, sessionID string) <-chan *engine.GameState {
-	ch := make(chan *engine.GameState, 8)
+// SubscribeSession returns a channel that receives a StateUpdate on every change for sessionID.
+// Updates are dropped (not queued) while the channel is full. Cancel ctx to unsubscribe;
+// the channel is closed afterwards.
+func (h *Hub) SubscribeSession(ctx context.Context, sessionID string) <-chan *StateUpdate {
+	ch := make(chan *StateUpdate, 8)
 	h.mu.Lock()
 	if h.sessionSubs[sessionID] == nil {
-		h.sessionSubs[sessionID] = make(map[chan *engine.GameState]bool)
+		h.sessionSubs[sessionID] = make(map[chan *StateUpdate]bool)
 	}
 	h.sessionSubs[sessionID][ch] = true
 	h.mu.Unlock()
@@ -291,10 +297,11 @@ func (h *Hub) SubscribeSession(ctx context.Context, sessionID string) <-chan *en
 	return ch
 }
 
-// SubscribeLobby returns a channel that receives any GameState change across all sessions.
-// Cancel ctx to unsubscribe.
-func (h *Hub) SubscribeLobby(ctx context.Context) <-chan *engine.GameState {
-	ch := make(chan *engine.GameState, 32)
+// SubscribeLobby returns a channel that receives a StateUpdate for any change across all sessions.
+// Updates are dropped (not queued) while the channel is full. Cancel ctx to unsubscribe;
+// the channel is closed afterwards.
+func (h *Hub) SubscribeLobby(ctx context.Context) <-chan *StateUpdate {
+	ch := make(chan *StateUpdate, 32)
 	h.mu.Lock()
 	h.lobbySubs[ch] = true
 	h.mu.Unlock()
@@ -468,4 +475,22 @@ func (c *Client) writePump() {
 			}
 		}
 	}
+}
+
+// StateUpdate is a game state change delivered to GraphQL subscribers. One
+// StateUpdate is shared by every subscriber of a broadcast, so State must be
+// treated as read-only.
+type StateUpdate struct {
+	State *engine.GameState
+
+	once      sync.Once
+	converted any
+}
+
+// Convert returns fn(u.State), computing it only once per update no matter how
+// many subscribers call it. fn must be the same for every caller of a given
+// update, and its result is shared, so it must also be treated as read-only.
+func Convert[T any](u *StateUpdate, fn func(*engine.GameState) T) T {
+	u.once.Do(func() { u.converted = fn(u.State) })
+	return u.converted.(T)
 }

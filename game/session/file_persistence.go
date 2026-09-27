@@ -46,16 +46,16 @@ func (fp *FilePersistence) Save(session *service.Session) error {
 	}
 
 	data := PersistedSessionData{
-		ID:             session.ID,
-		DisplayName:    session.DisplayName,
-		MapName:        configID,
-		CreatedAt:      session.CreatedAt,
-		LastAccessedAt: session.LastAccessedAt,
-		FogEnabled:     session.FogEnabled,
-		FogRadius:      session.FogRadius,
-		GridPassword:   session.GridPassword,
-		MoveDelayMs:    intPtr(session.MoveDelayMs),
-		GameState:      session.Engine.GetState(),
+		ID:           session.ID,
+		DisplayName:  session.DisplayName,
+		MapName:      configID,
+		CreatedAt:    session.CreatedAt,
+		LastActionAt: session.LastActionAt,
+		FogEnabled:   session.FogEnabled,
+		FogRadius:    session.FogRadius,
+		GridPassword: session.GridPassword,
+		MoveDelayMs:  intPtr(session.MoveDelayMs),
+		GameState:    session.Engine.GetState(),
 	}
 
 	// Marshal to JSON with indentation for readability
@@ -130,17 +130,25 @@ func (fp *FilePersistence) Load(id string) (*service.Session, error) {
 		fogRadius = 1
 	}
 
+	lastActionAt := data.LastActionAt
+	if lastActionAt.IsZero() {
+		lastActionAt = data.LastAccessedAtLegacy
+	}
+	if lastActionAt.IsZero() {
+		lastActionAt = data.CreatedAt
+	}
+
 	session := &service.Session{
-		ID:             data.ID,
-		DisplayName:    data.DisplayName,
-		Engine:         gameEngine,
-		Config:         gameConfig,
-		CreatedAt:      data.CreatedAt,
-		LastAccessedAt: data.LastAccessedAt,
-		FogEnabled:     data.FogEnabled,
-		FogRadius:      fogRadius,
-		GridPassword:   data.GridPassword,
-		MoveDelayMs:    loadMoveDelay(data.MoveDelayMs, data.BulkMoveDelayMs),
+		ID:           data.ID,
+		DisplayName:  data.DisplayName,
+		Engine:       gameEngine,
+		Config:       gameConfig,
+		CreatedAt:    data.CreatedAt,
+		LastActionAt: lastActionAt,
+		FogEnabled:   data.FogEnabled,
+		FogRadius:    fogRadius,
+		GridPassword: data.GridPassword,
+		MoveDelayMs:  loadMoveDelay(data.MoveDelayMs, data.BulkMoveDelayMs),
 	}
 
 	return session, nil

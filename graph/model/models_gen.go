@@ -73,18 +73,6 @@ type GameEvent struct {
 	Position  *Position `json:"position"`
 }
 
-type GameMap struct {
-	Name              string             `json:"name"`
-	Description       string             `json:"description"`
-	GridSize          int                `json:"gridSize"`
-	MaxBattery        int                `json:"maxBattery"`
-	StartingBattery   int                `json:"startingBattery"`
-	Layout            []string           `json:"layout"`
-	Legend            []*LegendEntry     `json:"legend"`
-	CellConfigs       []*CellConfigEntry `json:"cellConfigs"`
-	WallCrashEndsGame bool               `json:"wallCrashEndsGame"`
-}
-
 type GameMapInput struct {
 	Name              string                  `json:"name"`
 	Description       string                  `json:"description"`
@@ -107,28 +95,6 @@ type GameMapPatchInput struct {
 	Legend            []*LegendEntryInput     `json:"legend,omitempty"`
 	CellConfigs       []*CellConfigEntryInput `json:"cellConfigs,omitempty"`
 	WallCrashEndsGame *bool                   `json:"wallCrashEndsGame,omitempty"`
-}
-
-type GameState struct {
-	Grid              [][]*Cell           `json:"grid"`
-	PlayerPos         *Position           `json:"playerPos"`
-	Battery           int                 `json:"battery"`
-	MaxBattery        int                 `json:"maxBattery"`
-	Score             int                 `json:"score"`
-	VisitedParks      []*VisitedPark      `json:"visitedParks"`
-	Message           string              `json:"message"`
-	GameOver          bool                `json:"gameOver"`
-	Victory           bool                `json:"victory"`
-	MapName           string              `json:"mapName"`
-	MoveHistory       []*MoveHistoryEntry `json:"moveHistory"`
-	TotalMoves        int                 `json:"totalMoves"`
-	NearbyGrid        [][]*Cell           `json:"nearbyGrid"`
-	CurrentMoves      []*MoveHistoryEntry `json:"currentMoves"`
-	CurrentMovesCount int                 `json:"currentMovesCount"`
-	BatteryRisk       string              `json:"batteryRisk"`
-	FogEnabled        bool                `json:"fogEnabled"`
-	FogRadius         int                 `json:"fogRadius"`
-	MoveDelayMs       int                 `json:"moveDelayMs"`
 }
 
 type HistoryResponse struct {
@@ -198,13 +164,13 @@ type Query struct {
 }
 
 type Session struct {
-	ID             string     `json:"id"`
-	DisplayName    *string    `json:"displayName,omitempty"`
-	MapName        string     `json:"mapName"`
-	CreatedAt      string     `json:"createdAt"`
-	LastAccessedAt string     `json:"lastAccessedAt"`
-	GameState      *GameState `json:"gameState"`
-	GameMap        *GameMap   `json:"gameMap"`
+	ID           string     `json:"id"`
+	DisplayName  *string    `json:"displayName,omitempty"`
+	MapName      string     `json:"mapName"`
+	CreatedAt    string     `json:"createdAt"`
+	LastActionAt string     `json:"lastActionAt"`
+	GameState    *GameState `json:"gameState"`
+	GameMap      *GameMap   `json:"gameMap"`
 }
 
 type SessionList struct {
@@ -234,11 +200,11 @@ type Subscription struct {
 }
 
 type UnifiedSession struct {
-	SessionID      string     `json:"sessionId"`
-	CreatedAt      string     `json:"createdAt"`
-	LastAccessedAt string     `json:"lastAccessedAt"`
-	GameState      *GameState `json:"gameState"`
-	GameMap        *GameMap   `json:"gameMap"`
+	SessionID    string     `json:"sessionId"`
+	CreatedAt    string     `json:"createdAt"`
+	LastActionAt string     `json:"lastActionAt"`
+	GameState    *GameState `json:"gameState"`
+	GameMap      *GameMap   `json:"gameMap"`
 }
 
 type UnifiedSessions struct {
@@ -314,18 +280,18 @@ func (e Direction) MarshalJSON() ([]byte, error) {
 type SessionSort string
 
 const (
-	SessionSortCreated  SessionSort = "CREATED"
-	SessionSortAccessed SessionSort = "ACCESSED"
+	SessionSortCreated SessionSort = "CREATED"
+	SessionSortAction  SessionSort = "ACTION"
 )
 
 var AllSessionSort = []SessionSort{
 	SessionSortCreated,
-	SessionSortAccessed,
+	SessionSortAction,
 }
 
 func (e SessionSort) IsValid() bool {
 	switch e {
-	case SessionSortCreated, SessionSortAccessed:
+	case SessionSortCreated, SessionSortAction:
 		return true
 	}
 	return false

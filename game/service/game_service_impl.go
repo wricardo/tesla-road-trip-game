@@ -108,12 +108,12 @@ func (s *gameServiceImpl) CreateSession(ctx context.Context, mapName string, opt
 	}
 
 	return &SessionInfo{
-		ID:             session.ID,
-		MapName:        mapID,
-		CreatedAt:      session.CreatedAt,
-		LastAccessedAt: session.LastAccessedAt,
-		GameState:      session.Engine.GetState(),
-		GameMap:        session.Config,
+		ID:           session.ID,
+		MapName:      mapID,
+		CreatedAt:    session.CreatedAt,
+		LastActionAt: session.LastActionAt,
+		GameState:    session.Engine.GetState(),
+		GameMap:      session.Config,
 	}, nil
 }
 
@@ -161,18 +161,17 @@ func (s *gameServiceImpl) GetSession(ctx context.Context, sessionID string) (*Se
 		return nil, fmt.Errorf("session not found: %w", err)
 	}
 
-	s.sessions.UpdateLastAccessed(sessionID)
 	state := session.Engine.GetState()
 	applySessionVisibilityMeta(session, state)
 
 	return &SessionInfo{
-		ID:             session.ID,
-		DisplayName:    session.DisplayName,
-		MapName:        s.getMapID(session.Config.Name),
-		CreatedAt:      session.CreatedAt,
-		LastAccessedAt: session.LastAccessedAt,
-		GameState:      state,
-		GameMap:        session.Config,
+		ID:           session.ID,
+		DisplayName:  session.DisplayName,
+		MapName:      s.getMapID(session.Config.Name),
+		CreatedAt:    session.CreatedAt,
+		LastActionAt: session.LastActionAt,
+		GameState:    state,
+		GameMap:      session.Config,
 	}, nil
 }
 
@@ -188,13 +187,13 @@ func (s *gameServiceImpl) ListSessions(ctx context.Context) ([]*SessionInfo, err
 		state := sess.Engine.GetState()
 		applySessionVisibilityMeta(sess, state)
 		result = append(result, &SessionInfo{
-			ID:             sess.ID,
-			DisplayName:    sess.DisplayName,
-			MapName:        s.getMapID(sess.Config.Name),
-			CreatedAt:      sess.CreatedAt,
-			LastAccessedAt: sess.LastAccessedAt,
-			GameState:      state,
-			GameMap:        sess.Config,
+			ID:           sess.ID,
+			DisplayName:  sess.DisplayName,
+			MapName:      s.getMapID(sess.Config.Name),
+			CreatedAt:    sess.CreatedAt,
+			LastActionAt: sess.LastActionAt,
+			GameState:    state,
+			GameMap:      sess.Config,
 		})
 	}
 
@@ -226,13 +225,13 @@ func (s *gameServiceImpl) UpdateSessionDisplayName(ctx context.Context, sessionI
 	applySessionVisibilityMeta(session, state)
 
 	return &SessionInfo{
-		ID:             session.ID,
-		DisplayName:    session.DisplayName,
-		MapName:        s.getMapID(session.Config.Name),
-		CreatedAt:      session.CreatedAt,
-		LastAccessedAt: session.LastAccessedAt,
-		GameState:      state,
-		GameMap:        session.Config,
+		ID:           session.ID,
+		DisplayName:  session.DisplayName,
+		MapName:      s.getMapID(session.Config.Name),
+		CreatedAt:    session.CreatedAt,
+		LastActionAt: session.LastActionAt,
+		GameState:    state,
+		GameMap:      session.Config,
 	}, nil
 }
 
@@ -247,8 +246,8 @@ func (s *gameServiceImpl) Move(ctx context.Context, sessionID, direction string,
 		return nil, fmt.Errorf("session not found: %w", err)
 	}
 
-	// Update last accessed time
-	s.sessions.UpdateLastAccessed(sessionID)
+	// Update last action time
+	s.sessions.UpdateLastAction(sessionID)
 
 	// Handle reset if requested
 	if reset {
@@ -346,8 +345,8 @@ func (s *gameServiceImpl) BulkMove(ctx context.Context, sessionID string, moves 
 		return nil, fmt.Errorf("session not found: %w", err)
 	}
 
-	// Update last accessed
-	s.sessions.UpdateLastAccessed(sessionID)
+	// Update last action
+	s.sessions.UpdateLastAction(sessionID)
 
 	// Initialize result and capture start snapshot
 	state := sess.Engine.GetState()
@@ -551,7 +550,7 @@ func (s *gameServiceImpl) Reset(ctx context.Context, sessionID string) (*engine.
 		return nil, fmt.Errorf("session not found: %w", err)
 	}
 
-	s.sessions.UpdateLastAccessed(sessionID)
+	s.sessions.UpdateLastAction(sessionID)
 	state := sess.Engine.Reset()
 	applySessionVisibilityMeta(sess, state)
 	// Enrich state with decision aids
@@ -576,7 +575,6 @@ func (s *gameServiceImpl) GetGameState(ctx context.Context, sessionID string) (*
 		return nil, fmt.Errorf("session not found: %w", err)
 	}
 
-	s.sessions.UpdateLastAccessed(sessionID)
 	state := sess.Engine.GetState()
 	applySessionVisibilityMeta(sess, state)
 	// Enrich state with decision aids

@@ -367,6 +367,7 @@ func InitGameStateFromConfig(config *GameConfig) *GameState {
 		MapName:           config.Name,
 		MoveHistory:       []MoveHistoryEntry{},
 		TotalMoves:        0,
+		ResetCount:        0,
 		CurrentMoves:      []MoveHistoryEntry{},
 		CurrentMovesCount: 0,
 	}

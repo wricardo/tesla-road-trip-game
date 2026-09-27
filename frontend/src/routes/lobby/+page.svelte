@@ -16,6 +16,8 @@
 		victory: boolean;
 		gameOver: boolean;
 		totalMoves: number;
+		resetCount: number;
+		lastActionAt: string;
 		fogEnabled: boolean;
 		fogRadius: number;
 	};
@@ -39,6 +41,8 @@
 				victory: s.gameState.victory,
 				gameOver: s.gameState.gameOver,
 				totalMoves: s.gameState.totalMoves,
+				resetCount: s.gameState.resetCount,
+				lastActionAt: s.lastActionAt,
 				fogEnabled: s.gameState.fogEnabled,
 				fogRadius: s.gameState.fogRadius
 			});
@@ -68,11 +72,20 @@
 
 	let pollInterval: ReturnType<typeof setInterval>;
 	onMount(() => {
+		// Force a fresh fetch whenever this page is entered via client-side navigation.
+		sessionsResult.reexecute?.({ requestPolicy: 'network-only' });
+
 		pollInterval = setInterval(() => {
 			sessionsResult.reexecute?.({ requestPolicy: 'network-only' });
 		}, 10_000);
 		return () => clearInterval(pollInterval);
 	});
+
+	function formatLastAction(ts: string): string {
+		const d = new Date(ts);
+		if (Number.isNaN(d.getTime())) return 'unknown';
+		return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+	}
 
 	const sessions = $derived(Array.from(sessionMap.values()));
 </script>
@@ -164,9 +177,11 @@
 							></div>
 						</div>
 					</div>
-					<div class="flex gap-4 text-xs text-gray-500">
+					<div class="flex flex-wrap gap-3 text-xs text-gray-500">
 						<span>{s.score} parks</span>
 						<span>📍 {s.totalMoves} moves</span>
+						<span>↺ {s.resetCount} resets</span>
+						<span>🕒 {formatLastAction(s.lastActionAt)}</span>
 						<span class="ml-auto {s.victory ? 'text-green-500' : s.gameOver ? 'text-red-500' : 'text-gray-400'}">
 							{s.victory ? '🏆 Won' : s.gameOver ? '💥 Crashed' : '🟢 Active'}
 						</span>

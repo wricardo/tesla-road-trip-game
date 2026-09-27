@@ -23,10 +23,12 @@ models:
       - github.com/99designs/gqlgen/graphql.Int64ID
       - github.com/99designs/gqlgen/graphql.Int32ID
   GameState:
+    model: github.com/wricardo/tesla-road-trip-game/graph/model.GameState
     fields:
       grid:
         resolver: true
   GameMap:
+    model: github.com/wricardo/tesla-road-trip-game/graph/model.GameMap
     fields:
       layout:
         resolver: true

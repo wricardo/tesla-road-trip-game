@@ -196,13 +196,13 @@ func TestManagerWithPersistence(t *testing.T) {
 			t.Fatalf("Failed to get session: %v", err)
 		}
 
-		originalTime := session.LastAccessedAt
+		originalTime := session.LastActionAt
 		time.Sleep(10 * time.Millisecond) // Ensure time difference
 
-		// Update last accessed
-		err = manager.UpdateLastAccessed("startup1")
+		// Update last action
+		err = manager.UpdateLastAction("startup1")
 		if err != nil {
-			t.Fatalf("Failed to update last accessed: %v", err)
+			t.Fatalf("Failed to update last action: %v", err)
 		}
 
 		// Create new manager and load session
@@ -212,9 +212,9 @@ func TestManagerWithPersistence(t *testing.T) {
 			t.Fatalf("Failed to load session: %v", err)
 		}
 
-		// Verify last accessed time was persisted and updated
-		if !loadedSession.LastAccessedAt.After(originalTime) {
-			t.Error("Last accessed time should be updated and persisted")
+		// Verify last action time was persisted and updated
+		if !loadedSession.LastActionAt.After(originalTime) {
+			t.Error("Last action time should be updated and persisted")
 		}
 	})
 }

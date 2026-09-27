@@ -227,8 +227,8 @@ func TestManager_CleanupExpired(t *testing.T) {
 	expired, _ := manager.Create("expired", config)
 
 	// Simulate expired session
-	expired.LastAccessedAt = time.Now().Add(-2 * time.Hour)
-	active.LastAccessedAt = time.Now()
+	expired.LastActionAt = time.Now().Add(-2 * time.Hour)
+	active.LastActionAt = time.Now()
 
 	// Clean up sessions older than 1 hour
 	deleted := manager.CleanupExpiredSessions(1 * time.Hour)
@@ -250,25 +250,25 @@ func TestManager_CleanupExpired(t *testing.T) {
 	}
 }
 
-func TestManager_UpdateLastAccessed(t *testing.T) {
+func TestManager_UpdateLastAction(t *testing.T) {
 	manager := NewManager()
 	config := createTestConfig()
 
 	session, _ := manager.Create("access-test", config)
-	originalTime := session.LastAccessedAt
+	originalTime := session.LastActionAt
 
 	// Wait a bit to ensure time difference
 	time.Sleep(10 * time.Millisecond)
 
-	err := manager.UpdateLastAccessed("access-test")
+	err := manager.UpdateLastAction("access-test")
 	if err != nil {
-		t.Fatalf("Failed to update last accessed: %v", err)
+		t.Fatalf("Failed to update last action: %v", err)
 	}
 
 	// Get session again to verify update
 	updated, _ := manager.Get("access-test")
-	if !updated.LastAccessedAt.After(originalTime) {
-		t.Error("Expected LastAccessedAt to be updated")
+	if !updated.LastActionAt.After(originalTime) {
+		t.Error("Expected LastActionAt to be updated")
 	}
 }
 

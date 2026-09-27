@@ -18,15 +18,11 @@ import (
 
 // Layout is the resolver for the layout field.
 func (r *gameMapResolver) Layout(ctx context.Context, obj *model.GameMap, password *string) ([]string, error) {
-	policyAny, ok := gameMapLayoutPolicy.Load(obj)
-	if !ok {
+	policy := obj.LayoutAccess()
+	if !policy.FogEnabled {
 		return obj.Layout, nil
 	}
-	policy, ok := policyAny.(gridPolicy)
-	if !ok || !policy.fogEnabled {
-		return obj.Layout, nil
-	}
-	if password == nil || *password != policy.gridPassword {
+	if password == nil || *password != policy.GridPassword {
 		return nil, fmt.Errorf("forbidden: map layout password required when fog mode is enabled")
 	}
 	return obj.Layout, nil
@@ -34,15 +30,11 @@ func (r *gameMapResolver) Layout(ctx context.Context, obj *model.GameMap, passwo
 
 // Grid is the resolver for the grid field.
 func (r *gameStateResolver) Grid(ctx context.Context, obj *model.GameState, password *string) ([][]*model.Cell, error) {
-	policyAny, ok := gameStateGridPolicy.Load(obj)
-	if !ok {
+	policy := obj.GridAccess()
+	if !policy.FogEnabled {
 		return obj.Grid, nil
 	}
-	policy, ok := policyAny.(gridPolicy)
-	if !ok || !policy.fogEnabled {
-		return obj.Grid, nil
-	}
-	if password == nil || *password != policy.gridPassword {
+	if password == nil || *password != policy.GridPassword {
 		return nil, fmt.Errorf("forbidden: grid password required when fog mode is enabled")
 	}
 	return obj.Grid, nil
@@ -228,7 +220,7 @@ func (r *queryResolver) Sessions(ctx context.Context, sort *model.SessionSort, o
 	if err != nil {
 		return nil, err
 	}
-	sortName := "accessed"
+	sortName := "action"
 	if sort != nil && *sort == model.SessionSortCreated {
 		sortName = "created"
 	}
@@ -237,7 +229,7 @@ func (r *queryResolver) Sessions(ctx context.Context, sort *model.SessionSort, o
 		orderName = "asc"
 	}
 	goSort.Slice(sessions, func(i, j int) bool {
-		ti, tj := sessions[i].LastAccessedAt, sessions[j].LastAccessedAt
+		ti, tj := sessions[i].LastActionAt, sessions[j].LastActionAt
 		if sortName == "created" {
 			ti, tj = sessions[i].CreatedAt, sessions[j].CreatedAt
 		}
@@ -343,15 +335,7 @@ func (r *subscriptionResolver) SessionUpdated(ctx context.Context, sessionID str
 	if r.Hub == nil {
 		return nil, fmt.Errorf("subscriptions unavailable: no hub")
 	}
-	engineCh := r.Hub.SubscribeSession(ctx, sessionID)
-	out := make(chan *model.GameState, 8)
-	go func() {
-		defer close(out)
-		for state := range engineCh {
-			out <- toGameState(state)
-		}
-	}()
-	return out, nil
+	return forwardStateUpdates(ctx, r.Hub.SubscribeSession(ctx, sessionID), 8), nil
 }
 
 // LobbyUpdated is the resolver for the lobbyUpdated field.
@@ -359,15 +343,7 @@ func (r *subscriptionResolver) LobbyUpdated(ctx context.Context) (<-chan *model.
 	if r.Hub == nil {
 		return nil, fmt.Errorf("subscriptions unavailable: no hub")
 	}
-	engineCh := r.Hub.SubscribeLobby(ctx)
-	out := make(chan *model.GameState, 32)
-	go func() {
-		defer close(out)
-		for state := range engineCh {
-			out <- toGameState(state)
-		}
-	}()
-	return out, nil
+	return forwardStateUpdates(ctx, r.Hub.SubscribeLobby(ctx), 32), nil
 }
 
 // GameMap returns generated.GameMapResolver implementation.

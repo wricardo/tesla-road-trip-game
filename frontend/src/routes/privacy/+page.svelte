@@ -38,7 +38,7 @@
 		<section>
 			<h2 class="text-lg font-medium text-[#393c41] mb-3">Third parties</h2>
 			<p>
-				The app may be accessed through hosting, tunneling, or AI-client infrastructure. Avoid entering secrets or personal information into session names, maps, prompts, or tool calls.
+				The app may be action through hosting, tunneling, or AI-client infrastructure. Avoid entering secrets or personal information into session names, maps, prompts, or tool calls.
 			</p>
 		</section>
 

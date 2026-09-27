@@ -5,7 +5,7 @@ type Subscription {
 
 type Query {
   session(id: ID!): Session!
-  sessions(sort: SessionSort = ACCESSED, order: SortOrder = DESC, limit: Int): SessionList!
+  sessions(sort: SessionSort = ACTION, order: SortOrder = DESC, limit: Int): SessionList!
   unifiedSessions(mapName: String): UnifiedSessions!
   gameState(sessionID: ID!): GameState!
   history(sessionID: ID!, page: Int = 1, limit: Int = 50, order: SortOrder = DESC): HistoryResponse!
@@ -27,7 +27,7 @@ type Mutation {
 
 enum Direction { UP DOWN LEFT RIGHT }
 enum SortOrder { ASC DESC }
-enum SessionSort { CREATED ACCESSED }
+enum SessionSort { CREATED ACTION }
 
 type DeleteSessionResult { message: String! }
 
@@ -48,7 +48,7 @@ type UnifiedSessions {
 type UnifiedSession {
   sessionId: ID!
   createdAt: String!
-  lastAccessedAt: String!
+  lastActionAt: String!
   gameState: GameState!
   gameMap: GameMap!
 }
@@ -58,7 +58,7 @@ type Session {
   displayName: String
   mapName: String!
   createdAt: String!
-  lastAccessedAt: String!
+  lastActionAt: String!
   gameState: GameState!
   gameMap: GameMap!
 }
@@ -76,6 +76,7 @@ type GameState {
   mapName: String!
   moveHistory: [MoveHistoryEntry!]!
   totalMoves: Int!
+  resetCount: Int!
   nearbyGrid: [[Cell!]!]!
   currentMoves: [MoveHistoryEntry!]!
   currentMovesCount: Int!

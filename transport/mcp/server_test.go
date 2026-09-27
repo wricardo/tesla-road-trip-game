@@ -79,11 +79,11 @@ func (m *mockGameService) SaveMap(ctx context.Context, mapName string, config *e
 }
 func (m *mockGameService) DeleteMap(ctx context.Context, mapName string) error { return nil }
 
-func expectState(t *testing.T, ch <-chan *engine.GameState, want *engine.GameState) {
+func expectState(t *testing.T, ch <-chan *websocket.StateUpdate, want *engine.GameState) {
 	t.Helper()
 	select {
 	case got := <-ch:
-		if !reflect.DeepEqual(got, want) {
+		if !reflect.DeepEqual(got.State, want) {
 			t.Fatalf("unexpected broadcast state: got %+v want %+v", got, want)
 		}
 	case <-time.After(500 * time.Millisecond):
@@ -391,8 +391,8 @@ func TestHandleListSessions_ReturnsGraphQLLikeEnvelope(t *testing.T) {
 	mockSvc := &mockGameService{
 		listSessionsFunc: func(ctx context.Context) ([]*service.SessionInfo, error) {
 			return []*service.SessionInfo{
-				{ID: "older", CreatedAt: now.Add(-2 * time.Hour), LastAccessedAt: now.Add(-30 * time.Minute)},
-				{ID: "newer", CreatedAt: now.Add(-1 * time.Hour), LastAccessedAt: now.Add(-10 * time.Minute)},
+				{ID: "older", CreatedAt: now.Add(-2 * time.Hour), LastActionAt: now.Add(-30 * time.Minute)},
+				{ID: "newer", CreatedAt: now.Add(-1 * time.Hour), LastActionAt: now.Add(-10 * time.Minute)},
 			}, nil
 		},
 	}

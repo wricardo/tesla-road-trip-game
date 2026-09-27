@@ -118,13 +118,13 @@ func (s *Server) handleListSessions(w http.ResponseWriter, r *http.Request) {
 
 	// Parse query parameters
 	query := r.URL.Query()
-	sortBy := query.Get("sort")    // "created", "accessed" (default)
+	sortBy := query.Get("sort")    // "created", "action" (default)
 	order := query.Get("order")    // "asc", "desc" (default: "desc")
 	limitStr := query.Get("limit") // number of sessions to return
 
 	// Set defaults
 	if sortBy == "" {
-		sortBy = "accessed"
+		sortBy = "action"
 	}
 	if order == "" {
 		order = "desc"
@@ -135,8 +135,8 @@ func (s *Server) handleListSessions(w http.ResponseWriter, r *http.Request) {
 		var ti, tj time.Time
 		if sortBy == "created" {
 			ti, tj = sessions[i].CreatedAt, sessions[j].CreatedAt
-		} else { // "accessed"
-			ti, tj = sessions[i].LastAccessedAt, sessions[j].LastAccessedAt
+		} else { // "action"
+			ti, tj = sessions[i].LastActionAt, sessions[j].LastActionAt
 		}
 
 		if order == "asc" {
@@ -464,11 +464,11 @@ func (s *Server) handleUnifiedSessions(w http.ResponseWriter, r *http.Request) {
 
 	for _, session := range sessions {
 		sessionData := map[string]interface{}{
-			"session_id":    session.ID,
-			"map_name":      session.MapName,
-			"game_state":    session.GameState,
-			"created_at":    session.CreatedAt,
-			"last_accessed": session.LastAccessedAt,
+			"session_id":  session.ID,
+			"map_name":    session.MapName,
+			"game_state":  session.GameState,
+			"created_at":  session.CreatedAt,
+			"last_action": session.LastActionAt,
 		}
 		response["sessions"] = append(response["sessions"].([]map[string]interface{}), sessionData)
 	}

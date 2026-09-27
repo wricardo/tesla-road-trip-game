@@ -10,11 +10,12 @@ export const UPDATE_SESSION_MUTATION = `
 
 export const SESSIONS_QUERY = `
   query Sessions {
-    sessions {
+    sessions(sort: ACTION, order: DESC) {
       sessions {
         id
         displayName
         mapName
+        lastActionAt
         gameState {
           battery
           maxBattery
@@ -22,6 +23,7 @@ export const SESSIONS_QUERY = `
           victory
           gameOver
           totalMoves
+          resetCount
           fogEnabled
           fogRadius
           playerPos { x y }
@@ -42,6 +44,7 @@ export const LOBBY_SUBSCRIPTION = `
       victory
       gameOver
       totalMoves
+      resetCount
       playerPos { x y }
     }
   }
@@ -56,6 +59,7 @@ export const SESSION_SUBSCRIPTION = `
       victory
       gameOver
       totalMoves
+      resetCount
       message
       mapName
       playerPos { x y }
@@ -113,6 +117,7 @@ export const MOVE_MUTATION = `
         victory
         gameOver
         totalMoves
+        resetCount
         mapName
         fogEnabled
         fogRadius
@@ -133,6 +138,7 @@ export const RESET_MUTATION = `
       victory
       gameOver
       totalMoves
+      resetCount
       mapName
       fogEnabled
       fogRadius

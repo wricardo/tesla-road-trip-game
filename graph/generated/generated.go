@@ -136,6 +136,7 @@ type ComplexityRoot struct {
 		MoveHistory       func(childComplexity int) int
 		NearbyGrid        func(childComplexity int) int
 		PlayerPos         func(childComplexity int) int
+		ResetCount        func(childComplexity int) int
 		Score             func(childComplexity int) int
 		TotalMoves        func(childComplexity int) int
 		Victory           func(childComplexity int) int
@@ -220,13 +221,13 @@ type ComplexityRoot struct {
 	}
 
 	Session struct {
-		CreatedAt      func(childComplexity int) int
-		DisplayName    func(childComplexity int) int
-		GameMap        func(childComplexity int) int
-		GameState      func(childComplexity int) int
-		ID             func(childComplexity int) int
-		LastAccessedAt func(childComplexity int) int
-		MapName        func(childComplexity int) int
+		CreatedAt    func(childComplexity int) int
+		DisplayName  func(childComplexity int) int
+		GameMap      func(childComplexity int) int
+		GameState    func(childComplexity int) int
+		ID           func(childComplexity int) int
+		LastActionAt func(childComplexity int) int
+		MapName      func(childComplexity int) int
 	}
 
 	SessionList struct {
@@ -258,11 +259,11 @@ type ComplexityRoot struct {
 	}
 
 	UnifiedSession struct {
-		CreatedAt      func(childComplexity int) int
-		GameMap        func(childComplexity int) int
-		GameState      func(childComplexity int) int
-		LastAccessedAt func(childComplexity int) int
-		SessionID      func(childComplexity int) int
+		CreatedAt    func(childComplexity int) int
+		GameMap      func(childComplexity int) int
+		GameState    func(childComplexity int) int
+		LastActionAt func(childComplexity int) int
+		SessionID    func(childComplexity int) int
 	}
 
 	UnifiedSessions struct {
@@ -785,6 +786,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.GameState.PlayerPos(childComplexity), true
 
+	case "GameState.resetCount":
+		if e.complexity.GameState.ResetCount == nil {
+			break
+		}
+
+		return e.complexity.GameState.ResetCount(childComplexity), true
+
 	case "GameState.score":
 		if e.complexity.GameState.Score == nil {
 			break
@@ -1273,12 +1281,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Session.ID(childComplexity), true
 
-	case "Session.lastAccessedAt":
-		if e.complexity.Session.LastAccessedAt == nil {
+	case "Session.lastActionAt":
+		if e.complexity.Session.LastActionAt == nil {
 			break
 		}
 
-		return e.complexity.Session.LastAccessedAt(childComplexity), true
+		return e.complexity.Session.LastActionAt(childComplexity), true
 
 	case "Session.mapName":
 		if e.complexity.Session.MapName == nil {
@@ -1446,12 +1454,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.UnifiedSession.GameState(childComplexity), true
 
-	case "UnifiedSession.lastAccessedAt":
-		if e.complexity.UnifiedSession.LastAccessedAt == nil {
+	case "UnifiedSession.lastActionAt":
+		if e.complexity.UnifiedSession.LastActionAt == nil {
 			break
 		}
 
-		return e.complexity.UnifiedSession.LastAccessedAt(childComplexity), true
+		return e.complexity.UnifiedSession.LastActionAt(childComplexity), true
 
 	case "UnifiedSession.sessionId":
 		if e.complexity.UnifiedSession.SessionID == nil {
@@ -1628,7 +1636,7 @@ var sources = []*ast.Source{
 
 type Query {
   session(id: ID!): Session!
-  sessions(sort: SessionSort = ACCESSED, order: SortOrder = DESC, limit: Int): SessionList!
+  sessions(sort: SessionSort = ACTION, order: SortOrder = DESC, limit: Int): SessionList!
   unifiedSessions(mapName: String): UnifiedSessions!
   gameState(sessionID: ID!): GameState!
   history(sessionID: ID!, page: Int = 1, limit: Int = 50, order: SortOrder = DESC): HistoryResponse!
@@ -1650,7 +1658,7 @@ type Mutation {
 
 enum Direction { UP DOWN LEFT RIGHT }
 enum SortOrder { ASC DESC }
-enum SessionSort { CREATED ACCESSED }
+enum SessionSort { CREATED ACTION }
 
 type DeleteSessionResult { message: String! }
 
@@ -1671,7 +1679,7 @@ type UnifiedSessions {
 type UnifiedSession {
   sessionId: ID!
   createdAt: String!
-  lastAccessedAt: String!
+  lastActionAt: String!
   gameState: GameState!
   gameMap: GameMap!
 }
@@ -1681,7 +1689,7 @@ type Session {
   displayName: String
   mapName: String!
   createdAt: String!
-  lastAccessedAt: String!
+  lastActionAt: String!
   gameState: GameState!
   gameMap: GameMap!
 }
@@ -1699,6 +1707,7 @@ type GameState {
   mapName: String!
   moveHistory: [MoveHistoryEntry!]!
   totalMoves: Int!
+  resetCount: Int!
   nearbyGrid: [[Cell!]!]!
   currentMoves: [MoveHistoryEntry!]!
   currentMovesCount: Int!
@@ -3397,6 +3406,8 @@ func (ec *executionContext) fieldContext_BulkMoveResult_gameState(_ context.Cont
 				return ec.fieldContext_GameState_moveHistory(ctx, field)
 			case "totalMoves":
 				return ec.fieldContext_GameState_totalMoves(ctx, field)
+			case "resetCount":
+				return ec.fieldContext_GameState_resetCount(ctx, field)
 			case "nearbyGrid":
 				return ec.fieldContext_GameState_nearbyGrid(ctx, field)
 			case "currentMoves":
@@ -5799,6 +5810,50 @@ func (ec *executionContext) fieldContext_GameState_totalMoves(_ context.Context,
 	return fc, nil
 }
 
+func (ec *executionContext) _GameState_resetCount(ctx context.Context, field graphql.CollectedField, obj *model.GameState) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_GameState_resetCount(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ResetCount, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_GameState_resetCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _GameState_nearbyGrid(ctx context.Context, field graphql.CollectedField, obj *model.GameState) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_GameState_nearbyGrid(ctx, field)
 	if err != nil {
@@ -7409,6 +7464,8 @@ func (ec *executionContext) fieldContext_MoveResult_gameState(_ context.Context,
 				return ec.fieldContext_GameState_moveHistory(ctx, field)
 			case "totalMoves":
 				return ec.fieldContext_GameState_totalMoves(ctx, field)
+			case "resetCount":
+				return ec.fieldContext_GameState_resetCount(ctx, field)
 			case "nearbyGrid":
 				return ec.fieldContext_GameState_nearbyGrid(ctx, field)
 			case "currentMoves":
@@ -7695,8 +7752,8 @@ func (ec *executionContext) fieldContext_Mutation_createSession(ctx context.Cont
 				return ec.fieldContext_Session_mapName(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Session_createdAt(ctx, field)
-			case "lastAccessedAt":
-				return ec.fieldContext_Session_lastAccessedAt(ctx, field)
+			case "lastActionAt":
+				return ec.fieldContext_Session_lastActionAt(ctx, field)
 			case "gameState":
 				return ec.fieldContext_Session_gameState(ctx, field)
 			case "gameMap":
@@ -7825,8 +7882,8 @@ func (ec *executionContext) fieldContext_Mutation_updateSession(ctx context.Cont
 				return ec.fieldContext_Session_mapName(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Session_createdAt(ctx, field)
-			case "lastAccessedAt":
-				return ec.fieldContext_Session_lastAccessedAt(ctx, field)
+			case "lastActionAt":
+				return ec.fieldContext_Session_lastActionAt(ctx, field)
 			case "gameState":
 				return ec.fieldContext_Session_gameState(ctx, field)
 			case "gameMap":
@@ -8084,6 +8141,8 @@ func (ec *executionContext) fieldContext_Mutation_reset(ctx context.Context, fie
 				return ec.fieldContext_GameState_moveHistory(ctx, field)
 			case "totalMoves":
 				return ec.fieldContext_GameState_totalMoves(ctx, field)
+			case "resetCount":
+				return ec.fieldContext_GameState_resetCount(ctx, field)
 			case "nearbyGrid":
 				return ec.fieldContext_GameState_nearbyGrid(ctx, field)
 			case "currentMoves":
@@ -8466,8 +8525,8 @@ func (ec *executionContext) fieldContext_Query_session(ctx context.Context, fiel
 				return ec.fieldContext_Session_mapName(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Session_createdAt(ctx, field)
-			case "lastAccessedAt":
-				return ec.fieldContext_Session_lastAccessedAt(ctx, field)
+			case "lastActionAt":
+				return ec.fieldContext_Session_lastActionAt(ctx, field)
 			case "gameState":
 				return ec.fieldContext_Session_gameState(ctx, field)
 			case "gameMap":
@@ -8683,6 +8742,8 @@ func (ec *executionContext) fieldContext_Query_gameState(ctx context.Context, fi
 				return ec.fieldContext_GameState_moveHistory(ctx, field)
 			case "totalMoves":
 				return ec.fieldContext_GameState_totalMoves(ctx, field)
+			case "resetCount":
+				return ec.fieldContext_GameState_resetCount(ctx, field)
 			case "nearbyGrid":
 				return ec.fieldContext_GameState_nearbyGrid(ctx, field)
 			case "currentMoves":
@@ -9223,8 +9284,8 @@ func (ec *executionContext) fieldContext_Session_createdAt(_ context.Context, fi
 	return fc, nil
 }
 
-func (ec *executionContext) _Session_lastAccessedAt(ctx context.Context, field graphql.CollectedField, obj *model.Session) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Session_lastAccessedAt(ctx, field)
+func (ec *executionContext) _Session_lastActionAt(ctx context.Context, field graphql.CollectedField, obj *model.Session) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Session_lastActionAt(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -9237,7 +9298,7 @@ func (ec *executionContext) _Session_lastAccessedAt(ctx context.Context, field g
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.LastAccessedAt, nil
+		return obj.LastActionAt, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -9254,7 +9315,7 @@ func (ec *executionContext) _Session_lastAccessedAt(ctx context.Context, field g
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Session_lastAccessedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Session_lastActionAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Session",
 		Field:      field,
@@ -9330,6 +9391,8 @@ func (ec *executionContext) fieldContext_Session_gameState(_ context.Context, fi
 				return ec.fieldContext_GameState_moveHistory(ctx, field)
 			case "totalMoves":
 				return ec.fieldContext_GameState_totalMoves(ctx, field)
+			case "resetCount":
+				return ec.fieldContext_GameState_resetCount(ctx, field)
 			case "nearbyGrid":
 				return ec.fieldContext_GameState_nearbyGrid(ctx, field)
 			case "currentMoves":
@@ -9550,8 +9613,8 @@ func (ec *executionContext) fieldContext_SessionList_sessions(_ context.Context,
 				return ec.fieldContext_Session_mapName(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Session_createdAt(ctx, field)
-			case "lastAccessedAt":
-				return ec.fieldContext_Session_lastAccessedAt(ctx, field)
+			case "lastActionAt":
+				return ec.fieldContext_Session_lastActionAt(ctx, field)
 			case "gameState":
 				return ec.fieldContext_Session_gameState(ctx, field)
 			case "gameMap":
@@ -10268,6 +10331,8 @@ func (ec *executionContext) fieldContext_Subscription_sessionUpdated(ctx context
 				return ec.fieldContext_GameState_moveHistory(ctx, field)
 			case "totalMoves":
 				return ec.fieldContext_GameState_totalMoves(ctx, field)
+			case "resetCount":
+				return ec.fieldContext_GameState_resetCount(ctx, field)
 			case "nearbyGrid":
 				return ec.fieldContext_GameState_nearbyGrid(ctx, field)
 			case "currentMoves":
@@ -10377,6 +10442,8 @@ func (ec *executionContext) fieldContext_Subscription_lobbyUpdated(_ context.Con
 				return ec.fieldContext_GameState_moveHistory(ctx, field)
 			case "totalMoves":
 				return ec.fieldContext_GameState_totalMoves(ctx, field)
+			case "resetCount":
+				return ec.fieldContext_GameState_resetCount(ctx, field)
 			case "nearbyGrid":
 				return ec.fieldContext_GameState_nearbyGrid(ctx, field)
 			case "currentMoves":
@@ -10486,8 +10553,8 @@ func (ec *executionContext) fieldContext_UnifiedSession_createdAt(_ context.Cont
 	return fc, nil
 }
 
-func (ec *executionContext) _UnifiedSession_lastAccessedAt(ctx context.Context, field graphql.CollectedField, obj *model.UnifiedSession) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_UnifiedSession_lastAccessedAt(ctx, field)
+func (ec *executionContext) _UnifiedSession_lastActionAt(ctx context.Context, field graphql.CollectedField, obj *model.UnifiedSession) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_UnifiedSession_lastActionAt(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -10500,7 +10567,7 @@ func (ec *executionContext) _UnifiedSession_lastAccessedAt(ctx context.Context, 
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.LastAccessedAt, nil
+		return obj.LastActionAt, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -10517,7 +10584,7 @@ func (ec *executionContext) _UnifiedSession_lastAccessedAt(ctx context.Context, 
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_UnifiedSession_lastAccessedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_UnifiedSession_lastActionAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "UnifiedSession",
 		Field:      field,
@@ -10593,6 +10660,8 @@ func (ec *executionContext) fieldContext_UnifiedSession_gameState(_ context.Cont
 				return ec.fieldContext_GameState_moveHistory(ctx, field)
 			case "totalMoves":
 				return ec.fieldContext_GameState_totalMoves(ctx, field)
+			case "resetCount":
+				return ec.fieldContext_GameState_resetCount(ctx, field)
 			case "nearbyGrid":
 				return ec.fieldContext_GameState_nearbyGrid(ctx, field)
 			case "currentMoves":
@@ -10809,8 +10878,8 @@ func (ec *executionContext) fieldContext_UnifiedSessions_sessions(_ context.Cont
 				return ec.fieldContext_UnifiedSession_sessionId(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_UnifiedSession_createdAt(ctx, field)
-			case "lastAccessedAt":
-				return ec.fieldContext_UnifiedSession_lastAccessedAt(ctx, field)
+			case "lastActionAt":
+				return ec.fieldContext_UnifiedSession_lastActionAt(ctx, field)
 			case "gameState":
 				return ec.fieldContext_UnifiedSession_gameState(ctx, field)
 			case "gameMap":
@@ -13727,6 +13796,11 @@ func (ec *executionContext) _GameState(ctx context.Context, sel ast.SelectionSet
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "resetCount":
+			out.Values[i] = ec._GameState_resetCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "nearbyGrid":
 			out.Values[i] = ec._GameState_nearbyGrid(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -14521,8 +14595,8 @@ func (ec *executionContext) _Session(ctx context.Context, sel ast.SelectionSet, 
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "lastAccessedAt":
-			out.Values[i] = ec._Session_lastAccessedAt(ctx, field, obj)
+		case "lastActionAt":
+			out.Values[i] = ec._Session_lastActionAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -14755,8 +14829,8 @@ func (ec *executionContext) _UnifiedSession(ctx context.Context, sel ast.Selecti
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "lastAccessedAt":
-			out.Values[i] = ec._UnifiedSession_lastAccessedAt(ctx, field, obj)
+		case "lastActionAt":
+			out.Values[i] = ec._UnifiedSession_lastActionAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

@@ -3,7 +3,6 @@ package graph
 import (
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/wricardo/tesla-road-trip-game/game/engine"
@@ -26,9 +25,9 @@ func toSession(s *service.SessionInfo) *model.Session {
 	gs := toGameState(s.GameState)
 	gm := toGameMap(s.GameMap)
 	if gm != nil && s.GameState != nil {
-		gameMapLayoutPolicy.Store(gm, gridPolicy{fogEnabled: s.GameState.FogEnabled, gridPassword: s.GameState.GridPassword})
+		gm.SetLayoutAccess(model.GridAccess{FogEnabled: s.GameState.FogEnabled, GridPassword: s.GameState.GridPassword})
 	}
-	return &model.Session{ID: s.ID, DisplayName: dn, MapName: s.MapName, CreatedAt: timeString(s.CreatedAt), LastAccessedAt: timeString(s.LastAccessedAt), GameState: gs, GameMap: gm}
+	return &model.Session{ID: s.ID, DisplayName: dn, MapName: s.MapName, CreatedAt: timeString(s.CreatedAt), LastActionAt: timeString(s.LastActionAt), GameState: gs, GameMap: gm}
 }
 
 func toUnifiedSession(s *service.SessionInfo) *model.UnifiedSession {
@@ -38,18 +37,10 @@ func toUnifiedSession(s *service.SessionInfo) *model.UnifiedSession {
 	gs := toGameState(s.GameState)
 	gm := toGameMap(s.GameMap)
 	if gm != nil && s.GameState != nil {
-		gameMapLayoutPolicy.Store(gm, gridPolicy{fogEnabled: s.GameState.FogEnabled, gridPassword: s.GameState.GridPassword})
+		gm.SetLayoutAccess(model.GridAccess{FogEnabled: s.GameState.FogEnabled, GridPassword: s.GameState.GridPassword})
 	}
-	return &model.UnifiedSession{SessionID: s.ID, CreatedAt: timeString(s.CreatedAt), LastAccessedAt: timeString(s.LastAccessedAt), GameState: gs, GameMap: gm}
+	return &model.UnifiedSession{SessionID: s.ID, CreatedAt: timeString(s.CreatedAt), LastActionAt: timeString(s.LastActionAt), GameState: gs, GameMap: gm}
 }
-
-type gridPolicy struct {
-	fogEnabled   bool
-	gridPassword string
-}
-
-var gameStateGridPolicy sync.Map // map[*model.GameState]gridPolicy
-var gameMapLayoutPolicy sync.Map // map[*model.GameMap]gridPolicy
 
 func toGameState(gs *engine.GameState) *model.GameState {
 	if gs == nil {
@@ -74,8 +65,8 @@ func toGameState(gs *engine.GameState) *model.GameState {
 		visited = append(visited, &model.VisitedPark{ID: k, Visited: gs.VisitedParks[k]})
 	}
 	local := buildLocalViewGrid(gs)
-	out := &model.GameState{Grid: grid, PlayerPos: toPosition(gs.PlayerPos), Battery: gs.Battery, MaxBattery: gs.MaxBattery, Score: gs.Score, VisitedParks: visited, Message: gs.Message, GameOver: gs.GameOver, Victory: gs.Victory, MapName: gs.MapName, MoveHistory: toMoveHistory(gs.MoveHistory), TotalMoves: gs.TotalMoves, NearbyGrid: local, CurrentMoves: toMoveHistory(gs.CurrentMoves), CurrentMovesCount: gs.CurrentMovesCount, BatteryRisk: gs.BatteryRisk, FogEnabled: gs.FogEnabled, FogRadius: gs.FogRadius, MoveDelayMs: gs.MoveDelayMs}
-	gameStateGridPolicy.Store(out, gridPolicy{fogEnabled: gs.FogEnabled, gridPassword: gs.GridPassword})
+	out := &model.GameState{Grid: grid, PlayerPos: toPosition(gs.PlayerPos), Battery: gs.Battery, MaxBattery: gs.MaxBattery, Score: gs.Score, VisitedParks: visited, Message: gs.Message, GameOver: gs.GameOver, Victory: gs.Victory, MapName: gs.MapName, MoveHistory: toMoveHistory(gs.MoveHistory), TotalMoves: gs.TotalMoves, ResetCount: gs.ResetCount, NearbyGrid: local, CurrentMoves: toMoveHistory(gs.CurrentMoves), CurrentMovesCount: gs.CurrentMovesCount, BatteryRisk: gs.BatteryRisk, FogEnabled: gs.FogEnabled, FogRadius: gs.FogRadius, MoveDelayMs: gs.MoveDelayMs}
+	out.SetGridAccess(model.GridAccess{FogEnabled: gs.FogEnabled, GridPassword: gs.GridPassword})
 	return out
 }
 

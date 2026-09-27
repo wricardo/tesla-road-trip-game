@@ -41,15 +41,15 @@ func TestFilePersistence(t *testing.T) {
 	}
 
 	session := &service.Session{
-		ID:             "test1",
-		Engine:         engine,
-		Config:         gameConfig,
-		CreatedAt:      time.Now(),
-		LastAccessedAt: time.Now(),
-		FogEnabled:     true,
-		FogRadius:      2,
-		GridPassword:   "secret",
-		MoveDelayMs:    300,
+		ID:           "test1",
+		Engine:       engine,
+		Config:       gameConfig,
+		CreatedAt:    time.Now(),
+		LastActionAt: time.Now(),
+		FogEnabled:   true,
+		FogRadius:    2,
+		GridPassword: "secret",
+		MoveDelayMs:  300,
 	}
 
 	t.Run("Save and Load Session", func(t *testing.T) {
@@ -98,11 +98,11 @@ func TestFilePersistence(t *testing.T) {
 		legacyID := "legacy"
 		legacyState := session.Engine.GetState()
 		legacyData := PersistedSessionData{
-			ID:             legacyID,
-			MapName:        "easy",
-			CreatedAt:      time.Now(),
-			LastAccessedAt: time.Now(),
-			GameState:      legacyState,
+			ID:           legacyID,
+			MapName:      "easy",
+			CreatedAt:    time.Now(),
+			LastActionAt: time.Now(),
+			GameState:    legacyState,
 		}
 		bytes, err := json.MarshalIndent(legacyData, "", "  ")
 		if err != nil {
@@ -157,11 +157,11 @@ func TestFilePersistence(t *testing.T) {
 	t.Run("List All Sessions", func(t *testing.T) {
 		// Create another session
 		session2 := &service.Session{
-			ID:             "test2",
-			Engine:         engine,
-			Config:         gameConfig,
-			CreatedAt:      time.Now(),
-			LastAccessedAt: time.Now(),
+			ID:           "test2",
+			Engine:       engine,
+			Config:       gameConfig,
+			CreatedAt:    time.Now(),
+			LastActionAt: time.Now(),
 		}
 		err := persistence.Save(session2)
 		if err != nil {
@@ -254,11 +254,11 @@ func TestFilePersistenceFileStructure(t *testing.T) {
 	}
 
 	session := &service.Session{
-		ID:             "file_test",
-		Engine:         engine,
-		Config:         gameConfig,
-		CreatedAt:      time.Now(),
-		LastAccessedAt: time.Now(),
+		ID:           "file_test",
+		Engine:       engine,
+		Config:       gameConfig,
+		CreatedAt:    time.Now(),
+		LastActionAt: time.Now(),
 	}
 
 	err = persistence.Save(session)

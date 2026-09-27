@@ -38,11 +38,11 @@ func (m *MockSessionManager) Create(id string, config *engine.GameConfig) (*serv
 	}
 
 	session := &service.Session{
-		ID:             id,
-		Engine:         eng,
-		Config:         config,
-		CreatedAt:      time.Now(),
-		LastAccessedAt: time.Now(),
+		ID:           id,
+		Engine:       eng,
+		Config:       config,
+		CreatedAt:    time.Now(),
+		LastActionAt: time.Now(),
 	}
 
 	m.sessions[id] = session
@@ -77,9 +77,9 @@ func (m *MockSessionManager) Delete(id string) error {
 	return nil
 }
 
-func (m *MockSessionManager) UpdateLastAccessed(id string) error {
+func (m *MockSessionManager) UpdateLastAction(id string) error {
 	if session, exists := m.sessions[id]; exists {
-		session.LastAccessedAt = time.Now()
+		session.LastActionAt = time.Now()
 		return nil
 	}
 	return errors.New("session not found")

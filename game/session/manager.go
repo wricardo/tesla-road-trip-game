@@ -83,13 +83,13 @@ func (m *Manager) Create(id string, config *engine.GameConfig) (*service.Session
 
 	// Create session
 	session := &service.Session{
-		ID:             id,
-		Engine:         eng,
-		Config:         config,
-		CreatedAt:      time.Now(),
-		LastAccessedAt: time.Now(),
-		FogRadius:      1,
-		MoveDelayMs:    service.DefaultMoveDelayMs,
+		ID:           id,
+		Engine:       eng,
+		Config:       config,
+		CreatedAt:    time.Now(),
+		LastActionAt: time.Now(),
+		FogRadius:    1,
+		MoveDelayMs:  service.DefaultMoveDelayMs,
 	}
 
 	m.sessions[strings.ToLower(id)] = session
@@ -258,8 +258,8 @@ func (m *Manager) UpdateDisplayName(id, displayName string) error {
 	return nil
 }
 
-// UpdateLastAccessed updates the last accessed time for a session
-func (m *Manager) UpdateLastAccessed(id string) error {
+// UpdateLastAction updates the last action time for a session
+func (m *Manager) UpdateLastAction(id string) error {
 	if err := validateSessionID(id); err != nil {
 		return err
 	}
@@ -276,7 +276,7 @@ func (m *Manager) UpdateLastAccessed(id string) error {
 		}
 	}
 
-	session.LastAccessedAt = time.Now()
+	session.LastActionAt = time.Now()
 
 	// Auto-save if persistence is enabled
 	if m.persistence != nil {
@@ -312,7 +312,7 @@ func (m *Manager) Save(id string) error {
 	return m.persistence.Save(session)
 }
 
-// CleanupExpiredSessions removes sessions that haven't been accessed in the given duration
+// CleanupExpiredSessions removes sessions that haven't been action in the given duration
 func (m *Manager) CleanupExpiredSessions(maxAge time.Duration) int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -321,7 +321,7 @@ func (m *Manager) CleanupExpiredSessions(maxAge time.Duration) int {
 	removed := 0
 
 	for id, session := range m.sessions {
-		if session.LastAccessedAt.Before(cutoff) {
+		if session.LastActionAt.Before(cutoff) {
 			delete(m.sessions, id)
 			removed++
 		}

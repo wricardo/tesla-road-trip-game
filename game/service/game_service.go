@@ -51,7 +51,7 @@ type SessionManager interface {
 	GetOrCreate(id string, config *engine.GameConfig) (*Session, error)
 	List() []*Session
 	Delete(id string) error
-	UpdateLastAccessed(id string) error
+	UpdateLastAction(id string) error
 	UpdateDisplayName(id, displayName string) error
 	Save(id string) error
 }
@@ -67,14 +67,14 @@ type ConfigManager interface {
 
 // Session represents an active game session
 type Session struct {
-	ID             string
-	DisplayName    string
-	Engine         *engine.GameEngine
-	Config         *engine.GameConfig
-	CreatedAt      time.Time
-	LastAccessedAt time.Time
-	FogEnabled     bool
-	FogRadius      int
-	GridPassword   string
-	MoveDelayMs    int
+	ID           string
+	DisplayName  string
+	Engine       *engine.GameEngine
+	Config       *engine.GameConfig
+	CreatedAt    time.Time
+	LastActionAt time.Time
+	FogEnabled   bool
+	FogRadius    int
+	GridPassword string
+	MoveDelayMs  int
 }
