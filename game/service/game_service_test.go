@@ -606,3 +606,52 @@ func TestGameService_Reset(t *testing.T) {
 	// Verify player is back at starting position
 	// (This would depend on your specific game logic)
 }
+
+// TestGameService_ReturnedStateIsSnapshot guards against handing out the live
+// engine state: reads run under a read lock and callers use the result after
+// the lock is released, so both must operate on private copies. Run with -race.
+func TestGameService_ReturnedStateIsSnapshot(t *testing.T) {
+	ctx := context.Background()
+	svc := service.NewGameService(NewMockSessionManager(), NewMockConfigManager())
+	info, err := svc.CreateSession(ctx, "test")
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+
+	before, err := svc.GetGameState(ctx, info.ID)
+	if err != nil {
+		t.Fatalf("GetGameState: %v", err)
+	}
+	moves := before.TotalMoves
+	if _, err := svc.Move(ctx, info.ID, "up", false); err != nil {
+		t.Fatalf("Move: %v", err)
+	}
+	if before.TotalMoves != moves {
+		t.Fatal("previously returned state changed after a later move")
+	}
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for i := 0; i < 200; i++ {
+			dir := []string{"up", "down", "left", "right"}[i%4]
+			if _, err := svc.Move(ctx, info.ID, dir, i%50 == 0); err != nil {
+				t.Errorf("Move: %v", err)
+				return
+			}
+		}
+	}()
+	for i := 0; i < 200; i++ {
+		st, err := svc.GetGameState(ctx, info.ID)
+		if err != nil {
+			t.Fatalf("GetGameState: %v", err)
+		}
+		_ = len(st.MoveHistory) + st.Battery // read after the service lock is released
+		sess, err := svc.GetSession(ctx, info.ID)
+		if err != nil {
+			t.Fatalf("GetSession: %v", err)
+		}
+		_ = sess.GameState.PlayerPos
+	}
+	<-done
+}

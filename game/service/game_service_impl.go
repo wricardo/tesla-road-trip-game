@@ -112,7 +112,7 @@ func (s *gameServiceImpl) CreateSession(ctx context.Context, mapName string, opt
 		MapName:      mapID,
 		CreatedAt:    session.CreatedAt,
 		LastActionAt: session.LastActionAt,
-		GameState:    session.Engine.GetState(),
+		GameState:    sessionSnapshot(session),
 		GameMap:      session.Config,
 	}, nil
 }
@@ -151,6 +151,16 @@ func applySessionVisibilityMeta(session *Session, state *engine.GameState) {
 	state.MoveDelayMs = delay
 }
 
+// sessionSnapshot returns a private deep copy of the session's current state with
+// visibility metadata applied. Service methods return snapshots instead of the
+// live engine state so callers can read and enrich them after the service lock
+// is released without racing concurrent moves.
+func sessionSnapshot(session *Session) *engine.GameState {
+	state := session.Engine.GetState().Clone()
+	applySessionVisibilityMeta(session, state)
+	return state
+}
+
 // GetSession retrieves session information
 func (s *gameServiceImpl) GetSession(ctx context.Context, sessionID string) (*SessionInfo, error) {
 	s.mu.RLock()
@@ -161,8 +171,7 @@ func (s *gameServiceImpl) GetSession(ctx context.Context, sessionID string) (*Se
 		return nil, fmt.Errorf("session not found: %w", err)
 	}
 
-	state := session.Engine.GetState()
-	applySessionVisibilityMeta(session, state)
+	state := sessionSnapshot(session)
 
 	return &SessionInfo{
 		ID:           session.ID,
@@ -184,8 +193,7 @@ func (s *gameServiceImpl) ListSessions(ctx context.Context) ([]*SessionInfo, err
 	result := make([]*SessionInfo, 0, len(sessions))
 
 	for _, sess := range sessions {
-		state := sess.Engine.GetState()
-		applySessionVisibilityMeta(sess, state)
+		state := sessionSnapshot(sess)
 		result = append(result, &SessionInfo{
 			ID:           sess.ID,
 			DisplayName:  sess.DisplayName,
@@ -221,8 +229,7 @@ func (s *gameServiceImpl) UpdateSessionDisplayName(ctx context.Context, sessionI
 	if err != nil {
 		return nil, fmt.Errorf("session not found after update: %w", err)
 	}
-	state := session.Engine.GetState()
-	applySessionVisibilityMeta(session, state)
+	state := sessionSnapshot(session)
 
 	return &SessionInfo{
 		ID:           session.ID,
@@ -260,8 +267,7 @@ func (s *gameServiceImpl) Move(ctx context.Context, sessionID, direction string,
 	prevBattery := prevState.Battery
 	success := sess.Engine.Move(direction)
 	newPos := sess.Engine.GetPlayerPosition()
-	state := sess.Engine.GetState()
-	applySessionVisibilityMeta(sess, state)
+	state := sessionSnapshot(sess)
 
 	// Build result
 	result := &MoveResult{
@@ -475,8 +481,7 @@ func (s *gameServiceImpl) BulkMove(ctx context.Context, sessionID string, moves 
 		result.Steps = append(result.Steps, step)
 	}
 
-	result.GameState = sess.Engine.GetState()
-	applySessionVisibilityMeta(sess, result.GameState)
+	result.GameState = sessionSnapshot(sess)
 	// Ensure backward-compat mirror
 	result.TotalMoves = len(moves)
 
@@ -551,8 +556,8 @@ func (s *gameServiceImpl) Reset(ctx context.Context, sessionID string) (*engine.
 	}
 
 	s.sessions.UpdateLastAction(sessionID)
-	state := sess.Engine.Reset()
-	applySessionVisibilityMeta(sess, state)
+	sess.Engine.Reset()
+	state := sessionSnapshot(sess)
 	// Enrich state with decision aids
 	state.LocalView3x3 = buildLocal3x3(state)
 	state.BatteryRisk = riskCode(engine.AnalyzeBatteryRisk(state))
@@ -575,8 +580,7 @@ func (s *gameServiceImpl) GetGameState(ctx context.Context, sessionID string) (*
 		return nil, fmt.Errorf("session not found: %w", err)
 	}
 
-	state := sess.Engine.GetState()
-	applySessionVisibilityMeta(sess, state)
+	state := sessionSnapshot(sess)
 	// Enrich state with decision aids
 	state.LocalView3x3 = buildLocal3x3(state)
 	state.BatteryRisk = riskCode(engine.AnalyzeBatteryRisk(state))
