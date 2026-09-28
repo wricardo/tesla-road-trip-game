@@ -21,7 +21,16 @@
 	const client = getContextClient();
 	const mapQueryPassword = uiAuthConfig.uiMapPassword ?? '';
 	const mapsResult = queryStore({ client, query: gql(MAPS_QUERY) });
-	const maps = $derived($mapsResult?.data?.maps ?? []);
+	// Some maps use their slug as display name ("bayou_braids"); render those readably.
+	const prettyMapName = (name: string) =>
+		name.includes('_') || name === name.toLowerCase()
+			? name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+			: name;
+	const maps = $derived(
+		[...($mapsResult?.data?.maps ?? [])]
+			.map((m: { mapId: string; name: string }) => ({ ...m, label: prettyMapName(m.name) }))
+			.sort((a, b) => a.label.localeCompare(b.label))
+	);
 
 	let showCreate = $state(false);
 	let selectedMap = $state($page.url.searchParams.get('map') ?? '');
@@ -36,6 +45,10 @@
 	let previewError = $state('');
 	let previewLoading = $state(false);
 	const previewMapID = $derived(selectedMap || maps.find((m: { mapId: string }) => m.mapId === 'classic')?.mapId || maps[0]?.mapId || '');
+	// Make the dropdown show the map that will actually be used.
+	$effect(() => {
+		if (!selectedMap && previewMapID) selectedMap = previewMapID;
+	});
 	let previewRequest = 0;
 
 	$effect(() => {
@@ -156,9 +169,8 @@
 					<label for="cfg" class="block text-xs font-semibold text-[#393c41] mb-1.5">Map</label>
 					<select id="cfg" bind:value={selectedMap}
 						class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-gray-400">
-						<option value="">Default</option>
 						{#each maps as m}
-							<option value={m.mapId}>{m.name}</option>
+							<option value={m.mapId}>{m.label}</option>
 						{/each}
 					</select>
 				</div>
@@ -174,7 +186,10 @@
 					/>
 				</div>
 
-				<div class="mb-4 rounded-2xl border border-gray-200 bg-white p-3">
+				<details class="mb-4 rounded-2xl border border-gray-200 bg-white p-3">
+					<summary class="cursor-pointer text-xs font-semibold uppercase tracking-wide text-gray-400">Advanced options</summary>
+					<p class="text-xs text-gray-400 mt-2">Optional settings for AI experiments. Defaults are fine for playing yourself.</p>
+				<div class="mt-3 mb-4 rounded-2xl border border-gray-200 bg-white p-3">
 					<div class="flex items-center justify-between mb-2">
 						<p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Fog mode</p>
 						<label class="inline-flex items-center gap-2 text-xs text-gray-600">
@@ -193,11 +208,13 @@
 								<input id="grid-password" type="text" bind:value={gridPassword} placeholder="required when fog is on" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:border-gray-400" />
 							</div>
 						</div>
-						<p class="text-xs text-gray-400 mt-2">Full grid access requires this password via GraphQL <code>grid(password: ...)</code>.</p>
+						<p class="text-xs text-gray-400 mt-2">Fog hides the map from API clients: they only see the cells within this radius of the car. The full grid needs this password via GraphQL <code>grid(password: ...)</code>.</p>
+					{:else}
+						<p class="text-xs text-gray-400">Hide the full map from AI agents so they must explore.</p>
 					{/if}
 				</div>
 
-				<div class="mb-4 rounded-2xl border border-gray-200 bg-white p-3">
+				<div class="rounded-2xl border border-gray-200 bg-white p-3">
 					<label for="move-delay" class="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1.5">Move delay (ms)</label>
 					<input
 						id="move-delay"
@@ -207,8 +224,9 @@
 						bind:value={moveDelayMs}
 						class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:border-gray-400"
 					/>
-					<p class="text-xs text-gray-400 mt-2">Applies to move and bulkMove websocket updates. Use 0 to disable delay.</p>
+					<p class="text-xs text-gray-400 mt-2">Pause between moves on the live view so spectators can follow an AI's fast moves. 0 = no delay.</p>
 				</div>
+				</details>
 
 				<div class="mb-5 rounded-2xl border border-gray-200 bg-white p-3">
 					<div class="flex items-start justify-between gap-3 mb-3">

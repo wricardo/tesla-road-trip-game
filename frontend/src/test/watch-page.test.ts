@@ -567,8 +567,8 @@ describe('watch page', () => {
 		};
 
 		const { container } = render(WatchPage);
-		await screen.findByText('Use nearby grid');
-		expect(findCarCellIndex(container)).toBe(12);
+		// Index 12 only exists on the 5×5 full grid, so this also waits for it to load.
+		await waitFor(() => expect(findCarCellIndex(container)).toBe(12));
 		expect(mockRuntime.wsSinks).toHaveLength(1);
 
 		mockRuntime.wsSinks[0].next({

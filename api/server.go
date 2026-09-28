@@ -57,11 +57,33 @@ func (s *Server) setupRoutes() {
 	s.router.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := filepath.Join(uiDir, filepath.Clean("/"+r.URL.Path))
 		if _, err := os.Stat(path); os.IsNotExist(err) {
-			http.ServeFile(w, r, filepath.Join(uiDir, "index.html"))
+			// SPA fallback: the client router renders the page (or its own
+			// not-found view), but unknown routes must still report 404.
+			index, err := os.ReadFile(filepath.Join(uiDir, "index.html"))
+			if err != nil {
+				http.NotFound(w, r)
+				return
+			}
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			if !isSPARoute(r.URL.Path) {
+				w.WriteHeader(http.StatusNotFound)
+			}
+			w.Write(index)
 			return
 		}
 		fs.ServeHTTP(w, r)
 	})
+}
+
+// spaRoutes mirrors the top-level directories in frontend/src/routes.
+var spaRoutes = map[string]bool{
+	"": true, "watch": true, "learn": true, "multi": true, "lobby": true,
+	"privacy": true, "editor": true, "maps": true, "admin": true,
+}
+
+func isSPARoute(urlPath string) bool {
+	first, _, _ := strings.Cut(strings.TrimPrefix(urlPath, "/"), "/")
+	return spaRoutes[first]
 }
 
 // ServeHTTP implements http.Handler

@@ -822,9 +822,10 @@ Full grid coordinates are grid[y][x].`);
 							<p class="text-[11px] text-gray-400 mt-2">Ignored while typing in the prompt or any form field.</p>
 						</div>
 
+						{#if gameState?.fogEnabled}
 						<div class="rounded-xl bg-white border border-gray-100 px-4 py-3">
-							<span class="text-[11px] uppercase tracking-widest text-gray-400">Fog / full grid</span>
-							<p class="text-xs text-gray-500 mt-1">Default view uses <code>nearbyGrid</code>. Unlock full map with the fog password.</p>
+							<span class="text-[11px] uppercase tracking-widest text-gray-400">Fog mode</span>
+							<p class="text-xs text-gray-500 mt-1">This session hides the map beyond {gameState.fogRadius} cell{gameState.fogRadius === 1 ? '' : 's'} of the car. Enter the password chosen at creation to reveal the full map.</p>
 							<div class="mt-3 flex flex-wrap items-center gap-2">
 								<input
 									type="text"
@@ -857,6 +858,7 @@ Full grid coordinates are grid[y][x].`);
 								<p class="text-[11px] text-red-500 mt-2">{fullGridError}</p>
 							{/if}
 						</div>
+						{/if}
 					</div>
 				</div>
 			{/if}

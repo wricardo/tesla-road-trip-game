@@ -30,13 +30,11 @@
 			</span>
 		</a>
 		<nav class="flex items-center gap-6 text-sm text-gray-500">
-			<a href="/" class="hover:text-[#393c41] transition-colors">Home</a>
+			<a href="/" class="hover:text-[#393c41] transition-colors">Play</a>
+			<a href="/learn" class="hover:text-[#393c41] transition-colors">How it works</a>
+			<a href="/lobby" class="hover:text-[#393c41] transition-colors">Live sessions</a>
 			<a href="/maps" class="hover:text-[#393c41] transition-colors">Maps</a>
-			<a href="/editor" class="hover:text-[#393c41] transition-colors">Editor</a>
-			<a href="/lobby" class="hover:text-[#393c41] transition-colors">Sessions</a>
-			<a href="/multi" class="hover:text-[#393c41] transition-colors">Multi Session</a>
-			<a href="/admin" class="hover:text-[#393c41] transition-colors">Admin</a>
-			<a href="/playground" class="hover:text-[#393c41] transition-colors" target="_blank" rel="noreferrer">GraphQL</a>
+			<a href="/multi" class="hover:text-[#393c41] transition-colors">Multi-watch</a>
 		</nav>
 	</header>
 
@@ -72,6 +70,7 @@
 				<p class="font-semibold text-[#393c41] mb-2">Tools</p>
 				<div class="flex flex-col gap-1.5">
 					<a href="/playground" target="_blank" rel="noreferrer" class="hover:text-gray-600 transition-colors">GraphQL Playground</a>
+					<a href="/admin" class="hover:text-gray-600 transition-colors">Admin</a>
 					<a href="https://github.com/wricardo/gqlcli#-quick-start--using-the-cli" target="_blank" rel="noreferrer" class="hover:text-gray-600 transition-colors">gqlcli — GraphQL CLI</a>
 				</div>
 			</div>
