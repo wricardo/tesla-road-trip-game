@@ -236,8 +236,7 @@ graph TD
     {"name": "charger_hopping", "usage": 0.31, "success_rate": 0.67}
   ],
   "insights": [
-    "Players who visit chargers proactively have 34% higher success rate",
-    "REDACTED"
+    "Players who visit chargers proactively have 34% higher success rate"
   ]
 }
 ```

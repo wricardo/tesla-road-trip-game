@@ -75,14 +75,14 @@ W = Two V shapes side by side creating vertical strokes
 3. Identify "golden corridors": rows/columns with 80%+ passable cells
 4. Map corridor intersections as "hubs" for route changes
 
-**Example Grid Analysis**:
+**Example Grid Analysis** (hypothetical map, not a shipped level):
 ```
 Row 1: 70% passable (partial corridor)
 Row 4: 90% passable (golden corridor) ← Use for horizontal travel
 Row 7: 95% passable (golden corridor) ← Primary highway
 Row 10: 85% passable (golden corridor)
 
-Column 4: 60% passable (water gap at rows 6-8)
+Column 2: 60% passable (water gap at rows 9-11)
 Column 7: 95% passable (golden corridor) ← Use for vertical travel
 Column 9: 40% passable (heavy obstacles)
 ```
