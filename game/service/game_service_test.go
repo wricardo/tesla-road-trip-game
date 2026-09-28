@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -153,6 +154,7 @@ func (m *MockConfigManager) ListConfigs() ([]*service.MapInfo, error) {
 	for name, config := range m.configs {
 		result = append(result, &service.MapInfo{
 			Filename:    name + ".json",
+			MapID:       name,
 			Name:        config.Name,
 			Description: config.Description,
 			GridSize:    config.GridSize,
@@ -654,4 +656,91 @@ func TestGameService_ReturnedStateIsSnapshot(t *testing.T) {
 		_ = sess.GameState.PlayerPos
 	}
 	<-done
+}
+
+func TestGameService_BulkMove_WrongWayReportsBlockedDirection(t *testing.T) {
+	ctx := context.Background()
+	configs := NewMockConfigManager()
+	configs.configs["oneway"] = &engine.GameConfig{
+		Name:            "oneway",
+		GridSize:        5,
+		MaxBattery:      5,
+		StartingBattery: 5,
+		Layout:          []string{"BBBBB", "BH>PB", "BBBBB", "BBBBB", "BBBBB"},
+		Legend:          map[string]string{"R": "road", "H": "home", "P": "park", "S": "supercharger", "B": "building", "W": "water"},
+		CellConfigs:     map[string]engine.CellConfig{">": {Type: "road", AllowedDirections: []string{"east"}}},
+	}
+	svc := service.NewGameService(NewMockSessionManager(), configs)
+	sess, err := svc.CreateSession(ctx, "oneway")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// RIGHT onto '>' is fine; LEFT back out of it violates the one-way rule.
+	res, err := svc.BulkMove(ctx, sess.ID, []string{"right", "left"}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.MovesExecuted != 1 || res.StopReasonCode != "blocked_direction" {
+		t.Fatalf("want 1 move then blocked_direction, got %d moves, code %q (%s)", res.MovesExecuted, res.StopReasonCode, res.StoppedReason)
+	}
+}
+
+func TestGameService_CreateSession_FogSettingsRequireFogEnabled(t *testing.T) {
+	svc := service.NewGameService(NewMockSessionManager(), NewMockConfigManager())
+	for name, opts := range map[string]service.CreateSessionOptions{
+		"password without fog": {GridPassword: "c0d3"},
+		"radius without fog":   {FogRadius: 2},
+	} {
+		if _, err := svc.CreateSession(context.Background(), "test", opts); err == nil {
+			t.Errorf("%s: expected error, got a non-fog session", name)
+		}
+	}
+}
+
+func TestGameService_CreateSession_AcceptsDisplayName(t *testing.T) {
+	configs := NewMockConfigManager()
+	configs.configs["classic"] = configs.configs["test"]
+	svc := service.NewGameService(NewMockSessionManager(), configs)
+	sess, err := svc.CreateSession(context.Background(), strings.ToUpper(configs.configs["classic"].Name))
+	if err != nil {
+		t.Fatalf("display name rejected: %v", err)
+	}
+	if sess.GameMap != configs.configs["classic"] {
+		t.Fatalf("display name resolved to the wrong map")
+	}
+}
+
+func TestGameService_MovesAfterGameOverReportAlreadyOver(t *testing.T) {
+	ctx := context.Background()
+	configs := NewMockConfigManager()
+	// Start next to the only park: one move wins and ends the game.
+	configs.configs["win"] = &engine.GameConfig{
+		Name: "win", GridSize: 5, MaxBattery: 5, StartingBattery: 5,
+		Layout: []string{"BBBBB", "BHPBB", "BBBBB", "BBBBB", "BBBBB"},
+		Legend: map[string]string{"R": "road", "H": "home", "P": "park", "S": "supercharger", "B": "building", "W": "water"},
+	}
+	svc := service.NewGameService(NewMockSessionManager(), configs)
+	sess, err := svc.CreateSession(ctx, "win")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res, _ := svc.Move(ctx, sess.ID, "right", false); !res.GameState.Victory {
+		t.Fatalf("setup: expected victory, got %q", res.Message)
+	}
+
+	mv, err := svc.Move(ctx, sess.ID, "left", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mv.Success || !strings.Contains(mv.Message, "already over") || mv.AttemptedTo != nil {
+		t.Fatalf("move after game over: success=%v message=%q attempted=%v", mv.Success, mv.Message, mv.AttemptedTo)
+	}
+
+	bm, err := svc.BulkMove(ctx, sess.ID, []string{"left", "left"}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bm.Success || bm.StopReasonCode != "already_over" || bm.MovesExecuted != 0 || !strings.Contains(bm.Message, "reset") {
+		t.Fatalf("bulkMove after game over: success=%v code=%q moves=%d message=%q", bm.Success, bm.StopReasonCode, bm.MovesExecuted, bm.Message)
+	}
 }

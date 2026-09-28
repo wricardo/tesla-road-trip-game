@@ -13,8 +13,9 @@ type SessionInfo struct {
 	MapName      string             `json:"map_name"`
 	CreatedAt    time.Time          `json:"created_at"`
 	LastActionAt time.Time          `json:"last_action_at"`
-	GameState    *engine.GameState  `json:"game_state,omitempty"` // Omitted by default (use ResponseOptions.IncludeGameState)
-	GameMap      *engine.GameConfig `json:"game_map,omitempty"`   // Included by default on get_session, omitted on list_sessions
+	FogEnabled   bool               `json:"fog_enabled,omitempty"` // lets transports redact GameMap.Layout even when GameState is omitted
+	GameState    *engine.GameState  `json:"game_state,omitempty"`  // Omitted by default (use ResponseOptions.IncludeGameState)
+	GameMap      *engine.GameConfig `json:"game_map,omitempty"`    // Included by default on get_session, omitted on list_sessions
 }
 
 // MoveResult contains the result of a move operation
@@ -37,7 +38,7 @@ type BulkMoveResult struct {
 	GameState      *engine.GameState `json:"game_state"`
 	Events         []GameEvent       `json:"events"`
 	StoppedReason  string            `json:"stopped_reason,omitempty"`   // Human-readable reason
-	StopReasonCode string            `json:"stop_reason_code,omitempty"` // Machine-friendly code: blocked_boundary|blocked_building|blocked_water|out_of_battery|stranded|game_over|victory
+	StopReasonCode string            `json:"stop_reason_code,omitempty"` // Machine-friendly code: blocked_boundary|blocked_building|blocked_water|blocked_direction|out_of_battery|stranded|game_over|victory
 	StoppedOnMove  int               `json:"stopped_on_move,omitempty"`  // 1-based index of the move that caused stop
 	Truncated      bool              `json:"truncated,omitempty"`
 	Limit          int               `json:"limit,omitempty"`

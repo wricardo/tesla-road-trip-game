@@ -1,0 +1,423 @@
+# Tesla Road Trip Game — LLM Guide
+
+Tesla Road Trip is an educational grid game for humans and AI agents. You drive a car across a
+map of roads, parks, chargers, buildings and water. Visit every park to win. Returning home is
+not required.
+
+Humans: open {{.BaseURL}}/ , pick a map, click "Create session", then drive with the arrow keys
+or WASD (R resets). Tutorial: {{.BaseURL}}/learn
+
+GraphQL endpoint:       POST {{.BaseURL}}/graphql
+GraphQL subscriptions:  {{.WSURL}}/graphql  (graphql-ws protocol)
+Playground:             GET  {{.BaseURL}}/playground
+MCP endpoint:           POST {{.BaseURL}}/mcp  (Streamable HTTP transport)
+Introspection:          enabled — query __schema/__type or use the Playground docs panel
+GraphQL CLI client:     https://github.com/wricardo/gqlcli
+
+Every GraphQL example in this file is valid against the live schema. Replace SESSION_ID with a
+real id returned by createSession.
+
+Argument naming: operations on a session take `sessionID` (gameState, move, bulkMove, reset,
+history, sessionUpdated); operations that address the session object itself take `id`
+(session, updateSession, deleteSession).
+
+---
+
+## Rules
+
+- The grid is row-major: `grid[y][x]`. `x` grows to the right (RIGHT = x+1), `y` grows downward
+  (DOWN = y+1). `playerPos { x y }` is the car's cell.
+- Each successful move costs 1 battery. Entering H (home) or S (supercharger) refills to
+  `maxBattery`, so arriving with exactly 1 battery left is fine.
+- Entering a P (park) for the first time collects it (`score` +1). Visiting every park sets
+  `victory: true` and `gameOver: true`.
+- Moving into B (building), W (water) or off the map is blocked. If the map has
+  `wallCrashEndsGame: true` the crash also ends the game; otherwise the move is just rejected
+  and costs no battery.
+- One-way roads: see "Directional roads" below. A wrong-way move is rejected, costs no battery
+  and never ends the game.
+- Reaching 0 battery away from a charger ends the game (`stranded` / `out_of_battery`).
+- Once `gameOver` is true (win or loss) further moves are refused without moving: `move`
+  returns `success: false` with a message starting "Game is already over", and `bulkMove`
+  returns `stopReasonCode: "already_over"`. This is not a blocked path. Call `reset` (or pass
+  `reset: true` to move/bulkMove) to start over from the map's start; `resetCount` counts resets.
+
+### Cell types
+
+| char | type         | passable | effect                     |
+|------|--------------|----------|----------------------------|
+| R    | road         | yes      | none                       |
+| H    | home         | yes      | refills battery            |
+| S    | supercharger | yes      | refills battery            |
+| P    | park         | yes      | collect all to win         |
+| B    | building     | no       | blocks (may end game)      |
+| W    | water        | no       | blocks (may end game)      |
+
+`Cell.type` holds the type name. `Cell.id` is empty except on parks (`"park_0"`, `"park_1"`, …).
+`Cell.visited` is true for collected parks.
+
+### Directional roads
+
+Some maps define one-way road cells. Their `Cell.allowedDirections` lists cardinal directions:
+`north` (UP), `south` (DOWN), `east` (RIGHT), `west` (LEFT). An empty list means unrestricted.
+A move is allowed only if its direction is listed on BOTH the cell you leave and the cell you
+enter (whenever those cells have a non-empty list). Always request `allowedDirections` with
+`type` when reading the grid. On the map editor/layout these cells use custom characters
+defined in `cellConfigs`.
+
+### Battery risk
+
+`batteryRisk`, from least to most severe:
+`SAFE`; `LOW` (≤ 1/3 of max); `CAUTION` (battery ≤ distance to nearest charger + 2);
+`DANGER` (battery ≤ distance to nearest charger — you may not make it); `CRITICAL` (battery 0).
+`WARNING` means no charger was found on the map; `UNKNOWN` if it cannot be computed.
+
+---
+
+## Fog mode
+
+A session created with `fogEnabled: true` hides the map:
+
+- Create it with a radius (≥ 1) and a non-empty password:
+  `createSession(mapID: "easy", fogEnabled: true, fogRadius: 2, gridPassword: "secret")`.
+- `gameState.nearbyGrid` always works: a (2·radius+1)×(2·radius+1) window centred on the car.
+  `nearbyGrid[0][0]` is cell `(playerPos.x - radius, playerPos.y - radius)`, so
+  `nearbyGrid[j][i]` is `(playerPos.x - radius + i, playerPos.y - radius + j)`. Cells outside the
+  map are reported as `building`. Without fog the window is 3×3 (radius 1).
+- `gameState.grid(password: "secret")` returns the full grid; without the right password it
+  errors with `forbidden: grid password required when fog mode is enabled`.
+- `session { gameMap { layout(password: "secret") } }` follows the same rule.
+- The password is never returned by any API. MCP and REST responses omit `grid` and `layout`
+  for fog sessions entirely; use GraphQL with the password to see the full map.
+- Without fog, `grid` needs no password.
+
+---
+
+## Quick start (GraphQL)
+
+### 1. List maps
+
+```graphql
+query {
+  maps { mapId name description gridSize maxBattery }
+}
+```
+
+Use `mapId` (e.g. `"easy"`, `"classic"`) when creating sessions.
+
+### 2. Create a session
+
+```graphql
+mutation {
+  createSession(mapID: "easy") {
+    id
+    mapName
+    gameState {
+      battery
+      maxBattery
+      playerPos { x y }
+      grid { type visited id allowedDirections }
+      victory
+      gameOver
+    }
+  }
+}
+```
+
+All arguments are optional: `mapID` (a `mapId` such as `"classic"` or a display name such as
+`"Classic Layout"`, case-insensitive; default map if omitted; `mapName` is an alias that accepts
+the same values), `fogEnabled` (default false), `fogRadius` (default 1), `gridPassword`
+(required with fog). `fogRadius` > 1 or `gridPassword` without `fogEnabled: true` is an error,
+not a silent non-fog session. Check `gameState { fogEnabled fogRadius }` if unsure.
+Also `moveDelayMs`: pause after each step so spectators can follow the car live. It also slows
+the API response (a 5-move bulkMove takes ~1.2 s at the default 300 ms). Agents should pass
+`moveDelayMs: 0` unless someone is watching.
+
+### 3. Read the game state
+
+```graphql
+query {
+  gameState(sessionID: "SESSION_ID") {
+    playerPos { x y }
+    battery
+    maxBattery
+    batteryRisk
+    score
+    victory
+    gameOver
+    message
+    visitedParks { id visited }
+    fogEnabled
+    fogRadius
+    nearbyGrid { type visited id allowedDirections }
+    grid { type visited id allowedDirections }
+  }
+}
+```
+
+For a fog session drop `grid` or pass `grid(password: "…")`.
+
+### 4. Move one step
+
+```graphql
+mutation {
+  move(sessionID: "SESSION_ID", direction: RIGHT) {
+    success
+    message
+    gameState { playerPos { x y } battery score victory gameOver }
+    attemptedTo { x y tileChar tileType passable }
+    step { tileType charged park batteryAfter victory }
+    events { type message position { x y } }
+  }
+}
+```
+
+Directions: `UP` `DOWN` `LEFT` `RIGHT`. Optional `reset: true` resets the session first.
+`success: false` means the move was rejected; read `message` and `attemptedTo`.
+
+### 5. Move a sequence (up to 50 moves)
+
+```graphql
+mutation {
+  bulkMove(sessionID: "SESSION_ID", moves: [UP, UP, RIGHT, RIGHT, DOWN]) {
+    success
+    movesExecuted
+    requestedMoves
+    stoppedReason
+    stopReasonCode
+    stoppedOnMove
+    truncated
+    limit
+    startPos { x y }
+    endPos { x y }
+    startBattery
+    endBattery
+    scoreDelta
+    gameOver
+    gameOverCode
+    message
+    possibleMoves
+    batteryRisk
+    steps {
+      idx dir
+      from { x y } to { x y }
+      tileChar tileType
+      batteryBefore batteryAfter
+      success charged park victory
+    }
+    gameState { playerPos { x y } battery score victory gameOver visitedParks { id visited } }
+  }
+}
+```
+
+- Execution stops at the first rejected move, at game over, or at victory.
+- `stopReasonCode`: `blocked_building`, `blocked_water`, `blocked_boundary`,
+  `blocked_direction` (one-way road), `out_of_battery`, `stranded`, `game_over` (the game ended
+  during this request), `already_over` (it had ended before; nothing ran), `victory`
+  (empty when every move ran).
+- `gameOverCode`: `victory`, `out_of_battery`, `stranded`, `game_over`.
+- More than 50 moves: the rest are dropped and `truncated: true`.
+- `possibleMoves`: directions that are not blocked from the end position.
+- Victory is in `gameState.victory` (and `stopReasonCode: "victory"`).
+- Optional `reset: true` resets first.
+
+### 6. Long route in one request
+
+Aliased mutation fields run in order, each continuing where the previous stopped:
+
+```graphql
+mutation {
+  reset(sessionID: "SESSION_ID") { battery score }
+  c1: bulkMove(sessionID: "SESSION_ID", moves: [UP, UP, RIGHT]) {
+    movesExecuted success stoppedReason
+    gameState { playerPos { x y } battery victory gameOver }
+  }
+  c2: bulkMove(sessionID: "SESSION_ID", moves: [RIGHT, DOWN, DOWN]) {
+    movesExecuted success stoppedReason
+    gameState { playerPos { x y } battery victory gameOver }
+  }
+}
+```
+
+### 7. Reset
+
+```graphql
+mutation {
+  reset(sessionID: "SESSION_ID") { playerPos { x y } battery maxBattery score gameOver victory message }
+}
+```
+
+---
+
+## Other queries
+
+```graphql
+query {
+  session(id: "SESSION_ID") {
+    id displayName mapName createdAt lastActionAt
+    gameState { playerPos { x y } battery score victory gameOver }
+    gameMap { name gridSize maxBattery startingBattery wallCrashEndsGame }
+  }
+}
+```
+
+```graphql
+query {
+  sessions(sort: ACTION, order: DESC, limit: 20) {
+    count total sort order
+    sessions { id displayName mapName lastActionAt gameState { victory gameOver score battery } }
+  }
+}
+```
+
+`sort`: `ACTION` (last move, default) or `CREATED`. `order`: `ASC` or `DESC`.
+
+```graphql
+query {
+  unifiedSessions(mapName: "easy") {
+    mapName count
+    sessions {
+      sessionId createdAt lastActionAt
+      gameState { playerPos { x y } battery score victory gameOver }
+      gameMap { name gridSize maxBattery }
+    }
+  }
+}
+```
+
+```graphql
+query {
+  history(sessionID: "SESSION_ID", page: 1, limit: 20, order: DESC) {
+    totalMoves totalPages hasNext hasPrevious page pageSize
+    moves { moveNumber action battery success timestamp fromPosition { x y } toPosition { x y } }
+  }
+}
+```
+
+The `map(name: …)` query (full map config) and the MCP `get_map` tool are restricted to the web
+UI and need a UI password. Agents should read the map through `gameState.grid` instead.
+
+## Other mutations
+
+```graphql
+mutation { updateSession(id: "SESSION_ID", displayName: "Claude's first run") { id displayName } }
+```
+
+```graphql
+mutation { deleteSession(id: "SESSION_ID") { message } }
+```
+
+```graphql
+mutation {
+  validateMap(map: {
+    name: "Tiny"
+    description: "Two parks"
+    gridSize: 5
+    maxBattery: 10
+    startingBattery: 10
+    wallCrashEndsGame: false
+    layout: ["BBBBB", "BHRPB", "BRRRB", "BPRSB", "BBBBB"]
+    legend: [
+      { key: "R", value: "road" }, { key: "H", value: "home" }, { key: "P", value: "park" }
+      { key: "S", value: "supercharger" }, { key: "B", value: "building" }, { key: "W", value: "water" }
+    ]
+  }) { valid winnable message error }
+}
+```
+
+`validateMap` needs no key and saves nothing. A map needs `gridSize` between 5 and 50, a square
+layout of `gridSize` rows × `gridSize` characters, at least one H and one P, and a legend that
+maps all six standard characters (R H P S B W) as shown. One-way cells are custom characters
+declared in `cellConfigs`, e.g.
+`cellConfigs: [{ key: ">", type: "road", allowedDirections: ["east"] }]`.
+
+### Map administration
+
+`createMap(name, map: GameMapInput)` and `updateMap(name, patch: GameMapPatchInput)` take the
+same fields as `validateMap` (patch fields are all optional). They need the server's
+`ADMIN_API_KEY`, sent as the `X-Admin-Key` HTTP header; the MCP tools `create_map`,
+`update_map` and `delete_map` need the same header. Deleting maps is MCP-only.
+
+---
+
+## Subscriptions (WebSocket, graphql-ws)
+
+```graphql
+subscription {
+  sessionUpdated(sessionID: "SESSION_ID") {
+    battery maxBattery score victory gameOver totalMoves message mapName
+    playerPos { x y }
+    nearbyGrid { type visited id allowedDirections }
+    currentMoves { fromPosition { x y } toPosition { x y } success }
+  }
+}
+```
+
+```graphql
+subscription {
+  lobbyUpdated { battery score victory gameOver mapName playerPos { x y } }
+}
+```
+
+URL: `{{.WSURL}}/graphql`.
+
+---
+
+## Plain HTTP (curl)
+
+```bash
+curl -s {{.BaseURL}}/graphql -H 'Content-Type: application/json' \
+  --data '{"query":"mutation { createSession(mapID: \"easy\") { id } }"}'
+
+curl -s {{.BaseURL}}/graphql -H 'Content-Type: application/json' \
+  --data '{"query":"mutation($id: ID!) { move(sessionID: $id, direction: RIGHT) { success message gameState { battery playerPos { x y } } } }","variables":{"id":"SESSION_ID"}}'
+```
+
+---
+
+## MCP (Model Context Protocol)
+
+Endpoint: `{{.BaseURL}}/mcp` (Streamable HTTP, JSON-RPC `tools/list` / `tools/call`).
+Add it to Claude Code:
+
+```bash
+claude mcp add --transport http tesla-game {{.BaseURL}}/mcp
+```
+
+Tool results are text in TOON format (compact YAML-like) with snake_case field names.
+
+| tool             | arguments (* = required)                                                        |
+|------------------|---------------------------------------------------------------------------------|
+| list_maps        | —                                                                               |
+| create_session   | map_id, fog_enabled, fog_radius, grid_password, move_delay_ms                   |
+| game_state       | session_id*, grid (true = include full grid; never for fog sessions)            |
+| move             | session_id*, direction* (up/down/left/right), reset, intent                     |
+| bulk_move        | session_id*, moves* (array of up/down/left/right, max 50), reset, intent        |
+| reset_game       | session_id*                                                                     |
+| move_history     | session_id*, page, limit, order (asc/desc)                                      |
+| get_session      | session_id*                                                                     |
+| list_sessions    | sort (created/action), order, limit                                             |
+| unified_sessions | map_name                                                                        |
+| update_session   | id*, display_name*                                                              |
+| delete_session   | id*                                                                             |
+| validate_map     | map* (same fields as create_map)                                                |
+| get_map          | name*, password (UI password; restricted)                                       |
+| create_map       | name*, grid_size*, max_battery*, starting_battery*, layout*, legend*,           |
+|                  | wall_crash_ends_game*, description, cell_configs — admin key                    |
+| update_map       | name*, any create_map field — admin key                                         |
+| delete_map       | name* — admin key                                                               |
+
+`intent` is a free-text note explaining your reasoning; it is not interpreted.
+`move` / `bulk_move` results include `local_view_3x3` (3 rows centred on the car, `T` = car,
+cells as R/H/P/S/B/W) and `possible_moves`, which is the only map view MCP gives in fog mode.
+
+---
+
+## Tips
+
+1. `maps` → pick a `mapId` → `createSession` → read `grid` (or `nearbyGrid` in fog).
+2. Plan the whole route on the grid before moving; count battery between chargers.
+3. Prefer `bulkMove` over many `move` calls; check `success`, `stopReasonCode`, `gameOver`,
+   `gameState.victory` and `batteryRisk` after each call.
+4. Request only the fields you need; the full grid is large on big maps.
+5. Parse layout rows character by character — `R` and `B` look alike in monospace.

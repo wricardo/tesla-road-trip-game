@@ -120,7 +120,7 @@ type GameState struct {
 	// Fog-of-war session options (used by API/GraphQL presentation layer)
 	FogEnabled   bool   `json:"fog_enabled,omitempty"`
 	FogRadius    int    `json:"fog_radius,omitempty"`
-	GridPassword string `json:"grid_password,omitempty"`
+	GridPassword string `json:"-"` // secret; persisted at session level, never serialized with state
 	MoveDelayMs  int    `json:"move_delay_ms,omitempty"`
 }
 

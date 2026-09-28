@@ -33,6 +33,21 @@ func (s *gameServiceImpl) getMapID(mapName string) string {
 	return mapName
 }
 
+// mapIDForDisplayName returns the map ID whose display name matches name
+// (case-insensitive), or "" if none does.
+func (s *gameServiceImpl) mapIDForDisplayName(name string) string {
+	availableMaps, err := s.configs.ListConfigs()
+	if err != nil {
+		return ""
+	}
+	for _, m := range availableMaps {
+		if strings.EqualFold(strings.TrimSpace(m.Name), strings.TrimSpace(name)) {
+			return m.MapID
+		}
+	}
+	return ""
+}
+
 // NewGameService creates a new game service instance
 func NewGameService(sessions SessionManager, configs ConfigManager) GameService {
 	return &gameServiceImpl{
@@ -52,17 +67,24 @@ func (s *gameServiceImpl) CreateSession(ctx context.Context, mapName string, opt
 	if mapName != "" {
 		config, err = s.configs.LoadConfig(mapName)
 		if err != nil {
+			// Accept a display name ("Classic Layout") as well as the map ID ("classic").
+			if id := s.mapIDForDisplayName(mapName); id != "" {
+				mapName = id
+				config, err = s.configs.LoadConfig(id)
+			}
+		}
+		if err != nil {
 			// Provide helpful error message with available options
-			if strings.Contains(err.Error(), "configuration not found") {
+			if strings.Contains(err.Error(), "configuration not found") || strings.Contains(err.Error(), "invalid map name") {
 				availableMaps, listErr := s.configs.ListConfigs()
 				if listErr == nil && len(availableMaps) > 0 {
 					var mapIDs []string
 					for _, m := range availableMaps {
 						mapIDs = append(mapIDs, m.MapID)
 					}
-					return nil, fmt.Errorf("map '%s' not found. Available maps: %v", mapName, mapIDs)
+					return nil, fmt.Errorf("map '%s' not found (use a mapId or display name from the maps query). Available map IDs: %v", mapName, mapIDs)
 				}
-				return nil, fmt.Errorf("map '%s' not found. Use /api/maps to list available maps", mapName)
+				return nil, fmt.Errorf("map '%s' not found; list maps with the maps query", mapName)
 			}
 			return nil, fmt.Errorf("failed to load map %s: %w", mapName, err)
 		}
@@ -112,6 +134,7 @@ func (s *gameServiceImpl) CreateSession(ctx context.Context, mapName string, opt
 		MapName:      mapID,
 		CreatedAt:    session.CreatedAt,
 		LastActionAt: session.LastActionAt,
+		FogEnabled:   session.FogEnabled,
 		GameState:    sessionSnapshot(session),
 		GameMap:      session.Config,
 	}, nil
@@ -122,6 +145,10 @@ func validateCreateSessionOptions(opts CreateSessionOptions) error {
 		return fmt.Errorf("move delay must be >= 0")
 	}
 	if !opts.FogEnabled {
+		// Fog settings without fog would silently create a fully visible session.
+		if opts.GridPassword != "" || opts.FogRadius > 1 {
+			return fmt.Errorf("fogRadius/gridPassword only apply to fog sessions: also pass fogEnabled: true")
+		}
 		return nil
 	}
 	if opts.FogRadius < 1 {
@@ -179,6 +206,7 @@ func (s *gameServiceImpl) GetSession(ctx context.Context, sessionID string) (*Se
 		MapName:      s.getMapID(session.Config.Name),
 		CreatedAt:    session.CreatedAt,
 		LastActionAt: session.LastActionAt,
+		FogEnabled:   session.FogEnabled,
 		GameState:    state,
 		GameMap:      session.Config,
 	}, nil
@@ -200,6 +228,7 @@ func (s *gameServiceImpl) ListSessions(ctx context.Context) ([]*SessionInfo, err
 			MapName:      s.getMapID(sess.Config.Name),
 			CreatedAt:    sess.CreatedAt,
 			LastActionAt: sess.LastActionAt,
+			FogEnabled:   sess.FogEnabled,
 			GameState:    state,
 			GameMap:      sess.Config,
 		})
@@ -237,6 +266,7 @@ func (s *gameServiceImpl) UpdateSessionDisplayName(ctx context.Context, sessionI
 		MapName:      s.getMapID(session.Config.Name),
 		CreatedAt:    session.CreatedAt,
 		LastActionAt: session.LastActionAt,
+		FogEnabled:   session.FogEnabled,
 		GameState:    state,
 		GameMap:      session.Config,
 	}, nil
@@ -259,6 +289,15 @@ func (s *gameServiceImpl) Move(ctx context.Context, sessionID, direction string,
 	// Handle reset if requested
 	if reset {
 		sess.Engine.Reset()
+	}
+
+	// A finished game rejects moves outright; don't echo the stale end-of-game
+	// message, which reads like this move hit something.
+	if sess.Engine.IsGameOver() {
+		state := sessionSnapshot(sess)
+		state.LocalView3x3 = buildLocal3x3(state)
+		state.BatteryRisk = riskCode(engine.AnalyzeBatteryRisk(state))
+		return &MoveResult{Success: false, GameState: state, Message: alreadyOverMessage(state)}, nil
 	}
 
 	// Execute move
@@ -385,9 +424,15 @@ func (s *gameServiceImpl) BulkMove(ctx context.Context, sessionID string, moves 
 	// Execute moves
 	for i, move := range moves {
 		if sess.Engine.IsGameOver() {
-			result.StoppedReason = "game_over"
-			result.StopReasonCode = "game_over"
 			result.StoppedOnMove = result.MovesExecuted + 1
+			if i == 0 {
+				// Game was already over before this request moved anything.
+				result.Success = false
+				result.StopReasonCode = "already_over"
+			} else {
+				result.StoppedReason = "game_over"
+				result.StopReasonCode = "game_over"
+			}
 			break
 		}
 
@@ -436,6 +481,9 @@ func (s *gameServiceImpl) BulkMove(ctx context.Context, sessionID string, moves 
 					result.StopReasonCode = "out_of_battery"
 				} else if st.GameOver {
 					result.StopReasonCode = "game_over"
+				} else {
+					// Passable tile, battery left, game running: a one-way road rejected the move.
+					result.StopReasonCode = "blocked_direction"
 				}
 			}
 			result.AttemptedTo = &AttemptInfo{
@@ -492,6 +540,14 @@ func (s *gameServiceImpl) BulkMove(ctx context.Context, sessionID string, moves 
 	result.ScoreDelta = endState.Score - startScore
 	result.GameOver = endState.GameOver
 	result.Message = endState.Message
+	if result.StopReasonCode == "already_over" {
+		result.Message = alreadyOverMessage(endState)
+		result.StoppedReason = result.Message
+		result.GameOverCode = "game_over"
+		if endState.Victory {
+			result.GameOverCode = "victory"
+		}
+	}
 
 	// If we ended due to game over without explicit stop reason code
 	if result.GameOver && result.StopReasonCode == "" {
@@ -543,6 +599,15 @@ func (s *gameServiceImpl) BulkMove(ctx context.Context, sessionID string, moves 
 	}
 
 	return result, nil
+}
+
+// alreadyOverMessage explains why a move was refused on a finished game.
+func alreadyOverMessage(state *engine.GameState) string {
+	why := "you won"
+	if !state.Victory {
+		why = "it ended: " + state.Message
+	}
+	return "Game is already over (" + why + "). No move was made — call reset (or pass reset: true) to play again."
 }
 
 // Reset resets a game session to initial state

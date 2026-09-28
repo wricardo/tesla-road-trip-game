@@ -93,9 +93,21 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // Response helpers
 func respondJSON(w http.ResponseWriter, status int, data interface{}) {
+	// Round-trip through generic JSON so fog-hidden map data can be stripped.
+	raw, err := json.Marshal(data)
+	if err != nil {
+		http.Error(w, "encode error", http.StatusInternalServerError)
+		return
+	}
+	var generic any
+	if err := json.Unmarshal(raw, &generic); err != nil {
+		http.Error(w, "encode error", http.StatusInternalServerError)
+		return
+	}
+	service.RedactFogJSON(generic)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	json.NewEncoder(w).Encode(generic)
 }
 
 func respondError(w http.ResponseWriter, status int, message string) {

@@ -134,12 +134,13 @@ func (s *Server) Handler() http.Handler {
 func (s *Server) registerTools() {
 	s.mcpServer.AddTool(mcp.Tool{
 		Name:        "game_state",
-		Description: "Get current game state for a session.",
+		Description: "Get current game state for a session. Pass grid=true to include the full map grid (grid[y][x]); omitted for fog-mode sessions.",
 		InputSchema: mcp.ToolInputSchema{
 			Type:     "object",
 			Required: []string{"session_id"},
 			Properties: map[string]interface{}{
 				"session_id": map[string]interface{}{"type": "string", "description": "Session ID"},
+				"grid":       map[string]interface{}{"type": "boolean", "description": "Include the full grid (ignored for fog-mode sessions)"},
 			},
 		},
 	}, s.handleGameState)
@@ -676,6 +677,7 @@ func toTOON(v any) string {
 	jsonBytes, _ := json.Marshal(v)
 	var data any
 	json.Unmarshal(jsonBytes, &data)
+	service.RedactFogJSON(data)
 
 	// Then marshal to TOON
 	s, err := toon.MarshalString(data)
@@ -690,6 +692,7 @@ func toTOONWithOptions(v any, opts *service.ResponseOptions) string {
 	jsonBytes, _ := json.Marshal(v)
 	var data any
 	json.Unmarshal(jsonBytes, &data)
+	service.RedactFogJSON(data)
 
 	if opts != nil && !opts.IncludeHistory {
 		pruneHistoryFields(data)

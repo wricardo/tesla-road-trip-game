@@ -182,7 +182,7 @@
 
 	const llmPrompt = $derived(`Use this GraphQL API to control an existing Tesla Road Trip game session.
 
-Goal: visit all parks without getting stranded or hitting a building.
+Goal: visit every park. Each move costs 1 battery; home (H) and superchargers (S) refill it. Reaching 0 battery away from a charger ends the game. Buildings, water and wrong-way moves on one-way roads are rejected (hitting a building/water ends the game on maps with wallCrashEndsGame). Full rules and every field: ${typeof window !== 'undefined' ? window.location.origin : ''}/llms.txt
 
 Session ID: ${sessionId}
 GraphQL endpoint: ${typeof window !== 'undefined' ? window.location.origin : ''}/graphql
@@ -267,16 +267,18 @@ mutation {
 }
 
 bulkMove accepts at most 50 moves per call. Check success, stoppedReason, stopReasonCode, truncated, gameOver, and victory before sending another operation.
+stopReasonCode "already_over" (or a move message starting "Game is already over") means the game had already ended; nothing moved. It is not a blocked path: call reset.
 
 ## Manage this session
 mutation { reset(sessionID: "${sessionId}") { playerPos { x y } battery score victory gameOver nearbyGrid { type visited id allowedDirections } } }
 query { history(sessionID: "${sessionId}", page: 1, limit: 20, order: DESC) { totalMoves moves { moveNumber action success battery } } }
 mutation { deleteSession(id: "${sessionId}") { message } }
 
-Directions: UP DOWN LEFT RIGHT.
-Use nearbyGrid for fog-safe planning (window around the player).
-Use grid(password: ...) for full-map planning when authorized.
-Full grid coordinates are grid[y][x].`);
+Directions: UP DOWN LEFT RIGHT. RIGHT = x+1, DOWN = y+1. Full grid coordinates are grid[y][x].
+One-way roads: a move must be listed (north/south/east/west) in allowedDirections of both the cell you leave and the cell you enter, when those lists are non-empty.
+${gameState?.fogEnabled
+	? `This session uses FOG (radius ${gameState.fogRadius}). nearbyGrid is the (2r+1)x(2r+1) window around the car: nearbyGrid[j][i] is cell (x - r + i, y - r + j); off-map cells read as building. grid(password: ...) needs the password chosen at creation.`
+	: `Fog is off: grid needs no password (the password argument is ignored). nearbyGrid is the 3x3 window around the car.`}`);
 
 	function copyPrompt() {
 		navigator.clipboard.writeText(llmPrompt);
