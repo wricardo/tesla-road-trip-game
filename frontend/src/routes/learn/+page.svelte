@@ -1,51 +1,58 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+
 	let copied = $state('');
+	// Examples target whichever server is serving this page.
+	let base = $state('http://localhost:8000');
+	onMount(() => {
+		base = window.location.origin;
+	});
 
-	const graphqlCreateSessionCurl = `BASE_URL="http://tesla.wricardo.net" # local backend: http://localhost:9090
-curl -s "$BASE_URL/graphql" \
-  -H 'Content-Type: application/json' \
-  --data '{"query":"mutation { createSession(mapID: \"classic\") { id mapName gameState { battery playerPos { x y } } } }"}'`;
+	const graphqlCreateSessionCurl = $derived(`BASE_URL="${base}"
+curl -s "$BASE_URL/graphql" \\
+  -H 'Content-Type: application/json' \\
+  --data '{"query":"mutation { createSession(mapID: \\"classic\\") { id mapName gameState { battery playerPos { x y } } } }"}'`);
 
-	const graphqlStateCurl = `SESSION_ID="paste-session-id-here"
-BASE_URL="http://tesla.wricardo.net"
-curl -s "$BASE_URL/graphql" \
-  -H 'Content-Type: application/json' \
+	const graphqlStateCurl = $derived(`SESSION_ID="paste-session-id-here"
+BASE_URL="${base}"
+curl -s "$BASE_URL/graphql" \\
+  -H 'Content-Type: application/json' \\
   --data "$(jq -nc --arg id "$SESSION_ID" '{
     query: "query($id: ID!) { gameState(sessionID: $id) { battery maxBattery score victory gameOver playerPos { x y } nearbyGrid { type allowedDirections } } }",
     variables: { id: $id }
-  }')"`;
+  }')"`);
 
-	const graphqlMoveCurl = `SESSION_ID="paste-session-id-here"
-BASE_URL="http://tesla.wricardo.net"
-curl -s "$BASE_URL/graphql" \
-  -H 'Content-Type: application/json' \
+	const graphqlMoveCurl = $derived(`SESSION_ID="paste-session-id-here"
+BASE_URL="${base}"
+curl -s "$BASE_URL/graphql" \\
+  -H 'Content-Type: application/json' \\
   --data "$(jq -nc --arg id "$SESSION_ID" '{
     query: "mutation($id: ID!) { move(sessionID: $id, direction: RIGHT) { success message gameState { battery score playerPos { x y } } } }",
     variables: { id: $id }
-  }')"`;
+  }')"`);
 
-	const mcpListToolsCurl = `BASE_URL="http://tesla.wricardo.net"
-curl -s "$BASE_URL/mcp" \
-  -H 'Content-Type: application/json' \
-  --data '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'`;
+	const mcpListToolsCurl = $derived(`BASE_URL="${base}"
+curl -s "$BASE_URL/mcp" \\
+  -H 'Content-Type: application/json' \\
+  --data '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'`);
 
-	const mcpCreateSessionCurl = `BASE_URL="http://tesla.wricardo.net"
-curl -s "$BASE_URL/mcp" \
-  -H 'Content-Type: application/json' \
-  --data '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"create_session","arguments":{"map_name":"classic"}}}'`;
+	const mcpCreateSessionCurl = $derived(`BASE_URL="${base}"
+curl -s "$BASE_URL/mcp" \\
+  -H 'Content-Type: application/json' \\
+  --data '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"create_session","arguments":{"map_name":"classic"}}}'`);
 
-	const mcpMoveCurl = `SESSION_ID="paste-session-id-here"
-BASE_URL="http://tesla.wricardo.net"
-curl -s "$BASE_URL/mcp" \
-  -H 'Content-Type: application/json' \
+	const mcpMoveCurl = $derived(`SESSION_ID="paste-session-id-here"
+BASE_URL="${base}"
+curl -s "$BASE_URL/mcp" \\
+  -H 'Content-Type: application/json' \\
   --data "$(jq -nc --arg id "$SESSION_ID" '{
     jsonrpc: "2.0",
     id: 3,
     method: "tools/call",
     params: { name: "move", arguments: { session_id: $id, direction: "right" } }
-  }')"`;
+  }')"`);
 
-	const claudeMcpConfig = `claude mcp add --transport http tesla-game http://tesla.wricardo.net/mcp`;
+	const claudeMcpConfig = $derived(`claude mcp add --transport http tesla-game ${base}/mcp`);
 
 	const legendTiles = [
 		{ label: 'Player', icon: '🚗' },
@@ -141,8 +148,8 @@ curl -s "$BASE_URL/mcp" \
 		<div class="rounded-2xl border border-[#e8e8e8] bg-white p-4 mb-6">
 			<p class="text-xs uppercase tracking-widest text-gray-400 mb-2">Endpoints</p>
 			<div class="grid gap-2 text-sm text-gray-600">
-				<p><span class="font-medium text-[#393c41]">GraphQL:</span> <code class="font-mono">http://tesla.wricardo.net/graphql</code> <span class="text-gray-400">(local backend: <code>http://localhost:9090/graphql</code>)</span></p>
-				<p><span class="font-medium text-[#393c41]">MCP:</span> <code class="font-mono">http://tesla.wricardo.net/mcp</code> <span class="text-gray-400">(local backend: <code>http://localhost:9090/mcp</code>)</span></p>
+				<p><span class="font-medium text-[#393c41]">GraphQL:</span> <code class="font-mono">{base}/graphql</code></p>
+				<p><span class="font-medium text-[#393c41]">MCP:</span> <code class="font-mono">{base}/mcp</code></p>
 			</div>
 		</div>
 

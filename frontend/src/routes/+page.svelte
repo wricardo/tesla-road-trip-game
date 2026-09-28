@@ -122,7 +122,7 @@
 			<div>
 				<p class="text-xs font-bold uppercase tracking-widest text-red-500 mb-4">🚗 Educational AI project</p>
 				<h1 class="text-4xl lg:text-5xl font-light text-[#171a20] leading-tight tracking-tight mb-6">
-					Drive the car across the map.<br>Visit every park.<br>Get back home safely.
+					Drive the car across the map.<br>Visit every park.<br>Don't run out of battery.
 				</h1>
 				<p class="text-lg text-gray-500 font-light leading-relaxed max-w-2xl mb-10">
 					Tesla Road Trip is a small game for exploring how people and AI agents make decisions. Move through the grid, collect all parks, manage battery, and plan a route around chargers, water, and blocked tiles. <a href="/learn" class="text-red-500 font-medium hover:underline">Learn more</a>
@@ -150,7 +150,7 @@
 			<!-- Right: quick actions -->
 			<div class="mt-10 lg:mt-0 bg-[#f7f7f7] rounded-2xl p-6 border border-[#e8e8e8]">
 				<h2 class="text-xl font-light text-[#393c41] mb-1">Start playing</h2>
-				<p class="text-sm text-gray-400 mb-5">Create a session and try to collect every park before returning home.</p>
+				<p class="text-sm text-gray-400 mb-5">Create a session, then drive with the arrow keys or WASD to visit every park before your battery runs out.</p>
 
 				<div class="mb-4">
 					<label for="cfg" class="block text-xs font-semibold text-[#393c41] mb-1.5">Map</label>

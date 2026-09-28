@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"text/template"
@@ -52,19 +53,39 @@ var (
 	sessionsDir = flag.String("sessions-dir", getSessionsDirDefault(), "Directory for persisted game sessions")
 	debug       = flag.Bool("debug", false, "Enable debug logging")
 	version     = flag.Bool("version", false, "Show version information")
-	publicURL   = flag.String("public-url", "", "Public base URL served in llms.txt (e.g. https://myserver.com). Defaults to http://<host>:<port>")
+	publicURL   = flag.String("public-url", "", "Public base URL served in llms.txt (e.g. https://myserver.com). Defaults to the request's scheme and Host")
 )
 
 var llmsTxtTemplate = template.Must(template.New("llms").Parse(`# Tesla Road Trip Game — LLM Guide
 
-Grid-based navigation game. Control a Tesla, collect all parks, manage battery. Win by visiting every park.
+Tesla Road Trip is an educational grid game for humans and AI agents. You drive a car across a
+map of roads, parks, chargers, buildings and water. Every move costs 1 battery; home (H) and
+superchargers (S) recharge to full. You win by visiting every park (there is no need to return
+home). You lose if the battery hits 0 away from a charger, or — on maps with wallCrashEndsGame —
+if you drive into a building or water.
+
+Humans: open {{.BaseURL}}/ , pick a map, click "Create session", then drive with the arrow keys
+or WASD (R resets). Tutorial: {{.BaseURL}}/learn
 
 GraphQL endpoint:       POST {{.BaseURL}}/graphql
-GraphQL subscriptions:  ws(s)://<host>/graphql
+GraphQL subscriptions:  {{.WSURL}}/graphql  (graphql-ws protocol)
 Playground:             GET  {{.BaseURL}}/playground
 MCP endpoint:           POST {{.BaseURL}}/mcp  (Streamable HTTP transport)
 Introspection:          enabled — query __schema/__type or use Playground docs
 GraphQL CLI client:     https://github.com/wricardo/gqlcli
+
+### Plain HTTP (curl)
+
+` + "```" + `bash
+curl -s {{.BaseURL}}/graphql -H 'Content-Type: application/json' \
+  --data '{"query":"mutation { createSession(mapID: \"easy\") { id } }"}'
+
+curl -s {{.BaseURL}}/graphql -H 'Content-Type: application/json' \
+  --data '{"query":"mutation($id: ID!) { move(sessionID: $id, direction: RIGHT) { success message gameState { battery playerPos { x y } } } }","variables":{"id":"SESSION_ID"}}'
+
+curl -s {{.BaseURL}}/mcp -H 'Content-Type: application/json' \
+  --data '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+` + "```" + `
 
 ---
 
@@ -117,14 +138,16 @@ query {
     gameOver
     message
     visitedParks { id visited }
-    localView3x3
-    grid { type visited id }
+    fogEnabled
+    nearbyGrid { type visited id allowedDirections }
+    grid { type visited id allowedDirections }
   }
 }
 ` + "```" + `
 
-` + "`" + `localView3x3` + "`" + ` — 3-row ASCII snapshot centered on the player. Quick spatial awareness without parsing the full grid.
-` + "`" + `batteryRisk` + "`" + ` — one of: ` + "`" + `SAFE` + "`" + `, ` + "`" + `LOW` + "`" + `, ` + "`" + `CAUTION` + "`" + `, ` + "`" + `DANGER` + "`" + `, ` + "`" + `CRITICAL` + "`" + `, ` + "`" + `WARNING` + "`" + `, ` + "`" + `UNKNOWN` + "`" + `.
+` + "`" + `nearbyGrid` + "`" + ` — small square centred on the player (works in fog mode). ` + "`" + `grid` + "`" + ` — full map (needs ` + "`" + `password` + "`" + ` in fog mode).
+` + "`" + `localView3x3` + "`" + ` (on ` + "`" + `bulkMove` + "`" + ` results) — 3-row ASCII snapshot centred on the player.
+` + "`" + `batteryRisk` + "`" + ` — see the Battery section for meanings.
 
 ### 4. Move (single)
 
@@ -388,14 +411,13 @@ subscription {
 }
 ` + "```" + `
 
-WebSocket URL: ` + "`" + `ws://<host>/graphql` + "`" + ` (` + "`" + `wss://` + "`" + ` over TLS). Uses graphql-ws protocol.
+WebSocket URL: ` + "`" + `{{.WSURL}}/graphql` + "`" + `. Uses graphql-ws protocol.
 
 ---
 
 ## MCP (Model Context Protocol)
 
 MCP endpoint: ` + "`" + `{{.BaseURL}}/mcp` + "`" + ` (Streamable HTTP transport)
-Production MCP endpoint: ` + "`" + `http://tesla.wricardo.net/mcp` + "`" + `
 
 Available tools:
 
@@ -418,7 +440,7 @@ Available tools:
 To use MCP in Claude Code, run:
 
 ` + "```" + `bash
-claude mcp add --transport http tesla-game http://tesla.wricardo.net/mcp
+claude mcp add --transport http tesla-game {{.BaseURL}}/mcp
 ` + "```" + `
 
 ---
@@ -435,7 +457,24 @@ claude mcp add --transport http tesla-game http://tesla.wricardo.net/mcp
 | W    | water        | no       | impassable             |
 
 Grid: ` + "`" + `grid[y][x]` + "`" + ` (row-major). ` + "`" + `Cell.type` + "`" + ` uses names above. ` + "`" + `Cell.id` + "`" + ` is a coordinate string.
-Victory when ` + "`" + `victory: true` + "`" + ` — all parks collected.
+Victory when ` + "`" + `victory: true` + "`" + ` — all parks collected. Returning home is not required.
+
+### One-way roads
+
+` + "`" + `Cell.allowedDirections` + "`" + ` lists the directions (e.g. ` + "`" + `["RIGHT","DOWN"]` + "`" + `) a car may use on that road cell.
+Empty list = unrestricted. A move that violates it is rejected like a wall. Always request
+` + "`" + `allowedDirections` + "`" + ` alongside ` + "`" + `type` + "`" + ` when reading ` + "`" + `grid` + "`" + ` or ` + "`" + `nearbyGrid` + "`" + `.
+
+### Fog mode
+
+Sessions created with ` + "`" + `fogEnabled: true` + "`" + ` hide the map:
+
+- ` + "`" + `createSession(mapID: "easy", fogEnabled: true, fogRadius: 2, gridPassword: "secret")` + "`" + ` — radius ≥ 1 and a non-empty password are required.
+- ` + "`" + `gameState.nearbyGrid` + "`" + ` — always available; a (2·radius+1)² square centred on the player (3×3 when fog is off).
+- ` + "`" + `gameState.grid(password: "secret")` + "`" + ` and ` + "`" + `map.layout` + "`" + ` — return an error without the password while fog is on.
+
+Other ` + "`" + `createSession` + "`" + ` args: ` + "`" + `moveDelayMs` + "`" + ` (delay between WebSocket step broadcasts, for spectators; 0 = none).
+Prefer ` + "`" + `mapID` + "`" + ` (the slug from ` + "`" + `maps { mapId }` + "`" + `, e.g. ` + "`" + `"easy"` + "`" + `) over display names.
 
 ---
 
@@ -444,7 +483,17 @@ Victory when ` + "`" + `victory: true` + "`" + ` — all parks collected.
 - Each move costs 1 battery.
 - H or S restores to ` + "`" + `maxBattery` + "`" + `.
 - ` + "`" + `battery: 0` + "`" + ` → ` + "`" + `gameOver: true` + "`" + `, ` + "`" + `gameOverCode: "battery"` + "`" + `.
-- ` + "`" + `batteryRisk` + "`" + ` summarizes current risk level.
+- ` + "`" + `batteryRisk` + "`" + ` (least to most severe): ` + "`" + `SAFE` + "`" + `; ` + "`" + `LOW` + "`" + ` (≤ 1/3 of max); ` + "`" + `CAUTION` + "`" + ` (battery ≤ distance to nearest charger + 2);
+  ` + "`" + `DANGER` + "`" + ` (battery ≤ distance to nearest charger — you may not make it); ` + "`" + `CRITICAL` + "`" + ` (battery 0).
+  ` + "`" + `WARNING` + "`" + ` means no charger was found on the map; ` + "`" + `UNKNOWN` + "`" + ` if not computable.
+
+---
+
+## Map administration
+
+` + "`" + `createMap` + "`" + ` / ` + "`" + `updateMap` + "`" + ` (GraphQL) and ` + "`" + `create_map` + "`" + ` / ` + "`" + `update_map` + "`" + ` / ` + "`" + `delete_map` + "`" + ` (MCP) require the
+server's ` + "`" + `ADMIN_API_KEY` + "`" + `, sent as the ` + "`" + `X-Admin-Key` + "`" + ` HTTP header. Map deletion is MCP-only.
+` + "`" + `validateMap(map: ...)` + "`" + ` checks winnability without saving and needs no key.
 
 ---
 
@@ -661,14 +710,24 @@ func runHTTPServer(gameService service.GameService) {
 		log.Println("GraphQL playground: disabled")
 	}
 
-	// /llms.txt — rendered from template so the server URL is always correct.
-	baseURL := *publicURL
-	if baseURL == "" {
-		baseURL = fmt.Sprintf("http://%s", addr)
-	}
+	// /llms.txt — rendered from template. Base URL: -public-url if set, otherwise
+	// the host the client actually used, so docs never point at a different server.
 	mainRouter.HandleFunc("/llms.txt", func(w http.ResponseWriter, r *http.Request) {
+		baseURL := strings.TrimRight(*publicURL, "/")
+		if baseURL == "" {
+			scheme := "http"
+			if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
+				scheme = "https"
+			}
+			h := r.Host
+			if h == "" {
+				h = addr
+			}
+			baseURL = scheme + "://" + h
+		}
+		wsURL := "ws" + strings.TrimPrefix(baseURL, "http")
 		var buf bytes.Buffer
-		if err := llmsTxtTemplate.Execute(&buf, struct{ BaseURL string }{BaseURL: baseURL}); err != nil {
+		if err := llmsTxtTemplate.Execute(&buf, struct{ BaseURL, WSURL string }{BaseURL: baseURL, WSURL: wsURL}); err != nil {
 			http.Error(w, "template error", http.StatusInternalServerError)
 			return
 		}

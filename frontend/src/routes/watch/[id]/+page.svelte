@@ -187,10 +187,10 @@ Goal: visit all parks without getting stranded or hitting a building.
 Session ID: ${sessionId}
 GraphQL endpoint: ${typeof window !== 'undefined' ? window.location.origin : ''}/graphql
 Playground: ${typeof window !== 'undefined' ? window.location.origin : ''}/playground
-MCP endpoint: http://tesla.wricardo.net/mcp (Streamable HTTP transport)
+MCP endpoint: ${typeof window !== 'undefined' ? window.location.origin : ''}/mcp (Streamable HTTP transport)
 
 To use MCP in Claude Code, run:
-claude mcp add --transport http tesla-game http://tesla.wricardo.net/mcp
+claude mcp add --transport http tesla-game ${typeof window !== 'undefined' ? window.location.origin : ''}/mcp
 
 GraphQL introspection is enabled. Use the Playground Docs panel or query __schema/__type to discover fields before constructing operations.
 
