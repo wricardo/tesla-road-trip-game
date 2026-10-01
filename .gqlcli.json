@@ -2,10 +2,10 @@
   "default": "local",
   "environments": {
     "local": {
-      "url": "http://localhost:9090/graphql"
+      "url": "http://localhost:8000/graphql"
     },
     "prod": {
-      "url": "https://tesla.ngrok.pro/graphql"
+      "url": "http://tesla.wricardo.net/graphql"
     }
   }
 }
