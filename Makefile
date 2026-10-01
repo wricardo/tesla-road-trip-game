@@ -1,13 +1,14 @@
 # Tesla Road Trip Game - Makefile
 # Development tooling for the Tesla Road Trip Game server
 
-.PHONY: help build build-frontend build-tui tui test test-verbose test-coverage clean run dev restart dev-live fmt fmt-check lint vet vet-safe vet-all deps validate claude-game claude-game-stdin verify tools status
+.PHONY: help build build-frontend build-tui tui test test-verbose test-coverage clean run dev restart dev-live fmt fmt-check lint vet vet-safe vet-all deps validate claude-game verify tools status setup
 
 # Default target
 help:
 	@echo "Tesla Road Trip Game - Available Make Targets:"
 	@echo ""
 	@echo "Building & Running:"
+	@echo "  setup        - Install Go modules and frontend npm packages (run once after clone)"
 	@echo "  build        - Build the game server binary"
 	@echo "  build-tui    - Build the terminal UI client binary"
 	@echo "  tui          - Build and run the TUI client"
@@ -16,14 +17,11 @@ help:
 	@echo "  dev-backend  - Run backend on port 9090 for frontend live dev"
 	@echo "  frontend-dev - Run Svelte frontend with live reload on port 5173"
 	@echo "  dev-live     - Run backend + live frontend together"
-	@echo "  dev-watch    - Run with file watching (requires fswatch/inotifywait)"
 	@echo ""
 	@echo "Testing:"
 	@echo "  test         - Run all tests"
 	@echo "  test-verbose - Run tests with verbose output"
 	@echo "  test-coverage - Run tests with coverage report"
-	@echo "  test-script  - Run comprehensive test script"
-	@echo "  test-script-coverage - Run test script with coverage"
 	@echo "  validate     - Validate all game configurations"
 	@echo ""
 	@echo "Code Quality:"
@@ -37,13 +35,17 @@ help:
 	@echo ""
 	@echo "Claude Integration:"
 	@echo "  claude-game  - Start Claude with HTTP MCP config"
-	@echo "  claude-game-stdin - Start Claude with stdin MCP config"
 	@echo ""
 	@echo "Utilities:"
 	@echo "  status       - Check server status"
 	@echo "  restart      - Kill local :8000 listener, rebuild, and restart in background"
 	@echo "  clean        - Clean build artifacts"
 	@echo "  help         - Show this help message"
+
+# One-time setup after cloning
+setup:
+	go mod download
+	cd frontend && npm ci
 
 # Build targets
 build:
@@ -52,6 +54,7 @@ build:
 
 build-frontend:
 	@echo "Building frontend static bundle..."
+	@test -d frontend/node_modules || (cd frontend && npm ci)
 	cd frontend && npm run build
 
 build-tui:
@@ -149,18 +152,6 @@ dev-live:
 	go run . -port 9090 & \
 	cd frontend && npm run dev:local
 
-dev-watch:
-	@echo "Starting development server with file watching..."
-	./scripts/dev.sh
-
-test-script:
-	@echo "Running comprehensive test script..."
-	./scripts/test.sh
-
-test-script-coverage:
-	@echo "Running test script with coverage..."
-	./scripts/test.sh -c
-
 # Code quality targets
 fmt:
 	@echo "Formatting Go code..."
@@ -222,9 +213,6 @@ claude-game:
 	@echo "Starting Claude with HTTP MCP configuration..."
 	claude --strict-mcp-config --mcp-config ./mcp.json
 
-claude-game-stdin:
-	@echo "Starting Claude with stdin MCP configuration..."
-	claude --strict-mcp-config --mcp-config ./mcp-stdin.json
 
 # Cleanup
 clean:

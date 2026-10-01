@@ -53,7 +53,6 @@ temp/
 node_modules/
 settings.local.json
 .claude/*.local.md
-*.html
 
 # Browser/Playwright screenshots captured by MCP tools
 .playwright-mcp/
@@ -67,3 +66,6 @@ tesla-road-trip
 # Local build artifacts
 /tesla-road-trip-tui
 /tui
+
+# Local server PID written by make restart
+.server.pid

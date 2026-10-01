@@ -6,7 +6,8 @@ Thank you for your interest in contributing to the Tesla Road Trip Game! This do
 
 ### Prerequisites
 
-- **Go 1.21 or higher**
+- **Go 1.25+** (see `go.mod`)
+- **Node.js 20.19+ or 22.12+** and npm (frontend build)
 - **Git** for version control
 - **Make** for build automation (optional but recommended)
 
@@ -14,13 +15,13 @@ Thank you for your interest in contributing to the Tesla Road Trip Game! This do
 
 1. **Fork and clone the repository**
    ```bash
-   git clone https://github.com/YOUR_USERNAME/mcp-training.git
-   cd mcp-training/statefullgame
+   git clone https://github.com/YOUR_USERNAME/tesla-road-trip-game.git
+   cd tesla-road-trip-game
    ```
 
 2. **Install dependencies**
    ```bash
-   make deps
+   make setup
    ```
 
 3. **Verify setup**
@@ -31,7 +32,7 @@ Thank you for your interest in contributing to the Tesla Road Trip Game! This do
 
 4. **Start development server**
    ```bash
-   make dev-watch
+   make dev-live   # backend :9090 + frontend :5173 with live reload
    ```
 
 ## 🔄 Development Workflow
@@ -77,13 +78,13 @@ Thank you for your interest in contributing to the Tesla Road Trip Game! This do
 3. **Advanced Testing**
    ```bash
    # Run with race detection
-   ./scripts/test.sh -r
+   go test -race ./...
 
    # Run benchmarks
-   ./scripts/test.sh -b
+   go test -bench=. -run=^$ ./...
 
    # Test specific package
-   ./scripts/test.sh --package ./api
+   go test ./api/...
    ```
 
 ### Submitting Changes
