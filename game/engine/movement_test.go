@@ -28,7 +28,6 @@ func createTestGameState() (*GameState, *GameConfig) {
 			"W": "water",
 			"B": "building",
 		},
-		WallCrashEndsGame: false,
 	}
 
 	state := InitGameStateFromConfig(config)
@@ -139,7 +138,7 @@ func TestMovePlayer_WallCollision(t *testing.T) {
 	initialPos := state.PlayerPos
 	initialBattery := state.Battery
 
-	// Try to move into water
+	// Try to move into water: any collision ends the game and costs no battery.
 	success := state.MovePlayer("down", config)
 	if success {
 		t.Error("Expected move to fail when hitting water")
@@ -150,22 +149,8 @@ func TestMovePlayer_WallCollision(t *testing.T) {
 	if state.Battery != initialBattery {
 		t.Error("Battery should not change when move fails")
 	}
-	if !strings.Contains(state.Message, "Can't move") {
-		t.Errorf("Expected 'Can't move' message, got: %s", state.Message)
-	}
-}
-
-func TestMovePlayer_WallCrashEndsGame(t *testing.T) {
-	state, config := createTestGameState()
-	config.WallCrashEndsGame = true
-
-	// Try to move into water
-	success := state.MovePlayer("down", config)
-	if success {
-		t.Error("Expected move to fail when hitting wall with crash ending game")
-	}
 	if !state.GameOver {
-		t.Error("Expected game to be over after wall crash")
+		t.Error("Expected game to be over after hitting water")
 	}
 	if !strings.Contains(state.Message, DefaultMessages.HitWall) {
 		t.Errorf("Expected hit wall message, got: %s", state.Message)

@@ -41,10 +41,11 @@ W = Two V shapes side by side creating vertical strokes
    - Position 5: W
    - ...
 
-4. **Use describe_cell for verification**:
+4. **Verify with structured cell data** (row 7 = `grid[7]`, position 4 = x):
+   ```graphql
+   { gameState(sessionID: "ID") { grid { type allowedDirections } } }
    ```
-   describe_cell(session_id, x=4, y=7)
-   ```
+   Read `grid[7][4].type`. In fog sessions use `nearbyGrid` with `fogRadius` instead (never `grid` without the password); via MCP, check `local_view_3x3` when the cell is adjacent.
 
 ### High-Risk Misread Patterns
 
@@ -61,7 +62,7 @@ W = Two V shapes side by side creating vertical strokes
 **Pattern 3: Clustered obstacles with gaps**
 - Visual: `BBBBBBBBBBBB` (dense building cluster)
 - Reality: `BBBBRBBBRBBBB` (two roads at positions 4 and 8)
-- Solution: Use describe_cell on every 3rd-4th position when paths seem impossible
+- Solution: Check the `type` of each position in GraphQL `grid` (or `nearbyGrid` in fog) when paths seem impossible
 
 ## Advanced Pathfinding Algorithms
 
@@ -285,7 +286,7 @@ Start(7,7) battery=20
    - Wrong objective: Navigation error or incorrect coordinates
 
 2. **Diagnose root cause**:
-   - **For obstacles**: Use describe_cell on collision point, verify character type
+   - **For obstacles**: Check the target cell's `type` in GraphQL `grid`/`nearbyGrid` or MCP `local_view_3x3` before retrying; remember a collision ends the game, so reset first
    - **For battery**: Recalculate distance to nearest charger, check battery math
    - **For navigation**: Verify current position matches expected position
 

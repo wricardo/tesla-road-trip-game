@@ -18,6 +18,8 @@ type GameState = {
 	playerPos: Position;
 	nearbyGrid: Cell[][];
 	currentMoves: MoveEntry[];
+	totalParks: number;
+	message: string;
 };
 
 const mockRuntime = vi.hoisted(() => ({
@@ -133,6 +135,8 @@ function makeGameState(overrides: Partial<GameState> = {}): GameState {
 		gameOver: false,
 		totalMoves: 2,
 		mapName: 'classic',
+		totalParks: 3,
+		message: '',
 		fogEnabled: true,
 		fogRadius: 1,
 		playerPos: { x: 1, y: 1 },
@@ -165,7 +169,6 @@ describe('watch page', () => {
 		mockRuntime.sessionDisplayName = 'Session 6d2e';
 		mockRuntime.sessionMapName = 'classic';
 		vi.restoreAllMocks();
-		vi.stubGlobal('confirm', vi.fn(() => true));
 		Object.defineProperty(globalThis.navigator, 'clipboard', {
 			value: {
 				writeText: vi.fn().mockResolvedValue(undefined)
@@ -192,7 +195,7 @@ describe('watch page', () => {
 	it('loads initial state and applies websocket updates', async () => {
 		render(WatchPage);
 
-		await screen.findByText('8/10');
+		await screen.findByText('8 / 10');
 		expect(mockRuntime.wsSinks).toHaveLength(1);
 
 		mockRuntime.wsSinks[0].next({
@@ -201,7 +204,7 @@ describe('watch page', () => {
 			}
 		});
 
-		await screen.findByText('7/10');
+		await screen.findByText('7 / 10');
 	});
 
 	it('sends keyboard moves and ignores keydown from editable elements', async () => {
@@ -241,7 +244,7 @@ describe('watch page', () => {
 		expect(mockRuntime.mutationCalls).toHaveLength(moveCallCount);
 	});
 
-	it('resets session from keyboard shortcut when confirmed', async () => {
+	it('requires a second reset press for a run in progress', async () => {
 		mockRuntime.mutationImpl = (query) => {
 			if (typeof query === 'string' && query.includes('mutation Reset')) {
 				return {
@@ -251,9 +254,6 @@ describe('watch page', () => {
 					error: null
 				};
 			}
-			if (typeof query === 'string' && query.includes('mutation Move')) {
-				return { data: { move: { success: true, message: '', gameState: makeGameState() } }, error: null };
-			}
 			throw new Error(`Unexpected mutation: ${String(query)}`);
 		};
 
@@ -261,9 +261,40 @@ describe('watch page', () => {
 		await screen.findByText('Reset session');
 
 		await fireEvent.keyDown(window, { key: 'r' });
+		await screen.findByRole('button', { name: 'Click again to confirm' });
+		const resetCalls = mockRuntime.mutationCalls.filter((call) => typeof call.query === 'string' && call.query.includes('mutation Reset'));
+		expect(resetCalls).toHaveLength(0);
 
+		await fireEvent.keyDown(window, { key: 'r' });
+		await waitFor(() =>
+			expect(
+				mockRuntime.mutationCalls.filter((call) => typeof call.query === 'string' && call.query.includes('mutation Reset'))
+			).toHaveLength(1)
+		);
+	});
+
+	it('resets a finished game immediately and shows why it ended', async () => {
+		mockRuntime.mutationImpl = (query) => {
+			if (typeof query === 'string' && query.includes('mutation Reset')) {
+				return { data: { reset: makeGameState({ battery: 10, score: 0, totalMoves: 0 }) }, error: null };
+			}
+			throw new Error(`Unexpected mutation: ${String(query)}`);
+		};
+
+		render(WatchPage);
+		await screen.findByText('Reset session');
+		mockRuntime.wsSinks[0].next({
+			data: {
+				sessionUpdated: makeGameState({
+					gameOver: true,
+					message: 'You crashed into a wall! Game Over! [Hit: water at (2,1)]'
+				})
+			}
+		});
+		await screen.findByText('Hit: water at (2,1)');
+
+		await fireEvent.keyDown(window, { key: 'r' });
 		await waitFor(() => {
-			expect(globalThis.confirm as unknown as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(1);
 			expect(mockRuntime.mutationCalls.some((call) => typeof call.query === 'string' && call.query.includes('mutation Reset'))).toBe(true);
 		});
 	});
@@ -307,7 +338,7 @@ describe('watch page', () => {
 
 	it('copies the LLM prompt and resets copied state', async () => {
 		render(WatchPage);
-		await screen.findByText('Prompt for LLM');
+		await screen.findByText('Play with an AI');
 		vi.useFakeTimers();
 
 		const copyButton = screen.getByRole('button', { name: 'Copy' });
@@ -323,24 +354,22 @@ describe('watch page', () => {
 
 	it('renders active, won, and crashed status from game state updates', async () => {
 		render(WatchPage);
-		await screen.findByText('Active');
-		expect(screen.getByText('🟢')).toBeInTheDocument();
+		await screen.findByText('Reset session');
+		expect(screen.queryByRole('status')).not.toBeInTheDocument();
 
 		mockRuntime.wsSinks[0].next({
 			data: {
 				sessionUpdated: makeGameState({ victory: true, gameOver: false })
 			}
 		});
-		await screen.findByText('Won');
-		expect(screen.getByText('🏆')).toBeInTheDocument();
+		await screen.findByText('🏆 You won!');
 
 		mockRuntime.wsSinks[0].next({
 			data: {
 				sessionUpdated: makeGameState({ victory: false, gameOver: true })
 			}
 		});
-		await screen.findByText('Crashed');
-		expect(screen.getAllByText('💥').length).toBeGreaterThan(0);
+		await screen.findByText('💥 Crashed');
 	});
 
 	it('renders reset button disabled during move and reset requests', async () => {
@@ -363,7 +392,6 @@ describe('watch page', () => {
 		await fireEvent.keyDown(window, { key: 'ArrowRight' });
 		await waitFor(() => {
 			expect(resetButton).toBeDisabled();
-			expect(screen.getByText('moving…')).toBeInTheDocument();
 		});
 
 		movePending.resolve({
@@ -372,13 +400,13 @@ describe('watch page', () => {
 		});
 		await waitFor(() => {
 			expect(resetButton).not.toBeDisabled();
-			expect(screen.getByText('ready')).toBeInTheDocument();
 		});
 
+		// First press arms the reset, second performs it.
+		await fireEvent.click(resetButton);
 		await fireEvent.click(resetButton);
 		await waitFor(() => {
 			expect(resetButton).toBeDisabled();
-			expect(screen.getByText('resetting…')).toBeInTheDocument();
 			expect(screen.getByRole('button', { name: 'Resetting…' })).toBeDisabled();
 		});
 
@@ -388,7 +416,6 @@ describe('watch page', () => {
 		});
 		await waitFor(() => {
 			expect(screen.getByRole('button', { name: 'Reset session' })).not.toBeDisabled();
-			expect(screen.getByText('ready')).toBeInTheDocument();
 		});
 	});
 

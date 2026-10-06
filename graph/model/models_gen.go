@@ -44,6 +44,10 @@ type BulkMoveResult struct {
 }
 
 type Cell struct {
+	// Column of this cell on the map (RIGHT = x+1). Negative or >= map width for off-map nearbyGrid cells.
+	X int `json:"x"`
+	// Row of this cell on the map (DOWN = y+1). Negative or >= map height for off-map nearbyGrid cells.
+	Y                 int      `json:"y"`
 	Type              string   `json:"type"`
 	Visited           bool     `json:"visited"`
 	ID                string   `json:"id"`
@@ -74,27 +78,25 @@ type GameEvent struct {
 }
 
 type GameMapInput struct {
-	Name              string                  `json:"name"`
-	Description       string                  `json:"description"`
-	GridSize          int                     `json:"gridSize"`
-	MaxBattery        int                     `json:"maxBattery"`
-	StartingBattery   int                     `json:"startingBattery"`
-	Layout            []string                `json:"layout"`
-	Legend            []*LegendEntryInput     `json:"legend"`
-	CellConfigs       []*CellConfigEntryInput `json:"cellConfigs,omitempty"`
-	WallCrashEndsGame bool                    `json:"wallCrashEndsGame"`
+	Name            string                  `json:"name"`
+	Description     string                  `json:"description"`
+	GridSize        int                     `json:"gridSize"`
+	MaxBattery      int                     `json:"maxBattery"`
+	StartingBattery int                     `json:"startingBattery"`
+	Layout          []string                `json:"layout"`
+	Legend          []*LegendEntryInput     `json:"legend"`
+	CellConfigs     []*CellConfigEntryInput `json:"cellConfigs,omitempty"`
 }
 
 type GameMapPatchInput struct {
-	Name              *string                 `json:"name,omitempty"`
-	Description       *string                 `json:"description,omitempty"`
-	GridSize          *int                    `json:"gridSize,omitempty"`
-	MaxBattery        *int                    `json:"maxBattery,omitempty"`
-	StartingBattery   *int                    `json:"startingBattery,omitempty"`
-	Layout            []string                `json:"layout,omitempty"`
-	Legend            []*LegendEntryInput     `json:"legend,omitempty"`
-	CellConfigs       []*CellConfigEntryInput `json:"cellConfigs,omitempty"`
-	WallCrashEndsGame *bool                   `json:"wallCrashEndsGame,omitempty"`
+	Name            *string                 `json:"name,omitempty"`
+	Description     *string                 `json:"description,omitempty"`
+	GridSize        *int                    `json:"gridSize,omitempty"`
+	MaxBattery      *int                    `json:"maxBattery,omitempty"`
+	StartingBattery *int                    `json:"startingBattery,omitempty"`
+	Layout          []string                `json:"layout,omitempty"`
+	Legend          []*LegendEntryInput     `json:"legend,omitempty"`
+	CellConfigs     []*CellConfigEntryInput `json:"cellConfigs,omitempty"`
 }
 
 type HistoryResponse struct {
@@ -171,6 +173,10 @@ type Session struct {
 	LastActionAt string     `json:"lastActionAt"`
 	GameState    *GameState `json:"gameState"`
 	GameMap      *GameMap   `json:"gameMap"`
+	// Only set in the createSession response, when fog is enabled and no gridPassword
+	// was supplied: the server-generated password for grid(password: ...). It is never
+	// returned again, so store it. Always null on every other query/mutation.
+	GeneratedGridPassword *string `json:"generatedGridPassword,omitempty"`
 }
 
 type SessionList struct {

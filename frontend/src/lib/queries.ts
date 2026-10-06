@@ -100,6 +100,7 @@ export const CREATE_SESSION_MUTATION = `
     createSession(mapID: $mapID, fogEnabled: $fogEnabled, fogRadius: $fogRadius, gridPassword: $gridPassword, moveDelayMs: $moveDelayMs) {
       id
       mapName
+      generatedGridPassword
     }
   }
 `;
@@ -118,6 +119,8 @@ export const MOVE_MUTATION = `
         gameOver
         totalMoves
         resetCount
+        totalParks
+        message
         mapName
         fogEnabled
         fogRadius
@@ -139,6 +142,8 @@ export const RESET_MUTATION = `
       gameOver
       totalMoves
       resetCount
+      totalParks
+      message
       mapName
       fogEnabled
       fogRadius

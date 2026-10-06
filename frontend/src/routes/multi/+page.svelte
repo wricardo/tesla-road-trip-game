@@ -5,7 +5,7 @@
 	import { createClient as createWsClient } from 'graphql-ws';
 	import { onMount, untrack } from 'svelte';
 	import { SESSIONS_QUERY, MAPS_QUERY } from '$lib/queries';
-	import { directionGlyph, hasDirections } from '$lib/directional';
+	import { directionGlyph, hasDirections, terrainGlyph } from '$lib/directional';
 
 	const GAME_STATE_QUERY = `
 		query GameState($sessionID: ID!) {
@@ -76,7 +76,21 @@
 	const mapsResult = queryStore({ client, query: gql(MAPS_QUERY) });
 
 	let maps = $state<{ mapId: string; name: string; gridSize: number }[]>([]);
-	let allSessions = $state<{ id: string; displayName?: string | null; mapName: string; gameState?: { fogEnabled?: boolean; fogRadius?: number } }[]>([]);
+	let allSessions = $state<{
+		id: string;
+		displayName?: string | null;
+		mapName: string;
+		gameState?: {
+			battery: number;
+			maxBattery: number;
+			score: number;
+			victory: boolean;
+			gameOver: boolean;
+			totalMoves: number;
+			fogEnabled?: boolean;
+			fogRadius?: number;
+		};
+	}[]>([]);
 
 	// selected map from URL ?map=
 	const selectedMap = $derived($page.url.searchParams.get('map') ?? '');
@@ -424,28 +438,62 @@
 			case 'supercharger': return 'bg-yellow-400 border-yellow-200';
 			case 'water': return 'bg-blue-400 border-blue-200';
 			case 'building': return 'bg-slate-700 border-slate-600';
-			default: return 'bg-white border-gray-50';
+			default: return 'bg-white border-gray-100';
 		}
+	}
+
+	// Only maps that have sessions, busiest first.
+	const mapChips = $derived(
+		maps
+			.map((m) => ({ ...m, count: allSessions.filter((s) => s.mapName === m.mapId).length }))
+			.filter((m) => m.count > 0)
+			.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+	);
+
+	// Land on something useful instead of an empty board.
+	$effect(() => {
+		if (!selectedMap && mapChips.length > 0) selectMap(mapChips[0].mapId);
+	});
+
+	function setSelectedSessions(ids: string[]) {
+		if (!selectedMap) return;
+		const url = new URL(window.location.href);
+		if (ids.length > 0) url.searchParams.set('sessions', ids.join(','));
+		else url.searchParams.delete('sessions');
+		goto(url.pathname + url.search, { replaceState: true, noScroll: true });
 	}
 </script>
 
 <svelte:head>
-	<title>Multi-Watch — Tesla Road Trip</title>
+	<title>Watch multiple — Tesla Road Trip</title>
 </svelte:head>
 
 <div class="max-w-7xl mx-auto px-4 py-6">
 	<div class="flex items-center gap-3 mb-5 flex-wrap">
-		<h1 class="text-xl font-light text-[#393c41] mr-2">Multi-Watch</h1>
-		{#each maps as m}
-			{@const count = allSessions.filter(s => s.mapName === m.mapId).length}
-			{#if count > 0}
+		<h1 class="text-xl font-light text-[#393c41] mr-2">Watch multiple</h1>
+		{#if mapChips.length > 8}
+			<label class="flex items-center gap-2 text-sm text-gray-600">
+				Map
+				<select
+					value={selectedMap}
+					onchange={(e) => selectMap(e.currentTarget.value)}
+					class="border border-gray-300 rounded-full px-3 py-1.5 text-sm bg-white"
+				>
+					{#each mapChips as m}
+						<option value={m.mapId}>{m.name} ({m.count})</option>
+					{/each}
+				</select>
+			</label>
+		{:else}
+			{#each mapChips as m}
 				<button
 					onclick={() => selectMap(m.mapId)}
-					class="text-xs px-3 py-1 rounded-full border transition-colors {selectedMap === m.mapId ? 'bg-[#393c41] text-white border-[#393c41]' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}"
-				>{m.name} <span class="opacity-60">{count}</span></button>
-			{/if}
-		{/each}
-		<a href="/" class="ml-auto text-xs text-gray-400 hover:text-gray-600 transition-colors">← Lobby</a>
+					aria-pressed={selectedMap === m.mapId}
+					class="text-xs px-3 py-1.5 rounded-full border transition-colors {selectedMap === m.mapId ? 'bg-[#393c41] text-white border-[#393c41]' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}"
+				>{m.name} <span class="opacity-70">{m.count}</span></button>
+			{/each}
+		{/if}
+		<a href="/lobby" class="ml-auto text-xs text-gray-600 hover:text-gray-900 transition-colors">← Live sessions</a>
 	</div>
 
 	<div class="flex flex-col lg:flex-row gap-6">
@@ -482,6 +530,8 @@
 													<span class="inline-block rounded-full w-1 h-1 shrink-0" style="background:{dotColors[idx % dotColors.length]}"></span>
 												{/each}
 											</span>
+										{:else if cell && terrainGlyph(cell.type)}
+											<span class="leading-none text-sm {cell.type === 'home' || cell.type === 'water' ? 'text-white font-bold' : ''}">{terrainGlyph(cell.type)}</span>
 										{:else if cell && hasDirections(cell)}
 											<span class="text-orange-500 font-bold leading-none">{directionGlyph(cell.allowedDirections)}</span>
 										{/if}
@@ -491,6 +541,13 @@
 						{/each}
 						</tbody>
 					</table>
+					<div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600">
+						<span class="inline-flex items-center gap-1"><span class="inline-flex h-4 w-4 items-center justify-center rounded-sm bg-red-500 text-white text-[10px] font-bold leading-none">⌂</span>Home</span>
+						<span class="inline-flex items-center gap-1"><span class="inline-flex h-4 w-4 items-center justify-center rounded-sm bg-emerald-500 text-[9px] leading-none">🌳</span>Park</span>
+						<span class="inline-flex items-center gap-1"><span class="inline-flex h-4 w-4 items-center justify-center rounded-sm bg-yellow-400 text-[9px] leading-none">⚡</span>Charger</span>
+						<span class="inline-flex items-center gap-1"><span class="inline-flex h-4 w-4 items-center justify-center rounded-sm bg-blue-400 text-white text-[10px] font-bold leading-none">≈</span>Water</span>
+						<span class="inline-flex items-center gap-1"><span class="h-4 w-4 rounded-sm bg-slate-700"></span>Blocked</span>
+					</div>
 				{:else if !selectedMap}
 					<div class="flex flex-col items-center justify-center h-64 text-gray-400 gap-3">
 						<span class="text-4xl">🗺️</span>
@@ -516,11 +573,18 @@
 		<!-- session list -->
 		<div class="w-full lg:w-72 shrink-0 flex flex-col gap-2">
 			<div class="flex items-center justify-between gap-2 px-1 pb-1">
-				<span class="text-[11px] uppercase tracking-widest text-gray-400">Sessions to watch</span>
-				<span class="text-[11px] text-gray-300">{selectedIds.length} selected</span>
+				<span class="text-xs uppercase tracking-widest text-gray-600">Sessions to watch</span>
+				<span class="text-xs text-gray-600">{selectedIds.length} / {availableIds.length}</span>
 			</div>
+			{#if availableIds.length > 1}
+				<div class="flex gap-3 px-1 pb-1 text-xs">
+					<button type="button" onclick={() => setSelectedSessions(availableIds)} class="text-gray-700 underline hover:text-gray-900">Select all</button>
+					<button type="button" onclick={() => setSelectedSessions([])} disabled={selectedIds.length === 0} class="text-gray-700 underline hover:text-gray-900 disabled:opacity-40 disabled:no-underline">Clear</button>
+				</div>
+			{/if}
 			{#each availableIds as id, i}
-				{@const s = states.get(id)}
+				<!-- Live state exists only for selected sessions; fall back to the polled summary. -->
+				{@const s = states.get(id) ?? allSessions.find((x) => x.id === id)?.gameState}
 				{@const meta = sessionMetaByID.get(id)}
 				<label class="bg-white rounded-xl border border-[#e8e8e8] px-3 py-2.5 shadow-sm hover:shadow-md transition-shadow flex items-start gap-2 cursor-pointer">
 					<input
@@ -545,7 +609,7 @@
 								{/if}
 							</div>
 							{#if s}
-								<span class="text-xs shrink-0 {s.victory ? 'text-green-500' : s.gameOver ? 'text-red-500' : 'text-gray-400'}">
+								<span class="text-xs shrink-0 {s.victory ? 'text-green-700' : s.gameOver ? 'text-red-700' : 'text-gray-600'}" title={s.victory ? 'Won' : s.gameOver ? 'Crashed' : 'Active'}>
 									{s.victory ? '🏆' : s.gameOver ? '💥' : '🟢'}
 								</span>
 							{/if}

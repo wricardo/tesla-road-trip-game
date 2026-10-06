@@ -61,6 +61,12 @@ type Session {
   lastActionAt: String!
   gameState: GameState!
   gameMap: GameMap!
+  """
+  Only set in the createSession response, when fog is enabled and no gridPassword
+  was supplied: the server-generated password for grid(password: ...). It is never
+  returned again, so store it. Always null on every other query/mutation.
+  """
+  generatedGridPassword: String
 }
 
 type GameState {
@@ -69,6 +75,7 @@ type GameState {
   battery: Int!
   maxBattery: Int!
   score: Int!
+  totalParks: Int!
   visitedParks: [VisitedPark!]!
   message: String!
   gameOver: Boolean!
@@ -87,6 +94,10 @@ type GameState {
 }
 
 type Cell {
+  "Column of this cell on the map (RIGHT = x+1). Negative or >= map width for off-map nearbyGrid cells."
+  x: Int!
+  "Row of this cell on the map (DOWN = y+1). Negative or >= map height for off-map nearbyGrid cells."
+  y: Int!
   type: String!
   visited: Boolean!
   id: String!
@@ -123,7 +134,6 @@ type GameMap {
   layout(password: String): [String!]!
   legend: [LegendEntry!]!
   cellConfigs: [CellConfigEntry!]!
-  wallCrashEndsGame: Boolean!
 }
 
 type LegendEntry { key: String!, value: String! }
@@ -139,7 +149,6 @@ input GameMapInput {
   layout: [String!]!
   legend: [LegendEntryInput!]!
   cellConfigs: [CellConfigEntryInput!] = []
-  wallCrashEndsGame: Boolean!
 }
 
 input LegendEntryInput { key: String!, value: String! }
@@ -156,7 +165,6 @@ input GameMapPatchInput {
   layout: [String!]
   legend: [LegendEntryInput!]
   cellConfigs: [CellConfigEntryInput!]
-  wallCrashEndsGame: Boolean
 }
 
 type MapInfo {

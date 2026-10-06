@@ -81,7 +81,6 @@ type GameConfig struct {
 	Layout            []string              `json:"layout"`
 	Legend            map[string]string     `json:"legend"`
 	CellConfigs       map[string]CellConfig `json:"cell_configs,omitempty"` // extra chars with direction constraints
-	WallCrashEndsGame bool                  `json:"wall_crash_ends_game"`
 }
 
 // SurroundingCell represents a cell with its absolute position

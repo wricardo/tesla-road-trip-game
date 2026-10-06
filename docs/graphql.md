@@ -15,7 +15,7 @@ The server also mounts a legacy UI WebSocket route at `/ws?session=<session_id>`
 Send GraphQL documents as JSON:
 
 ```bash
-curl -s http://localhost:8080/graphql \
+curl -s http://localhost:8000/graphql \
   -H 'content-type: application/json' \
   -d '{"query":"query { maps { mapId name description gridSize maxBattery } }"}'
 ```
@@ -33,23 +33,26 @@ curl -s http://localhost:8080/graphql \
 | Query | Description |
 | --- | --- |
 | `session(id: ID!): Session!` | Load one saved session, including its state and map. |
-| `sessions(sort: SessionSort = ACCESSED, order: SortOrder = DESC, limit: Int): SessionList!` | List saved sessions. Sort by `CREATED` or `ACCESSED`; order by `ASC` or `DESC`. A positive `limit` truncates the returned list while `total` remains the untruncated count. |
+| `sessions(sort: SessionSort = ACTION, order: SortOrder = DESC, limit: Int): SessionList!` | List saved sessions. Sort by `ACTION` (last action time, default) or `CREATED`; order by `ASC` or `DESC`. A positive `limit` truncates the returned list while `total` remains the untruncated count. |
 | `unifiedSessions(mapName: String): UnifiedSessions!` | List sessions with each session's state and map bundled together. Optional `mapName` filters results. |
 | `gameState(sessionID: ID!): GameState!` | Get the current state for a session. |
 | `history(sessionID: ID!, page: Int = 1, limit: Int = 50, order: SortOrder = DESC): HistoryResponse!` | Page through move history. |
 | `maps: [MapInfo!]!` | List available maps. |
-| `map(name: String!): GameMap!` | Load a full map definition by name/id. |
+| `map(name: String!, password: String): GameMap!` | Load a full map definition by name/id. `layout(password:)` needs the map's grid password when one is set. |
 
 ## Mutations
 
 | Mutation | Description |
 | --- | --- |
-| `createSession(mapID: String, mapName: String): Session!` | Create a new game session. `mapID` and `mapName` are aliases in the resolver; pass one of them. If neither is passed, the service default map is used. |
+| `createSession(mapID: String, mapName: String, fogEnabled: Boolean = false, fogRadius: Int = 1, gridPassword: String, moveDelayMs: Int): Session!` | Create a new game session. `mapID` and `mapName` are aliases; pass one of them (prefer `mapID`). If neither is passed, the service default map is used. With `fogEnabled: true`, `grid` requires `gridPassword`; if you omit it, the server generates one and returns it once in `generatedGridPassword`. |
 | `deleteSession(id: ID!): DeleteSessionResult!` | Delete a saved session. |
+| `updateSession(id: ID!, displayName: String!): Session!` | Set a session's display name. |
 | `move(sessionID: ID!, direction: Direction!, reset: Boolean = false): MoveResult!` | Execute one move. Optional `reset: true` resets the session before moving. Broadcasts a session update. |
 | `bulkMove(sessionID: ID!, moves: [Direction!]!, reset: Boolean = false): BulkMoveResult!` | Execute a sequence of moves. Stops early on game-ending or invalid conditions reported in `stoppedReason` / `stopReasonCode`. Broadcasts a session update. |
 | `reset(sessionID: ID!): GameState!` | Reset a session to the map's starting state. Broadcasts a session update. |
-| `createMap(name: String!, map: GameMapInput!): GameMap!` | Save a new map definition. If `map.name` is empty internally, the resolver uses the `name` argument. |
+| `createMap(name: String!, map: GameMapInput!): GameMap!` | Save a new map definition (requires admin API key). If `map.name` is empty internally, the resolver uses the `name` argument. |
+| `updateMap(name: String!, patch: GameMapPatchInput!): GameMap!` | Partially update a map (requires admin API key); omitted fields keep existing values. |
+| `validateMap(map: GameMapInput!): MapValidationResult!` | Check a map definition for validity and winnability without saving it. |
 
 ## Subscriptions
 
@@ -80,7 +83,7 @@ subscription SessionUpdated($sessionID: ID!) {
 ```graphql
 enum Direction { UP DOWN LEFT RIGHT }
 enum SortOrder { ASC DESC }
-enum SessionSort { CREATED ACCESSED }
+enum SessionSort { CREATED ACTION }
 ```
 
 ## Common examples
@@ -108,14 +111,15 @@ mutation CreateSession($mapID: String) {
     id
     mapName
     createdAt
-    lastAccessedAt
+    lastActionAt
     gameState {
       playerPos { x y }
       battery
       maxBattery
       score
       message
-      localView3x3
+      fogRadius
+      nearbyGrid { x y type visited id allowedDirections }
     }
   }
 }
@@ -129,6 +133,8 @@ Variables:
 
 ### Get current state
 
+This query is fog-safe: it works in every session because it never selects `grid`.
+
 ```graphql
 query State($sessionID: ID!) {
   gameState(sessionID: $sessionID) {
@@ -138,17 +144,36 @@ query State($sessionID: ID!) {
     maxBattery
     batteryRisk
     score
+    totalParks
     visitedParks { id visited }
     victory
     gameOver
     message
-    localView3x3
-    grid { type visited id }
+    fogEnabled
+    fogRadius
+    nearbyGrid { x y type visited id allowedDirections }
   }
 }
 ```
 
-`grid` is row-major (`grid[y][x]`). `localView3x3` is a compact three-row view centered on the player. `batteryRisk` is a human-readable risk label such as `safe`, `moderate`, `high`, or `critical`.
+`nearbyGrid` is a `(2r+1) x (2r+1)` window around the player, where `r = fogRadius` (without fog, `r = 1`, a 3x3 window). Every cell carries its map coordinates in `x` / `y`; select them instead of computing positions from indexes (`nearbyGrid[j][i]` is the cell at `(playerPos.x - r + i, playerPos.y - r + j)`). Off-map cells read `building` and keep their off-map coordinates (e.g. `x: -1`).
+
+`batteryRisk` is one of: `SAFE`; `LOW` (battery <= 1/3 of max); `CAUTION` (battery <= distance to nearest charger + 2); `DANGER` (battery <= that distance); `CRITICAL` (battery 0); `WARNING` (no charger on the map); `UNKNOWN`. The distance is Manhattan distance ignoring walls and one-way rules, so treat it as a heuristic, not reachability.
+
+### Get the full grid
+
+`grid(password: String)` returns the whole map, row-major (`grid[y][x]`; `RIGHT` is x+1, `DOWN` is y+1). In a non-fog session no password is needed. In a fog session, selecting `grid` without the correct password raises an error and, because `gameState` is non-null, nulls the whole response, so only select `grid` there when you hold the password.
+
+```graphql
+query FullGrid($sessionID: ID!, $password: String) {
+  gameState(sessionID: $sessionID) {
+    playerPos { x y }
+    grid(password: $password) { type visited id allowedDirections }
+  }
+}
+```
+
+Always select `allowedDirections` together with `type`. One-way rule: when the lists are non-empty, a move is allowed only if its direction (`north` = `UP`, `south` = `DOWN`, `east` = `RIGHT`, `west` = `LEFT`) is listed on both the cell you leave and the cell you enter. Wrong-way moves are rejected, cost no battery, and do not end the game.
 
 ### Move once
 
@@ -194,7 +219,8 @@ mutation Bulk($sessionID: ID!) {
     gameOverCode
     message
     possibleMoves
-    localView3x3
+    truncated
+    limit
     batteryRisk
     steps {
       idx
@@ -235,12 +261,12 @@ mutation Route($sessionID: ID!) {
 
 ```graphql
 query SessionsAndHistory($sessionID: ID!) {
-  sessions(sort: ACCESSED, order: DESC, limit: 10) {
+  sessions(sort: ACTION, order: DESC, limit: 10) {
     count
     total
     sort
     order
-    sessions { id mapName lastAccessedAt gameState { score victory gameOver } }
+    sessions { id mapName lastActionAt gameState { score victory gameOver } }
   }
 
   history(sessionID: $sessionID, page: 1, limit: 20, order: DESC) {
@@ -274,11 +300,12 @@ mutation CreateMap($name: String!, $map: GameMapInput!) {
     maxBattery
     startingBattery
     layout
+    cellConfigs { key type allowedDirections }
   }
 }
 ```
 
-A `GameMapInput` requires all fields from `GameMap`: `name`, `description`, `gridSize`, `maxBattery`, `startingBattery`, `layout`, `legend`, `wallCrashEndsGame`, and `messages`.
+A `GameMapInput` requires `name`, `description`, `gridSize`, `maxBattery`, `startingBattery`, `layout`, and `legend`; `cellConfigs` is optional (defaults to `[]`) and sets per-cell `allowedDirections` for one-way roads. Use `validateMap` first to check winnability.
 
 ## Type reference
 
@@ -287,11 +314,13 @@ A `GameMapInput` requires all fields from `GameMap`: `name`, `description`, `gri
 ```graphql
 type Session {
   id: ID!
+  displayName: String
   mapName: String!
   createdAt: String!
-  lastAccessedAt: String!
+  lastActionAt: String!
   gameState: GameState!
   gameMap: GameMap!
+  generatedGridPassword: String  # only set in createSession when fog is on and no gridPassword was given
 }
 
 type SessionList {
@@ -311,7 +340,7 @@ type UnifiedSessions {
 type UnifiedSession {
   sessionId: ID!
   createdAt: String!
-  lastAccessedAt: String!
+  lastActionAt: String!
   gameState: GameState!
   gameMap: GameMap!
 }
@@ -321,11 +350,12 @@ type UnifiedSession {
 
 ```graphql
 type GameState {
-  grid: [[Cell!]!]!
+  grid(password: String): [[Cell!]!]!
   playerPos: Position!
   battery: Int!
   maxBattery: Int!
   score: Int!
+  totalParks: Int!
   visitedParks: [VisitedPark!]!
   message: String!
   gameOver: Boolean!
@@ -333,17 +363,19 @@ type GameState {
   mapName: String!
   moveHistory: [MoveHistoryEntry!]!
   totalMoves: Int!
-  localView: [SurroundingCell!]!
+  resetCount: Int!
+  nearbyGrid: [[Cell!]!]!
   currentMoves: [MoveHistoryEntry!]!
   currentMovesCount: Int!
-  localView3x3: [String!]!
   batteryRisk: String!
+  fogEnabled: Boolean!
+  fogRadius: Int!
+  moveDelayMs: Int!
 }
 
-type Cell { type: String!, visited: Boolean!, id: String! }
+type Cell { x: Int!, y: Int!, type: String!, visited: Boolean!, id: String!, allowedDirections: [String!]! }
 type Position { x: Int!, y: Int! }
 type VisitedPark { id: String!, visited: Boolean! }
-type SurroundingCell { x: Int!, y: Int!, type: String! }
 
 type MoveHistoryEntry {
   action: String!
@@ -391,7 +423,6 @@ type BulkMoveResult {
   gameOverCode: String!
   message: String!
   possibleMoves: [String!]!
-  localView3x3: [String!]!
   batteryRisk: String!
 }
 
@@ -419,6 +450,8 @@ type AttemptInfo {
   tileType: String!
   passable: Boolean!
 }
+
+type MapValidationResult { valid: Boolean!, winnable: Boolean!, message: String!, error: String }
 ```
 
 ### Map types
@@ -439,27 +472,14 @@ type GameMap {
   gridSize: Int!
   maxBattery: Int!
   startingBattery: Int!
-  layout: [String!]!
+  layout(password: String): [String!]!
   legend: [LegendEntry!]!
-  wallCrashEndsGame: Boolean!
-  messages: MapMessages!
+  cellConfigs: [CellConfigEntry!]!
 }
 
 type LegendEntry { key: String!, value: String! }
 
-type MapMessages {
-  welcome: String!
-  homeCharge: String!
-  superchargerCharge: String!
-  parkVisited: String!
-  parkAlreadyVisited: String!
-  victory: String!
-  outOfBattery: String!
-  stranded: String!
-  cantMove: String!
-  batteryStatus: String!
-  hitWall: String!
-}
+type CellConfigEntry { key: String!, type: String!, allowedDirections: [String!]! }
 ```
 
 Input types mirror the map output types:
@@ -473,24 +493,23 @@ input GameMapInput {
   startingBattery: Int!
   layout: [String!]!
   legend: [LegendEntryInput!]!
-  wallCrashEndsGame: Boolean!
-  messages: MapMessagesInput!
+  cellConfigs: [CellConfigEntryInput!] = []
 }
 
 input LegendEntryInput { key: String!, value: String! }
 
-input MapMessagesInput {
-  welcome: String!
-  homeCharge: String!
-  superchargerCharge: String!
-  parkVisited: String!
-  parkAlreadyVisited: String!
-  victory: String!
-  outOfBattery: String!
-  stranded: String!
-  cantMove: String!
-  batteryStatus: String!
-  hitWall: String!
+input CellConfigEntryInput { key: String!, type: String!, allowedDirections: [String!]! }
+
+# Partial update input for updateMap; omitted fields keep existing values.
+input GameMapPatchInput {
+  name: String
+  description: String
+  gridSize: Int
+  maxBattery: Int
+  startingBattery: Int
+  layout: [String!]
+  legend: [LegendEntryInput!]
+  cellConfigs: [CellConfigEntryInput!]
 }
 ```
 
@@ -509,8 +528,9 @@ Common map characters are:
 
 Gameplay rules exposed through the API:
 
-- Each successful move costs 1 battery.
-- Recharging cells restore battery to `maxBattery`.
+- Each successful move costs 1 battery. `bulkMove` accepts at most 50 moves; extra moves are dropped and `truncated` is `true`.
+- Recharging cells restore battery to `maxBattery`. Reaching 0 battery away from a charger ends the game.
 - `victory` becomes `true` once all parks are visited.
-- `gameOver` becomes `true` on battery depletion and on wall collisions for maps with `wallCrashEndsGame: true`.
-- After `bulkMove`, inspect `stoppedReason`, `stopReasonCode`, `attemptedTo`, and `possibleMoves` before replanning.
+- Moving into a building, water, or off the map ends the game immediately (the crash costs no battery). Never probe by bumping into cells; read `nearbyGrid`/`grid` instead.
+- Moves against a one-way cell's `allowedDirections` are rejected without cost and do not end the game.
+- After `bulkMove`, inspect `stoppedReason`, `stopReasonCode`, `attemptedTo`, and `possibleMoves` before replanning. `possibleMoves` lists the directions you can legally move from the end position (walls, map edge, one-way roads, battery considered); it is empty after game over.

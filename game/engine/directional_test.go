@@ -19,7 +19,6 @@ func minConfig(layout []string, cellConfigs map[string]CellConfig) *GameConfig {
 		},
 		CellConfigs: cellConfigs,
 	}
-	c.WallCrashEndsGame = false
 	return c
 }
 

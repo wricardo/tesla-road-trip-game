@@ -16,13 +16,24 @@ Strategic guidance for mastering the Tesla Road Trip game through intelligent pl
 - **P (Park)**: Passable objective - collect all parks to win
 - **B (Building)**: Impassable obstacle - blocks movement
 - **W (Water)**: Impassable barrier - blocks movement
-- **T (Tesla)**: Your current position
+- **T (Tesla)**: Your current position (in MCP `local_view_3x3`)
+- **Custom one-way glyphs**: Defined in the map's cell configs (`cellConfigs` in GraphQL, `cell_configs` via MCP `get_map`) with allowed directions
+
+### Movement Rules
+- Grid is row-major `grid[y][x]`; RIGHT = x+1, DOWN = y+1
+- Moving into B, W, or off the map ends the game immediately - never probe by bumping
+- **One-way rule**: a move is allowed only if its direction (UP/DOWN/LEFT/RIGHT) is listed in `allowedDirections` of both the cell you leave and the cell you enter, when those lists are non-empty. Wrong-way moves are rejected, cost no battery, and do not end the game. Always read `allowedDirections` together with cell `type`.
 
 ### Resource Management
 - Each move costs 1 battery
-- Game over if battery reaches 0
-- Charging stations (H, S) restore to maximum capacity
+- Reaching 0 battery away from a charger ends the run
+- Entering a charging station (H, S) refills battery to maximum immediately
 - Victory achieved by collecting all parks
+
+### Fog of War
+- Fog sessions hide the full grid. In GraphQL, never select `grid` without the session's grid password - the error nulls the whole `gameState` response.
+- GraphQL `nearbyGrid` is a (2r+1)x(2r+1) window around the car (r = `fogRadius`, 1 without fog). Select `x y` on its cells and key your map by those coordinates; off-map cells read `building`.
+- MCP `game_state`/`move` return a fixed 3x3 `local_view_3x3` regardless of `fog_radius` (row 0 = y-1, col 0 = x-1, `T` = car, off-map = `B`); MCP never returns the full grid for fog sessions.
 
 ### Critical Character Recognition
 
@@ -32,7 +43,7 @@ Strategic guidance for mastering the Tesla Road Trip game through intelligent pl
 1. Parse grids character-by-character, not by visual pattern
 2. When a path appears blocked, re-examine each position individually
 3. Single R characters often appear between B or W clusters
-4. Use `describe_cell(session_id, x, y)` tool to verify uncertain positions
+4. Confirm uncertain positions from structured cell data: GraphQL `grid`/`nearbyGrid` cell `type`, or MCP `local_view_3x3` when adjacent
 
 **Common misreads:**
 - "BBBBR" read as "BBBBB" (missing the road at position 4)
@@ -106,21 +117,20 @@ When routes fail:
 ## API Usage Best Practices
 
 ### Game State Tools
-- `game_state(session_id)`: Check position, battery, score before planning
-- `describe_cell(session_id, x, y)`: Verify uncertain cell types (R vs B vs W)
+- `game_state(session_id, grid?)`: Check position, battery, score before planning; `grid: true` adds the full grid (non-fog only); `local_view_3x3` shows the cells around you
+- `list_maps()`, `get_map(...)`: Map list and details including cell configs
 
 ### Movement Tools
 - `move(session_id, direction, intent)`: Single careful move with reasoning
-- `bulk_move(session_id, moves, intent)`: Execute planned sequences with reasoning
+- `bulk_move(session_id, moves, intent)`: Execute planned sequences with reasoning (max 50 moves; extras dropped with `truncated: true`)
 - **Intent parameter**: Brief explanation of your reasoning (serves as rubber duck debugging to clarify your strategy)
 - Both support optional `reset: true` parameter to restart before moving
+- `bulk_move` results include `possible_moves`: directions you can legally move from the end position (walls, map edge, one-way roads, battery considered); empty after game over
 
 ### Session Management
-- `create_session(map_name?)`: Start new game with optional difficulty
+- `create_session(map_id?, fog_enabled?, fog_radius?, grid_password?)`: Start new game on a chosen map
+- `get_session(session_id)`: Session details
 - `reset_game(session_id)`: Return to initial state, preserving session
-
-### Documentation
-- `game_instructions()`: Full game rules and mechanics
 
 ## Iterative Mastery Approach
 

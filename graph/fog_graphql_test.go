@@ -58,6 +58,54 @@ func gqlPost(t *testing.T, url, query string, variables map[string]any) gqlResp 
 	return out
 }
 
+// Every nearbyGrid cell must carry its own map coordinates, so a client never
+// has to derive them from playerPos and fogRadius.
+func TestGraphQL_NearbyGridCellsCarryCoordinates(t *testing.T) {
+	ts := newTestGraphQLServer(t)
+	defer ts.Close()
+
+	create := gqlPost(t, ts.URL, `mutation { createSession(mapID:"easy", fogEnabled:true, fogRadius:2, moveDelayMs:0) { id } }`, nil)
+	if len(create.Errors) > 0 {
+		t.Fatalf("createSession errors: %+v", create.Errors)
+	}
+	var created struct {
+		CreateSession struct{ ID string } `json:"createSession"`
+	}
+	if err := json.Unmarshal(create.Data, &created); err != nil {
+		t.Fatal(err)
+	}
+
+	moved := gqlPost(t, ts.URL,
+		`mutation($sid: ID!) { bulkMove(sessionID:$sid, moves:[UP]) { gameState { playerPos { x y } nearbyGrid { x y } } } }`,
+		map[string]any{"sid": created.CreateSession.ID},
+	)
+	if len(moved.Errors) > 0 {
+		t.Fatalf("bulkMove errors: %+v", moved.Errors)
+	}
+	var out struct {
+		BulkMove struct {
+			GameState struct {
+				PlayerPos  struct{ X, Y int }     `json:"playerPos"`
+				NearbyGrid [][]struct{ X, Y int } `json:"nearbyGrid"`
+			} `json:"gameState"`
+		} `json:"bulkMove"`
+	}
+	if err := json.Unmarshal(moved.Data, &out); err != nil {
+		t.Fatal(err)
+	}
+	gs := out.BulkMove.GameState
+	if len(gs.NearbyGrid) != 5 {
+		t.Fatalf("want 5 rows for radius 2, got %d", len(gs.NearbyGrid))
+	}
+	for j, row := range gs.NearbyGrid {
+		for i, c := range row {
+			if c.X != gs.PlayerPos.X-2+i || c.Y != gs.PlayerPos.Y-2+j {
+				t.Fatalf("nearbyGrid[%d][%d] = (%d,%d), want (%d,%d)", j, i, c.X, c.Y, gs.PlayerPos.X-2+i, gs.PlayerPos.Y-2+j)
+			}
+		}
+	}
+}
+
 func TestGraphQL_GridPasswordWhenFogEnabled(t *testing.T) {
 	ts := newTestGraphQLServer(t)
 	defer ts.Close()
@@ -151,14 +199,6 @@ func TestGraphQL_CreateSessionFogValidation(t *testing.T) {
 	ts := newTestGraphQLServer(t)
 	defer ts.Close()
 
-	missingPassword := gqlPost(t, ts.URL,
-		`mutation { createSession(mapID:"easy", fogEnabled:true, fogRadius:2) { id } }`,
-		nil,
-	)
-	if len(missingPassword.Errors) == 0 {
-		t.Fatalf("expected createSession to fail when fog is enabled without password")
-	}
-
 	badRadius := gqlPost(t, ts.URL,
 		`mutation { createSession(mapID:"easy", fogEnabled:true, fogRadius:0, gridPassword:"pw") { id } }`,
 		nil,
@@ -240,5 +280,47 @@ func TestGraphQL_GridNoPasswordWhenFogDisabled(t *testing.T) {
 	}
 	if got := len(data.GameState.NearbyGrid); got != 3 {
 		t.Fatalf("expected default nearbyGrid height 3, got %d", got)
+	}
+}
+
+func TestGraphQL_FogWithoutPasswordGeneratesOne(t *testing.T) {
+	ts := newTestGraphQLServer(t)
+	defer ts.Close()
+
+	create := gqlPost(t, ts.URL,
+		`mutation { createSession(mapID:"easy", fogEnabled:true, fogRadius:2) { id generatedGridPassword } }`,
+		nil,
+	)
+	if len(create.Errors) > 0 {
+		t.Fatalf("createSession errors: %+v", create.Errors)
+	}
+	var data struct {
+		CreateSession struct {
+			ID                    string  `json:"id"`
+			GeneratedGridPassword *string `json:"generatedGridPassword"`
+		} `json:"createSession"`
+	}
+	if err := json.Unmarshal(create.Data, &data); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if data.CreateSession.GeneratedGridPassword == nil || *data.CreateSession.GeneratedGridPassword == "" {
+		t.Fatalf("expected a generated password in the create response")
+	}
+	sid, pw := data.CreateSession.ID, *data.CreateSession.GeneratedGridPassword
+
+	unlocked := gqlPost(t, ts.URL,
+		`query($sid: ID!, $pw: String!) { gameState(sessionID:$sid) { grid(password:$pw) { type } } }`,
+		map[string]any{"sid": sid, "pw": pw},
+	)
+	if len(unlocked.Errors) > 0 {
+		t.Fatalf("generated password should unlock the grid: %+v", unlocked.Errors)
+	}
+
+	later := gqlPost(t, ts.URL,
+		`query($sid: ID!) { session(id:$sid) { generatedGridPassword } }`,
+		map[string]any{"sid": sid},
+	)
+	if len(later.Errors) > 0 || string(later.Data) != `{"session":{"generatedGridPassword":null}}` {
+		t.Fatalf("password must not be readable after creation: data=%s errors=%+v", later.Data, later.Errors)
 	}
 }

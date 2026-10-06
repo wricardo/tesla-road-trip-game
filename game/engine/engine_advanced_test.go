@@ -139,7 +139,6 @@ func TestEngine_ComplexPathfinding(t *testing.T) {
 			"R": "road", "H": "home", "P": "park",
 			"S": "supercharger", "W": "water", "B": "building",
 		},
-		WallCrashEndsGame: false,
 	}
 
 	engine, err := NewEngine(mazeConfig)
@@ -219,7 +218,6 @@ func TestEngine_ChargingStationStrategy(t *testing.T) {
 			"R": "road", "H": "home", "P": "park",
 			"S": "supercharger", "W": "water", "B": "building",
 		},
-		WallCrashEndsGame: false,
 	}
 
 	engine, err := NewEngine(chargingConfig)
@@ -327,7 +325,6 @@ func TestEngine_ParkCollectionOptimization(t *testing.T) {
 			"R": "road", "H": "home", "P": "park",
 			"S": "supercharger", "W": "water", "B": "building",
 		},
-		WallCrashEndsGame: false,
 	}
 
 	engine, err := NewEngine(parkConfig)
@@ -481,7 +478,6 @@ func TestEngine_EdgeCasesAndBoundaries(t *testing.T) {
 				"R": "road", "H": "home", "P": "park",
 				"B": "building", "S": "supercharger", "W": "water",
 			},
-			WallCrashEndsGame: false,
 		}
 
 		victoryEngine, err := NewEngine(victoryConfig)
@@ -504,26 +500,6 @@ func TestEngine_EdgeCasesAndBoundaries(t *testing.T) {
 		}
 		if !victoryEngine.IsGameOver() {
 			t.Error("Game should be over after victory")
-		}
-	})
-
-	t.Run("wall crash with flag enabled", func(t *testing.T) {
-		crashConfig := createTestConfig()
-		crashConfig.WallCrashEndsGame = true
-
-		crashEngine, err := NewEngine(crashConfig)
-		if err != nil {
-			t.Fatalf("Failed to create crash test engine: %v", err)
-		}
-
-		// Try to move into water (type of wall)
-		success := crashEngine.Move("down")
-		if success {
-			t.Error("Should not successfully move into wall")
-		}
-
-		if !crashEngine.IsGameOver() {
-			t.Error("Game should be over after wall crash when flag is enabled")
 		}
 	})
 

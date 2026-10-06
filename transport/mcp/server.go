@@ -212,7 +212,7 @@ func (s *Server) registerTools() {
 				"map_name":           map[string]interface{}{"type": "string", "description": "Map/config name"},
 				"fog_enabled":        map[string]interface{}{"type": "boolean", "description": "Enable fog of war"},
 				"fog_radius":         map[string]interface{}{"type": "integer", "description": "Fog radius when fog is enabled"},
-				"grid_password":      map[string]interface{}{"type": "string", "description": "Password required to view full grid when fog is enabled"},
+				"grid_password":      map[string]interface{}{"type": "string", "description": "Password required to view full grid when fog is enabled. If omitted, one is generated and returned once as generated_grid_password"},
 				"move_delay_ms":      map[string]interface{}{"type": "integer", "description": "Per-session move delay in milliseconds"},
 				"bulk_move_delay_ms": map[string]interface{}{"type": "integer", "description": "Deprecated alias for move_delay_ms"},
 			},
@@ -297,7 +297,7 @@ func (s *Server) registerTools() {
 		Description: "Create a new map. Layout rows are strings of R/H/P/S/W/B characters. Requires at least one P (park) and one H (home).",
 		InputSchema: mcp.ToolInputSchema{
 			Type:     "object",
-			Required: []string{"name", "grid_size", "max_battery", "starting_battery", "layout", "legend", "wall_crash_ends_game"},
+			Required: []string{"name", "grid_size", "max_battery", "starting_battery", "layout", "legend"},
 			Properties: map[string]interface{}{
 				"name":                 map[string]interface{}{"type": "string", "description": "Unique map ID (lowercase, underscores)"},
 				"description":          map[string]interface{}{"type": "string", "description": "Short description"},
@@ -307,7 +307,6 @@ func (s *Server) registerTools() {
 				"layout":               map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Grid rows, one string of cell chars per row"},
 				"legend":               map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "object", "required": []string{"key", "value"}, "properties": map[string]interface{}{"key": map[string]interface{}{"type": "string"}, "value": map[string]interface{}{"type": "string"}}}},
 				"cell_configs":         map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "object", "required": []string{"key", "type", "allowed_directions"}, "properties": map[string]interface{}{"key": map[string]interface{}{"type": "string"}, "type": map[string]interface{}{"type": "string"}, "allowed_directions": map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}}}}},
-				"wall_crash_ends_game": map[string]interface{}{"type": "boolean", "description": "Whether hitting a wall ends the game"},
 			},
 		},
 	}, s.handleCreateMap)
@@ -327,7 +326,6 @@ func (s *Server) registerTools() {
 				"layout":               map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "New grid layout rows"},
 				"legend":               map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "object", "required": []string{"key", "value"}, "properties": map[string]interface{}{"key": map[string]interface{}{"type": "string"}, "value": map[string]interface{}{"type": "string"}}}},
 				"cell_configs":         map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "object", "required": []string{"key", "type", "allowed_directions"}, "properties": map[string]interface{}{"key": map[string]interface{}{"type": "string"}, "type": map[string]interface{}{"type": "string"}, "allowed_directions": map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}}}}},
-				"wall_crash_ends_game": map[string]interface{}{"type": "boolean", "description": "Wall collision behaviour"},
 			},
 		},
 	}, s.handleUpdateMap)
@@ -341,7 +339,7 @@ func (s *Server) registerTools() {
 			Properties: map[string]interface{}{
 				"map": map[string]interface{}{
 					"type":     "object",
-					"required": []string{"name", "description", "grid_size", "max_battery", "starting_battery", "layout", "legend", "wall_crash_ends_game"},
+					"required": []string{"name", "description", "grid_size", "max_battery", "starting_battery", "layout", "legend"},
 					"properties": map[string]interface{}{
 						"name":                 map[string]interface{}{"type": "string"},
 						"description":          map[string]interface{}{"type": "string"},
@@ -351,7 +349,6 @@ func (s *Server) registerTools() {
 						"layout":               map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}},
 						"legend":               map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "object", "required": []string{"key", "value"}, "properties": map[string]interface{}{"key": map[string]interface{}{"type": "string"}, "value": map[string]interface{}{"type": "string"}}}},
 						"cell_configs":         map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "object", "required": []string{"key", "type", "allowed_directions"}, "properties": map[string]interface{}{"key": map[string]interface{}{"type": "string"}, "type": map[string]interface{}{"type": "string"}, "allowed_directions": map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}}}}},
-						"wall_crash_ends_game": map[string]interface{}{"type": "boolean"},
 					},
 				},
 			},
@@ -530,12 +527,11 @@ func decodeCellConfigs(raw interface{}) map[string]engine.CellConfig {
 
 func decodeMapConfig(args map[string]interface{}) *engine.GameConfig {
 	cfg := &engine.GameConfig{
-		Name:              strAny(args, "name"),
-		Description:       strAny(args, "description"),
-		GridSize:          intFromArgs(args, "grid_size"),
-		MaxBattery:        intFromArgs(args, "max_battery"),
-		StartingBattery:   intFromArgs(args, "starting_battery"),
-		WallCrashEndsGame: boolFromArgs(args, "wall_crash_ends_game"),
+		Name:            strAny(args, "name"),
+		Description:     strAny(args, "description"),
+		GridSize:        intFromArgs(args, "grid_size"),
+		MaxBattery:      intFromArgs(args, "max_battery"),
+		StartingBattery: intFromArgs(args, "starting_battery"),
 	}
 	if rows, ok := args["layout"].([]interface{}); ok {
 		cfg.Layout = make([]string, len(rows))
@@ -560,13 +556,6 @@ func intFromArgs(args map[string]interface{}, key string) int {
 		return int(v)
 	}
 	return 0
-}
-
-func boolFromArgs(args map[string]interface{}, key string) bool {
-	if v, ok := args[key].(bool); ok {
-		return v
-	}
-	return false
 }
 
 // filterGameState removes fields based on options
@@ -763,7 +752,7 @@ func (s *Server) handleBulkMove(ctx context.Context, req mcp.CallToolRequest) (*
 			moves = append(moves, mv)
 		}
 	}
-	result, err := s.svc.BulkMove(ctx, sessionID, moves, boolParam(req, "reset"))
+	result, err := s.svc.BulkMove(ctx, sessionID, moves, boolParam(req, "reset"), service.BulkMoveOptions{})
 	if err != nil {
 		return errResult(err)
 	}
@@ -1023,9 +1012,6 @@ func (s *Server) handleUpdateMap(ctx context.Context, req mcp.CallToolRequest) (
 	}
 	if v, ok := args["starting_battery"].(float64); ok {
 		cfg.StartingBattery = int(v)
-	}
-	if v, ok := args["wall_crash_ends_game"].(bool); ok {
-		cfg.WallCrashEndsGame = v
 	}
 	if rows, ok := args["layout"].([]interface{}); ok {
 		cfg.Layout = make([]string, len(rows))

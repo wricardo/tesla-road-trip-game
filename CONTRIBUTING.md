@@ -237,7 +237,6 @@ Example configuration:
     "W": "water",
     "B": "building"
   },
-  "wall_crash_ends_game": false,
   "messages": {
     "welcome": "Welcome to the forest adventure!",
     "victory": "You've explored all the scenic spots!",

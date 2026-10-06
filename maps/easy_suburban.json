@@ -24,6 +24,5 @@
     "R": "road",
     "S": "supercharger",
     "W": "water"
-  },
-  "wall_crash_ends_game": true
+  }
 }

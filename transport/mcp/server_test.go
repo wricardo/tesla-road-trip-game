@@ -47,7 +47,7 @@ func (m *mockGameService) Move(ctx context.Context, sessionID, direction string,
 	}
 	return &service.MoveResult{Success: true, GameState: &engine.GameState{}}, nil
 }
-func (m *mockGameService) BulkMove(ctx context.Context, sessionID string, moves []string, reset bool) (*service.BulkMoveResult, error) {
+func (m *mockGameService) BulkMove(ctx context.Context, sessionID string, moves []string, reset bool, _ service.BulkMoveOptions) (*service.BulkMoveResult, error) {
 	if m.bulkMoveFunc != nil {
 		return m.bulkMoveFunc(ctx, sessionID, moves, reset)
 	}

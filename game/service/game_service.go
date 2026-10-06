@@ -19,6 +19,15 @@ type CreateSessionOptions struct {
 
 const DefaultMoveDelayMs = 300
 
+// BulkMoveOptions paces a bulk move for spectators.
+type BulkMoveOptions struct {
+	// StepDelay pauses between moves. The service lock is released while waiting.
+	StepDelay time.Duration
+	// OnStep, when set, receives a snapshot after every attempted move. It runs
+	// without the service lock held.
+	OnStep func(*engine.GameState)
+}
+
 // GameService defines all game-related operations
 type GameService interface {
 	// Session Management
@@ -30,7 +39,7 @@ type GameService interface {
 
 	// Game Operations
 	Move(ctx context.Context, sessionID, direction string, reset bool) (*MoveResult, error)
-	BulkMove(ctx context.Context, sessionID string, moves []string, reset bool) (*BulkMoveResult, error)
+	BulkMove(ctx context.Context, sessionID string, moves []string, reset bool, opts BulkMoveOptions) (*BulkMoveResult, error)
 	Reset(ctx context.Context, sessionID string) (*engine.GameState, error)
 
 	// Game State

@@ -196,7 +196,7 @@ Contains:
 
 4. **Keyboard hint bar**
    - Purple gradient bar.
-   - Text: `🎮 Arrow Keys or WASD to move • R to reset`
+   - Text: `🎮 Arrow Keys to move • R to reset`
 
 #### Other Players panel
 
@@ -462,7 +462,7 @@ An alternate implementation should preserve these product behaviors even if the 
 2. Users can resume a session by ID.
 3. Users can auto-join via `?sessionId=<id>`.
 4. Users can see the active game grid with terrain, objectives, chargers, player car, crashes, and visited parks.
-5. Users can move with Arrow keys or WASD.
+5. Users can move with Arrow keys.
 6. Users can reset with `R`.
 7. Users can monitor battery, parks collected, move count, current message, session ID, and config name.
 8. Users can switch sessions and return to the selection screen.

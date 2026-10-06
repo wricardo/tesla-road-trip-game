@@ -27,7 +27,11 @@ func toSession(s *service.SessionInfo) *model.Session {
 	if gm != nil && s.GameState != nil {
 		gm.SetLayoutAccess(model.GridAccess{FogEnabled: s.GameState.FogEnabled, GridPassword: s.GameState.GridPassword})
 	}
-	return &model.Session{ID: s.ID, DisplayName: dn, MapName: s.MapName, CreatedAt: timeString(s.CreatedAt), LastActionAt: timeString(s.LastActionAt), GameState: gs, GameMap: gm}
+	var generated *string
+	if s.GeneratedGridPassword != "" {
+		generated = &s.GeneratedGridPassword
+	}
+	return &model.Session{ID: s.ID, DisplayName: dn, MapName: s.MapName, CreatedAt: timeString(s.CreatedAt), LastActionAt: timeString(s.LastActionAt), GameState: gs, GameMap: gm, GeneratedGridPassword: generated}
 }
 
 func toUnifiedSession(s *service.SessionInfo) *model.UnifiedSession {
@@ -52,7 +56,7 @@ func toGameState(gs *engine.GameState) *model.GameState {
 		for x, c := range gs.Grid[y] {
 			dirs := make([]string, len(c.AllowedDirections))
 			copy(dirs, c.AllowedDirections)
-			grid[y][x] = &model.Cell{Type: string(c.Type), Visited: c.Visited, ID: c.ID, AllowedDirections: dirs}
+			grid[y][x] = &model.Cell{X: x, Y: y, Type: string(c.Type), Visited: c.Visited, ID: c.ID, AllowedDirections: dirs}
 		}
 	}
 	visitedKeys := make([]string, 0, len(gs.VisitedParks))
@@ -65,7 +69,7 @@ func toGameState(gs *engine.GameState) *model.GameState {
 		visited = append(visited, &model.VisitedPark{ID: k, Visited: gs.VisitedParks[k]})
 	}
 	local := buildLocalViewGrid(gs)
-	out := &model.GameState{Grid: grid, PlayerPos: toPosition(gs.PlayerPos), Battery: gs.Battery, MaxBattery: gs.MaxBattery, Score: gs.Score, VisitedParks: visited, Message: gs.Message, GameOver: gs.GameOver, Victory: gs.Victory, MapName: gs.MapName, MoveHistory: toMoveHistory(gs.MoveHistory), TotalMoves: gs.TotalMoves, ResetCount: gs.ResetCount, NearbyGrid: local, CurrentMoves: toMoveHistory(gs.CurrentMoves), CurrentMovesCount: gs.CurrentMovesCount, BatteryRisk: gs.BatteryRisk, FogEnabled: gs.FogEnabled, FogRadius: gs.FogRadius, MoveDelayMs: gs.MoveDelayMs}
+	out := &model.GameState{Grid: grid, PlayerPos: toPosition(gs.PlayerPos), Battery: gs.Battery, MaxBattery: gs.MaxBattery, Score: gs.Score, TotalParks: engine.CountTotalParks(gs.Grid), VisitedParks: visited, Message: gs.Message, GameOver: gs.GameOver, Victory: gs.Victory, MapName: gs.MapName, MoveHistory: toMoveHistory(gs.MoveHistory), TotalMoves: gs.TotalMoves, ResetCount: gs.ResetCount, NearbyGrid: local, CurrentMoves: toMoveHistory(gs.CurrentMoves), CurrentMovesCount: gs.CurrentMovesCount, BatteryRisk: gs.BatteryRisk, FogEnabled: gs.FogEnabled, FogRadius: gs.FogRadius, MoveDelayMs: gs.MoveDelayMs}
 	out.SetGridAccess(model.GridAccess{FogEnabled: gs.FogEnabled, GridPassword: gs.GridPassword})
 	return out
 }
@@ -86,13 +90,13 @@ func buildLocalViewGrid(gs *engine.GameState) [][]*model.Cell {
 		for dx := -radius; dx <= radius; dx++ {
 			x, y := px+dx, py+dy
 			if y < 0 || y >= len(gs.Grid) || x < 0 || x >= len(gs.Grid[y]) {
-				row = append(row, &model.Cell{Type: string(engine.Building), Visited: false, ID: "", AllowedDirections: nil})
+				row = append(row, &model.Cell{X: x, Y: y, Type: string(engine.Building), Visited: false, ID: "", AllowedDirections: nil})
 				continue
 			}
 			c := gs.Grid[y][x]
 			dirs := make([]string, len(c.AllowedDirections))
 			copy(dirs, c.AllowedDirections)
-			row = append(row, &model.Cell{Type: string(c.Type), Visited: c.Visited, ID: c.ID, AllowedDirections: dirs})
+			row = append(row, &model.Cell{X: x, Y: y, Type: string(c.Type), Visited: c.Visited, ID: c.ID, AllowedDirections: dirs})
 		}
 		local = append(local, row)
 	}
@@ -132,7 +136,7 @@ func toGameMap(c *engine.GameConfig) *model.GameMap {
 		copy(dirs, cc.AllowedDirections)
 		cellConfigs = append(cellConfigs, &model.CellConfigEntry{Key: k, Type: cc.Type, AllowedDirections: dirs})
 	}
-	return &model.GameMap{Name: c.Name, Description: c.Description, GridSize: c.GridSize, MaxBattery: c.MaxBattery, StartingBattery: c.StartingBattery, Layout: c.Layout, Legend: legend, CellConfigs: cellConfigs, WallCrashEndsGame: c.WallCrashEndsGame}
+	return &model.GameMap{Name: c.Name, Description: c.Description, GridSize: c.GridSize, MaxBattery: c.MaxBattery, StartingBattery: c.StartingBattery, Layout: c.Layout, Legend: legend, CellConfigs: cellConfigs}
 }
 
 func fromGameMapInput(in model.GameMapInput) *engine.GameConfig {
@@ -150,7 +154,7 @@ func fromGameMapInput(in model.GameMapInput) *engine.GameConfig {
 			cellConfigs[cc.Key] = engine.CellConfig{Type: cc.Type, AllowedDirections: dirs}
 		}
 	}
-	return &engine.GameConfig{Name: in.Name, Description: in.Description, GridSize: in.GridSize, MaxBattery: in.MaxBattery, StartingBattery: in.StartingBattery, Layout: in.Layout, Legend: legend, CellConfigs: cellConfigs, WallCrashEndsGame: in.WallCrashEndsGame}
+	return &engine.GameConfig{Name: in.Name, Description: in.Description, GridSize: in.GridSize, MaxBattery: in.MaxBattery, StartingBattery: in.StartingBattery, Layout: in.Layout, Legend: legend, CellConfigs: cellConfigs}
 }
 
 // applyPatch merges non-nil patch fields onto an existing GameConfig (in place).
@@ -192,9 +196,6 @@ func applyPatch(cfg *engine.GameConfig, patch model.GameMapPatchInput) {
 			}
 		}
 		cfg.CellConfigs = cellConfigs
-	}
-	if patch.WallCrashEndsGame != nil {
-		cfg.WallCrashEndsGame = *patch.WallCrashEndsGame
 	}
 }
 

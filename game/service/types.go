@@ -16,6 +16,10 @@ type SessionInfo struct {
 	FogEnabled   bool               `json:"fog_enabled,omitempty"` // lets transports redact GameMap.Layout even when GameState is omitted
 	GameState    *engine.GameState  `json:"game_state,omitempty"`  // Omitted by default (use ResponseOptions.IncludeGameState)
 	GameMap      *engine.GameConfig `json:"game_map,omitempty"`    // Included by default on get_session, omitted on list_sessions
+	// GeneratedGridPassword is set only on the CreateSession result, when fog is enabled and
+	// the caller supplied no password. It is not returned by GetSession/ListSessions, so
+	// callers must keep it.
+	GeneratedGridPassword string `json:"generated_grid_password,omitempty"`
 }
 
 // MoveResult contains the result of a move operation

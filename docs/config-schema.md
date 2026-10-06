@@ -15,7 +15,6 @@ type GameConfig struct {
     StartingBattery   int               `json:"starting_battery"`
     Layout            []string          `json:"layout"`
     Legend            map[string]string `json:"legend"`
-    WallCrashEndsGame bool              `json:"wall_crash_ends_game"`
     Messages          struct {
         Welcome            string `json:"welcome"`
         HomeCharge         string `json:"home_charge"`
@@ -47,12 +46,6 @@ type GameConfig struct {
 | `legend` | object | Fixed mapping | Character to cell type mapping |
 | `messages` | object | All required | Game event messages |
 
-### Optional Fields
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `wall_crash_ends_game` | boolean | false | Whether hitting walls ends game |
-
 ## Layout Characters
 
 Each character in the layout array represents a cell type:
@@ -80,10 +73,6 @@ Messages with format specifiers must include:
 - `park_visited`: Must contain `%d` for score
 - `victory`: Must contain `%d` for park count
 - `battery_status`: Must contain `%d/%d` for current/max battery
-
-### Conditional Validation
-
-- If `wall_crash_ends_game` is `true`, `messages.hit_wall` is required
 
 ## Example Configuration
 
@@ -114,7 +103,6 @@ Messages with format specifiers must include:
     "W": "water",
     "B": "building"
   },
-  "wall_crash_ends_game": true,
   "messages": {
     "welcome": "Welcome to Challenge Mode!",
     "home_charge": "Battery recharged at home!",
@@ -146,7 +134,6 @@ if err != nil {
 Common validation errors:
 - `config validation: grid_size must be between 5 and 50, got 60`
 - `config validation: layout must contain at least one home (H) cell`
-- `config validation: messages.hit_wall is required when wall_crash_ends_game is true`
 
 ## JSON Schema Validation
 
@@ -165,7 +152,5 @@ python -m jsonschema -i configs/myconfig.json config-schema.json
 1. Copy an existing config as template
 2. Modify grid layout maintaining size consistency
 3. Ensure at least one H and one P cell
-4. Set appropriate battery limits for difficulty
-5. Customize messages (remember format specifiers)
-6. Set `wall_crash_ends_game` based on difficulty
-7. Test with the game server to verify validation passes
+4. Customize messages (remember format specifiers)
+5. Test with the game server to verify validation passes

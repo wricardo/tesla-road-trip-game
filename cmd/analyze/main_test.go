@@ -28,7 +28,6 @@ func TestAnalysisConfig(t *testing.T) {
 			"W": "water",
 			"B": "building",
 		},
-		WallCrashEndsGame: false,
 		Messages: map[string]string{
 			"welcome": "Welcome!",
 		},
@@ -97,7 +96,6 @@ func TestAnalyzeConfig_ValidFile(t *testing.T) {
 			"H": "home",
 			"P": "park"
 		},
-		"wall_crash_ends_game": false,
 		"messages": {
 			"welcome": "Welcome!"
 		}
@@ -185,7 +183,6 @@ func TestMain_Integration(t *testing.T) {
 			"H": "home",
 			"P": "park"
 		},
-		"wall_crash_ends_game": false,
 		"messages": {
 			"welcome": "Welcome!"
 		}
@@ -250,7 +247,6 @@ func TestAnalyzeConfig_ReachabilityAnalysis(t *testing.T) {
 			"P": "park",
 			"W": "water"
 		},
-		"wall_crash_ends_game": false,
 		"messages": {
 			"welcome": "Welcome!"
 		}

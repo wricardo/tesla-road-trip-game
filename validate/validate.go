@@ -25,7 +25,6 @@ type Config struct {
 	MaxBattery      int               `json:"max_battery"`
 	StartingBattery int               `json:"starting_battery"`
 	Messages        map[string]string `json:"messages"`
-	WallCrashEnds   bool              `json:"wall_crash_ends_game"`
 	Legend          map[string]string `json:"legend"`
 }
 

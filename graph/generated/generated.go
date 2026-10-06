@@ -89,6 +89,8 @@ type ComplexityRoot struct {
 		ID                func(childComplexity int) int
 		Type              func(childComplexity int) int
 		Visited           func(childComplexity int) int
+		X                 func(childComplexity int) int
+		Y                 func(childComplexity int) int
 	}
 
 	CellConfigEntry struct {
@@ -109,15 +111,14 @@ type ComplexityRoot struct {
 	}
 
 	GameMap struct {
-		CellConfigs       func(childComplexity int) int
-		Description       func(childComplexity int) int
-		GridSize          func(childComplexity int) int
-		Layout            func(childComplexity int, password *string) int
-		Legend            func(childComplexity int) int
-		MaxBattery        func(childComplexity int) int
-		Name              func(childComplexity int) int
-		StartingBattery   func(childComplexity int) int
-		WallCrashEndsGame func(childComplexity int) int
+		CellConfigs     func(childComplexity int) int
+		Description     func(childComplexity int) int
+		GridSize        func(childComplexity int) int
+		Layout          func(childComplexity int, password *string) int
+		Legend          func(childComplexity int) int
+		MaxBattery      func(childComplexity int) int
+		Name            func(childComplexity int) int
+		StartingBattery func(childComplexity int) int
 	}
 
 	GameState struct {
@@ -139,6 +140,7 @@ type ComplexityRoot struct {
 		ResetCount        func(childComplexity int) int
 		Score             func(childComplexity int) int
 		TotalMoves        func(childComplexity int) int
+		TotalParks        func(childComplexity int) int
 		Victory           func(childComplexity int) int
 		VisitedParks      func(childComplexity int) int
 	}
@@ -221,13 +223,14 @@ type ComplexityRoot struct {
 	}
 
 	Session struct {
-		CreatedAt    func(childComplexity int) int
-		DisplayName  func(childComplexity int) int
-		GameMap      func(childComplexity int) int
-		GameState    func(childComplexity int) int
-		ID           func(childComplexity int) int
-		LastActionAt func(childComplexity int) int
-		MapName      func(childComplexity int) int
+		CreatedAt             func(childComplexity int) int
+		DisplayName           func(childComplexity int) int
+		GameMap               func(childComplexity int) int
+		GameState             func(childComplexity int) int
+		GeneratedGridPassword func(childComplexity int) int
+		ID                    func(childComplexity int) int
+		LastActionAt          func(childComplexity int) int
+		MapName               func(childComplexity int) int
 	}
 
 	SessionList struct {
@@ -552,6 +555,20 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Cell.Visited(childComplexity), true
 
+	case "Cell.x":
+		if e.complexity.Cell.X == nil {
+			break
+		}
+
+		return e.complexity.Cell.X(childComplexity), true
+
+	case "Cell.y":
+		if e.complexity.Cell.Y == nil {
+			break
+		}
+
+		return e.complexity.Cell.Y(childComplexity), true
+
 	case "CellConfigEntry.allowedDirections":
 		if e.complexity.CellConfigEntry.AllowedDirections == nil {
 			break
@@ -668,13 +685,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.GameMap.StartingBattery(childComplexity), true
-
-	case "GameMap.wallCrashEndsGame":
-		if e.complexity.GameMap.WallCrashEndsGame == nil {
-			break
-		}
-
-		return e.complexity.GameMap.WallCrashEndsGame(childComplexity), true
 
 	case "GameState.battery":
 		if e.complexity.GameState.Battery == nil {
@@ -806,6 +816,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.GameState.TotalMoves(childComplexity), true
+
+	case "GameState.totalParks":
+		if e.complexity.GameState.TotalParks == nil {
+			break
+		}
+
+		return e.complexity.GameState.TotalParks(childComplexity), true
 
 	case "GameState.victory":
 		if e.complexity.GameState.Victory == nil {
@@ -1274,6 +1291,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Session.GameState(childComplexity), true
 
+	case "Session.generatedGridPassword":
+		if e.complexity.Session.GeneratedGridPassword == nil {
+			break
+		}
+
+		return e.complexity.Session.GeneratedGridPassword(childComplexity), true
+
 	case "Session.id":
 		if e.complexity.Session.ID == nil {
 			break
@@ -1692,6 +1716,12 @@ type Session {
   lastActionAt: String!
   gameState: GameState!
   gameMap: GameMap!
+  """
+  Only set in the createSession response, when fog is enabled and no gridPassword
+  was supplied: the server-generated password for grid(password: ...). It is never
+  returned again, so store it. Always null on every other query/mutation.
+  """
+  generatedGridPassword: String
 }
 
 type GameState {
@@ -1700,6 +1730,7 @@ type GameState {
   battery: Int!
   maxBattery: Int!
   score: Int!
+  totalParks: Int!
   visitedParks: [VisitedPark!]!
   message: String!
   gameOver: Boolean!
@@ -1718,6 +1749,10 @@ type GameState {
 }
 
 type Cell {
+  "Column of this cell on the map (RIGHT = x+1). Negative or >= map width for off-map nearbyGrid cells."
+  x: Int!
+  "Row of this cell on the map (DOWN = y+1). Negative or >= map height for off-map nearbyGrid cells."
+  y: Int!
   type: String!
   visited: Boolean!
   id: String!
@@ -1754,7 +1789,6 @@ type GameMap {
   layout(password: String): [String!]!
   legend: [LegendEntry!]!
   cellConfigs: [CellConfigEntry!]!
-  wallCrashEndsGame: Boolean!
 }
 
 type LegendEntry { key: String!, value: String! }
@@ -1770,7 +1804,6 @@ input GameMapInput {
   layout: [String!]!
   legend: [LegendEntryInput!]!
   cellConfigs: [CellConfigEntryInput!] = []
-  wallCrashEndsGame: Boolean!
 }
 
 input LegendEntryInput { key: String!, value: String! }
@@ -1787,7 +1820,6 @@ input GameMapPatchInput {
   layout: [String!]
   legend: [LegendEntryInput!]
   cellConfigs: [CellConfigEntryInput!]
-  wallCrashEndsGame: Boolean
 }
 
 type MapInfo {
@@ -3392,6 +3424,8 @@ func (ec *executionContext) fieldContext_BulkMoveResult_gameState(_ context.Cont
 				return ec.fieldContext_GameState_maxBattery(ctx, field)
 			case "score":
 				return ec.fieldContext_GameState_score(ctx, field)
+			case "totalParks":
+				return ec.fieldContext_GameState_totalParks(ctx, field)
 			case "visitedParks":
 				return ec.fieldContext_GameState_visitedParks(ctx, field)
 			case "message":
@@ -4273,6 +4307,94 @@ func (ec *executionContext) fieldContext_BulkMoveResult_batteryRisk(_ context.Co
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Cell_x(ctx context.Context, field graphql.CollectedField, obj *model.Cell) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Cell_x(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.X, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Cell_x(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Cell",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Cell_y(ctx context.Context, field graphql.CollectedField, obj *model.Cell) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Cell_y(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Y, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Cell_y(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Cell",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -5189,50 +5311,6 @@ func (ec *executionContext) fieldContext_GameMap_cellConfigs(_ context.Context, 
 	return fc, nil
 }
 
-func (ec *executionContext) _GameMap_wallCrashEndsGame(ctx context.Context, field graphql.CollectedField, obj *model.GameMap) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_GameMap_wallCrashEndsGame(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.WallCrashEndsGame, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(bool)
-	fc.Result = res
-	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_GameMap_wallCrashEndsGame(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "GameMap",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _GameState_grid(ctx context.Context, field graphql.CollectedField, obj *model.GameState) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_GameState_grid(ctx, field)
 	if err != nil {
@@ -5272,6 +5350,10 @@ func (ec *executionContext) fieldContext_GameState_grid(ctx context.Context, fie
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "x":
+				return ec.fieldContext_Cell_x(ctx, field)
+			case "y":
+				return ec.fieldContext_Cell_y(ctx, field)
 			case "type":
 				return ec.fieldContext_Cell_type(ctx, field)
 			case "visited":
@@ -5468,6 +5550,50 @@ func (ec *executionContext) _GameState_score(ctx context.Context, field graphql.
 }
 
 func (ec *executionContext) fieldContext_GameState_score(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameState_totalParks(ctx context.Context, field graphql.CollectedField, obj *model.GameState) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_GameState_totalParks(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalParks, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_GameState_totalParks(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "GameState",
 		Field:      field,
@@ -5893,6 +6019,10 @@ func (ec *executionContext) fieldContext_GameState_nearbyGrid(_ context.Context,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "x":
+				return ec.fieldContext_Cell_x(ctx, field)
+			case "y":
+				return ec.fieldContext_Cell_y(ctx, field)
 			case "type":
 				return ec.fieldContext_Cell_type(ctx, field)
 			case "visited":
@@ -7450,6 +7580,8 @@ func (ec *executionContext) fieldContext_MoveResult_gameState(_ context.Context,
 				return ec.fieldContext_GameState_maxBattery(ctx, field)
 			case "score":
 				return ec.fieldContext_GameState_score(ctx, field)
+			case "totalParks":
+				return ec.fieldContext_GameState_totalParks(ctx, field)
 			case "visitedParks":
 				return ec.fieldContext_GameState_visitedParks(ctx, field)
 			case "message":
@@ -7758,6 +7890,8 @@ func (ec *executionContext) fieldContext_Mutation_createSession(ctx context.Cont
 				return ec.fieldContext_Session_gameState(ctx, field)
 			case "gameMap":
 				return ec.fieldContext_Session_gameMap(ctx, field)
+			case "generatedGridPassword":
+				return ec.fieldContext_Session_generatedGridPassword(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Session", field.Name)
 		},
@@ -7888,6 +8022,8 @@ func (ec *executionContext) fieldContext_Mutation_updateSession(ctx context.Cont
 				return ec.fieldContext_Session_gameState(ctx, field)
 			case "gameMap":
 				return ec.fieldContext_Session_gameMap(ctx, field)
+			case "generatedGridPassword":
+				return ec.fieldContext_Session_generatedGridPassword(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Session", field.Name)
 		},
@@ -8127,6 +8263,8 @@ func (ec *executionContext) fieldContext_Mutation_reset(ctx context.Context, fie
 				return ec.fieldContext_GameState_maxBattery(ctx, field)
 			case "score":
 				return ec.fieldContext_GameState_score(ctx, field)
+			case "totalParks":
+				return ec.fieldContext_GameState_totalParks(ctx, field)
 			case "visitedParks":
 				return ec.fieldContext_GameState_visitedParks(ctx, field)
 			case "message":
@@ -8230,8 +8368,6 @@ func (ec *executionContext) fieldContext_Mutation_createMap(ctx context.Context,
 				return ec.fieldContext_GameMap_legend(ctx, field)
 			case "cellConfigs":
 				return ec.fieldContext_GameMap_cellConfigs(ctx, field)
-			case "wallCrashEndsGame":
-				return ec.fieldContext_GameMap_wallCrashEndsGame(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type GameMap", field.Name)
 		},
@@ -8305,8 +8441,6 @@ func (ec *executionContext) fieldContext_Mutation_updateMap(ctx context.Context,
 				return ec.fieldContext_GameMap_legend(ctx, field)
 			case "cellConfigs":
 				return ec.fieldContext_GameMap_cellConfigs(ctx, field)
-			case "wallCrashEndsGame":
-				return ec.fieldContext_GameMap_wallCrashEndsGame(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type GameMap", field.Name)
 		},
@@ -8531,6 +8665,8 @@ func (ec *executionContext) fieldContext_Query_session(ctx context.Context, fiel
 				return ec.fieldContext_Session_gameState(ctx, field)
 			case "gameMap":
 				return ec.fieldContext_Session_gameMap(ctx, field)
+			case "generatedGridPassword":
+				return ec.fieldContext_Session_generatedGridPassword(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Session", field.Name)
 		},
@@ -8728,6 +8864,8 @@ func (ec *executionContext) fieldContext_Query_gameState(ctx context.Context, fi
 				return ec.fieldContext_GameState_maxBattery(ctx, field)
 			case "score":
 				return ec.fieldContext_GameState_score(ctx, field)
+			case "totalParks":
+				return ec.fieldContext_GameState_totalParks(ctx, field)
 			case "visitedParks":
 				return ec.fieldContext_GameState_visitedParks(ctx, field)
 			case "message":
@@ -8960,8 +9098,6 @@ func (ec *executionContext) fieldContext_Query_map(ctx context.Context, field gr
 				return ec.fieldContext_GameMap_legend(ctx, field)
 			case "cellConfigs":
 				return ec.fieldContext_GameMap_cellConfigs(ctx, field)
-			case "wallCrashEndsGame":
-				return ec.fieldContext_GameMap_wallCrashEndsGame(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type GameMap", field.Name)
 		},
@@ -9377,6 +9513,8 @@ func (ec *executionContext) fieldContext_Session_gameState(_ context.Context, fi
 				return ec.fieldContext_GameState_maxBattery(ctx, field)
 			case "score":
 				return ec.fieldContext_GameState_score(ctx, field)
+			case "totalParks":
+				return ec.fieldContext_GameState_totalParks(ctx, field)
 			case "visitedParks":
 				return ec.fieldContext_GameState_visitedParks(ctx, field)
 			case "message":
@@ -9469,10 +9607,49 @@ func (ec *executionContext) fieldContext_Session_gameMap(_ context.Context, fiel
 				return ec.fieldContext_GameMap_legend(ctx, field)
 			case "cellConfigs":
 				return ec.fieldContext_GameMap_cellConfigs(ctx, field)
-			case "wallCrashEndsGame":
-				return ec.fieldContext_GameMap_wallCrashEndsGame(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type GameMap", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Session_generatedGridPassword(ctx context.Context, field graphql.CollectedField, obj *model.Session) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Session_generatedGridPassword(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.GeneratedGridPassword, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Session_generatedGridPassword(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Session",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -9619,6 +9796,8 @@ func (ec *executionContext) fieldContext_SessionList_sessions(_ context.Context,
 				return ec.fieldContext_Session_gameState(ctx, field)
 			case "gameMap":
 				return ec.fieldContext_Session_gameMap(ctx, field)
+			case "generatedGridPassword":
+				return ec.fieldContext_Session_generatedGridPassword(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Session", field.Name)
 		},
@@ -10317,6 +10496,8 @@ func (ec *executionContext) fieldContext_Subscription_sessionUpdated(ctx context
 				return ec.fieldContext_GameState_maxBattery(ctx, field)
 			case "score":
 				return ec.fieldContext_GameState_score(ctx, field)
+			case "totalParks":
+				return ec.fieldContext_GameState_totalParks(ctx, field)
 			case "visitedParks":
 				return ec.fieldContext_GameState_visitedParks(ctx, field)
 			case "message":
@@ -10428,6 +10609,8 @@ func (ec *executionContext) fieldContext_Subscription_lobbyUpdated(_ context.Con
 				return ec.fieldContext_GameState_maxBattery(ctx, field)
 			case "score":
 				return ec.fieldContext_GameState_score(ctx, field)
+			case "totalParks":
+				return ec.fieldContext_GameState_totalParks(ctx, field)
 			case "visitedParks":
 				return ec.fieldContext_GameState_visitedParks(ctx, field)
 			case "message":
@@ -10646,6 +10829,8 @@ func (ec *executionContext) fieldContext_UnifiedSession_gameState(_ context.Cont
 				return ec.fieldContext_GameState_maxBattery(ctx, field)
 			case "score":
 				return ec.fieldContext_GameState_score(ctx, field)
+			case "totalParks":
+				return ec.fieldContext_GameState_totalParks(ctx, field)
 			case "visitedParks":
 				return ec.fieldContext_GameState_visitedParks(ctx, field)
 			case "message":
@@ -10738,8 +10923,6 @@ func (ec *executionContext) fieldContext_UnifiedSession_gameMap(_ context.Contex
 				return ec.fieldContext_GameMap_legend(ctx, field)
 			case "cellConfigs":
 				return ec.fieldContext_GameMap_cellConfigs(ctx, field)
-			case "wallCrashEndsGame":
-				return ec.fieldContext_GameMap_wallCrashEndsGame(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type GameMap", field.Name)
 		},
@@ -12982,7 +13165,7 @@ func (ec *executionContext) unmarshalInputGameMapInput(ctx context.Context, obj 
 		asMap["cellConfigs"] = []any{}
 	}
 
-	fieldsInOrder := [...]string{"name", "description", "gridSize", "maxBattery", "startingBattery", "layout", "legend", "cellConfigs", "wallCrashEndsGame"}
+	fieldsInOrder := [...]string{"name", "description", "gridSize", "maxBattery", "startingBattery", "layout", "legend", "cellConfigs"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13045,13 +13228,6 @@ func (ec *executionContext) unmarshalInputGameMapInput(ctx context.Context, obj 
 				return it, err
 			}
 			it.CellConfigs = data
-		case "wallCrashEndsGame":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("wallCrashEndsGame"))
-			data, err := ec.unmarshalNBoolean2bool(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.WallCrashEndsGame = data
 		}
 	}
 
@@ -13065,7 +13241,7 @@ func (ec *executionContext) unmarshalInputGameMapPatchInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "description", "gridSize", "maxBattery", "startingBattery", "layout", "legend", "cellConfigs", "wallCrashEndsGame"}
+	fieldsInOrder := [...]string{"name", "description", "gridSize", "maxBattery", "startingBattery", "layout", "legend", "cellConfigs"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13128,13 +13304,6 @@ func (ec *executionContext) unmarshalInputGameMapPatchInput(ctx context.Context,
 				return it, err
 			}
 			it.CellConfigs = data
-		case "wallCrashEndsGame":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("wallCrashEndsGame"))
-			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.WallCrashEndsGame = data
 		}
 	}
 
@@ -13399,6 +13568,16 @@ func (ec *executionContext) _Cell(ctx context.Context, sel ast.SelectionSet, obj
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Cell")
+		case "x":
+			out.Values[i] = ec._Cell_x(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "y":
+			out.Values[i] = ec._Cell_y(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "type":
 			out.Values[i] = ec._Cell_type(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -13666,11 +13845,6 @@ func (ec *executionContext) _GameMap(ctx context.Context, sel ast.SelectionSet, 
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
-		case "wallCrashEndsGame":
-			out.Values[i] = ec._GameMap_wallCrashEndsGame(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -13758,6 +13932,11 @@ func (ec *executionContext) _GameState(ctx context.Context, sel ast.SelectionSet
 			}
 		case "score":
 			out.Values[i] = ec._GameState_score(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "totalParks":
+			out.Values[i] = ec._GameState_totalParks(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
@@ -14610,6 +14789,8 @@ func (ec *executionContext) _Session(ctx context.Context, sel ast.SelectionSet, 
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "generatedGridPassword":
+			out.Values[i] = ec._Session_generatedGridPassword(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

@@ -2,9 +2,11 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/wricardo/tesla-road-trip-game/game/engine"
 )
@@ -99,6 +101,17 @@ func (s *gameServiceImpl) CreateSession(ctx context.Context, mapName string, opt
 	if err := validateCreateSessionOptions(createOpts); err != nil {
 		return nil, err
 	}
+	// Fog needs a password for the full grid. If the caller gave none, generate one and
+	// hand it back on this response only.
+	generatedPassword := ""
+	if createOpts.FogEnabled && strings.TrimSpace(createOpts.GridPassword) == "" {
+		pw, err := generateGridPassword()
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate grid password: %w", err)
+		}
+		createOpts.GridPassword = pw
+		generatedPassword = pw
+	}
 	if createOpts.FogRadius <= 0 {
 		createOpts.FogRadius = 1
 	}
@@ -130,13 +143,14 @@ func (s *gameServiceImpl) CreateSession(ctx context.Context, mapName string, opt
 	}
 
 	return &SessionInfo{
-		ID:           session.ID,
-		MapName:      mapID,
-		CreatedAt:    session.CreatedAt,
-		LastActionAt: session.LastActionAt,
-		FogEnabled:   session.FogEnabled,
-		GameState:    sessionSnapshot(session),
-		GameMap:      session.Config,
+		ID:                    session.ID,
+		MapName:               mapID,
+		CreatedAt:             session.CreatedAt,
+		LastActionAt:          session.LastActionAt,
+		FogEnabled:            session.FogEnabled,
+		GameState:             sessionSnapshot(session),
+		GameMap:               session.Config,
+		GeneratedGridPassword: generatedPassword,
 	}, nil
 }
 
@@ -154,10 +168,21 @@ func validateCreateSessionOptions(opts CreateSessionOptions) error {
 	if opts.FogRadius < 1 {
 		return fmt.Errorf("fog radius must be >= 1 when fog mode is enabled")
 	}
-	if strings.TrimSpace(opts.GridPassword) == "" {
-		return fmt.Errorf("grid password is required when fog mode is enabled")
-	}
 	return nil
+}
+
+// gridPasswordAlphabet has 32 characters (no 0/o/1/l look-alikes), so a random byte maps to it without bias.
+const gridPasswordAlphabet = "abcdefghijkmnpqrstuvwxyz23456789"
+
+func generateGridPassword() (string, error) {
+	buf := make([]byte, 12)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	for i, b := range buf {
+		buf[i] = gridPasswordAlphabet[int(b)%len(gridPasswordAlphabet)]
+	}
+	return string(buf), nil
 }
 
 func applySessionVisibilityMeta(session *Session, state *engine.GameState) {
@@ -294,83 +319,27 @@ func (s *gameServiceImpl) Move(ctx context.Context, sessionID, direction string,
 	// A finished game rejects moves outright; don't echo the stale end-of-game
 	// message, which reads like this move hit something.
 	if sess.Engine.IsGameOver() {
-		state := sessionSnapshot(sess)
-		state.LocalView3x3 = buildLocal3x3(state)
-		state.BatteryRisk = riskCode(engine.AnalyzeBatteryRisk(state))
+		state := decoratedSnapshot(sess)
 		return &MoveResult{Success: false, GameState: state, Message: alreadyOverMessage(state)}, nil
 	}
 
 	// Execute move
 	prevPos := sess.Engine.GetPlayerPosition()
-	prevState := sess.Engine.GetState()
-	prevBattery := prevState.Battery
+	prevBattery := sess.Engine.GetState().Battery
 	success := sess.Engine.Move(direction)
-	newPos := sess.Engine.GetPlayerPosition()
-	state := sessionSnapshot(sess)
+	state := decoratedSnapshot(sess)
 
-	// Build result
 	result := &MoveResult{
 		Success:   success,
 		GameState: state,
 		Message:   state.Message,
 	}
-
 	if success {
-		// Fill compact step info
-		tileChar, tileType := "", ""
-		charged := false
-		park := false
-		if newPos.Y >= 0 && newPos.Y < len(state.Grid) && newPos.X >= 0 && newPos.X < len(state.Grid[0]) {
-			cell := state.Grid[newPos.Y][newPos.X]
-			tileChar, tileType = mapCellToCharAndType(cell)
-			charged = cell.Type == engine.Home || cell.Type == engine.Supercharger
-			park = cell.Type == engine.Park
-		}
-		victory := state.Victory
-		result.Step = &StepInfo{
-			Idx:           1,
-			Dir:           direction,
-			From:          prevPos,
-			To:            newPos,
-			TileChar:      tileChar,
-			TileType:      tileType,
-			BatteryBefore: prevBattery,
-			BatteryAfter:  state.Battery,
-			Success:       true,
-			Charged:       charged,
-			Park:          park,
-			Victory:       victory,
-		}
+		step := executedStep(1, direction, prevPos, prevBattery, state)
+		result.Step = &step
 	} else {
-		// Attempted target
-		attemptedX, attemptedY := prevPos.X, prevPos.Y
-		switch strings.ToLower(direction) {
-		case "up":
-			attemptedY--
-		case "down":
-			attemptedY++
-		case "left":
-			attemptedX--
-		case "right":
-			attemptedX++
-		}
-		gridH := len(state.Grid)
-		var tileChar, tileType string
-		passable := false
-		if attemptedX < 0 || attemptedY < 0 || attemptedY >= gridH || (gridH > 0 && attemptedX >= len(state.Grid[0])) {
-			tileChar = "B"
-			tileType = "boundary"
-		} else {
-			cell := state.Grid[attemptedY][attemptedX]
-			tileChar, tileType = mapCellToCharAndType(cell)
-			passable = cell.Type != engine.Water && cell.Type != engine.Building
-		}
-		result.AttemptedTo = &AttemptInfo{X: attemptedX, Y: attemptedY, TileChar: tileChar, TileType: tileType, Passable: passable}
+		result.AttemptedTo, _ = rejectedMove(state, prevPos, direction)
 	}
-
-	// Enrich state with decision aids
-	state.LocalView3x3 = buildLocal3x3(state)
-	state.BatteryRisk = riskCode(engine.AnalyzeBatteryRisk(state))
 
 	// Auto-save session after move
 	if err := s.sessions.Save(sessionID); err != nil {
@@ -380,8 +349,10 @@ func (s *gameServiceImpl) Move(ctx context.Context, sessionID, direction string,
 	return result, nil
 }
 
-// BulkMove executes multiple moves in sequence
-func (s *gameServiceImpl) BulkMove(ctx context.Context, sessionID string, moves []string, reset bool) (*BulkMoveResult, error) {
+// BulkMove executes up to engine.MaxBulkMoves moves in order. It stops at the first
+// rejected move or when the game ends. opts.StepDelay paces the run for spectators;
+// the service lock is released between steps so other sessions stay responsive.
+func (s *gameServiceImpl) BulkMove(ctx context.Context, sessionID string, moves []string, reset bool, opts BulkMoveOptions) (*BulkMoveResult, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -389,216 +360,204 @@ func (s *gameServiceImpl) BulkMove(ctx context.Context, sessionID string, moves 
 	if err != nil {
 		return nil, fmt.Errorf("session not found: %w", err)
 	}
-
-	// Update last action
 	s.sessions.UpdateLastAction(sessionID)
 
-	// Initialize result and capture start snapshot
-	state := sess.Engine.GetState()
-	startPos := state.PlayerPos
-	startBattery := state.Battery
-	startScore := state.Score
-
-	result := &BulkMoveResult{
-		RequestedMoves: len(moves),
-		TotalMoves:     len(moves), // backward-compat: mirrors requested_moves
-		Success:        true,
-		StartPos:       startPos,
-		StartBattery:   startBattery,
-		GameOver:       state.GameOver,
-		Message:        state.Message,
-	}
-
-	// Handle reset
 	if reset {
 		sess.Engine.Reset()
 	}
-
-	// Limit moves to prevent abuse
+	result := &BulkMoveResult{RequestedMoves: len(moves), Success: true}
 	if len(moves) > engine.MaxBulkMoves {
 		result.Truncated = true
 		result.Limit = engine.MaxBulkMoves
 		moves = moves[:engine.MaxBulkMoves]
 	}
-
-	// Execute moves
-	for i, move := range moves {
-		if sess.Engine.IsGameOver() {
-			result.StoppedOnMove = result.MovesExecuted + 1
-			if i == 0 {
-				// Game was already over before this request moved anything.
-				result.Success = false
-				result.StopReasonCode = "already_over"
-			} else {
-				result.StoppedReason = "game_over"
-				result.StopReasonCode = "game_over"
-			}
-			break
-		}
-
-		prevPos := sess.Engine.GetPlayerPosition()
-		prevState := sess.Engine.GetState()
-		prevBattery := prevState.Battery
-		success := sess.Engine.Move(move)
-
-		if !success {
-			result.Success = false
-			result.StoppedReason = fmt.Sprintf("move %d blocked: %s", i+1, move)
-			result.StoppedOnMove = i + 1
-
-			// Determine attempted target and reason code
-			attemptedX, attemptedY := prevPos.X, prevPos.Y
-			switch strings.ToLower(move) {
-			case "up":
-				attemptedY--
-			case "down":
-				attemptedY++
-			case "left":
-				attemptedX--
-			case "right":
-				attemptedX++
-			}
-
-			st := sess.Engine.GetState()
-			gridH := len(st.Grid)
-			var tileChar, tileType string
-			passable := false
-			if attemptedX < 0 || attemptedY < 0 || attemptedY >= gridH || (gridH > 0 && attemptedX >= len(st.Grid[0])) {
-				tileChar = "B" // treat boundary as wall-like
-				tileType = "boundary"
-				result.StopReasonCode = "blocked_boundary"
-			} else {
-				cell := st.Grid[attemptedY][attemptedX]
-				tileChar, tileType = mapCellToCharAndType(cell)
-				passable = cell.Type != engine.Water && cell.Type != engine.Building
-				if !passable {
-					if cell.Type == engine.Water {
-						result.StopReasonCode = "blocked_water"
-					} else if cell.Type == engine.Building {
-						result.StopReasonCode = "blocked_building"
-					}
-				} else if prevBattery <= 0 {
-					result.StopReasonCode = "out_of_battery"
-				} else if st.GameOver {
-					result.StopReasonCode = "game_over"
-				} else {
-					// Passable tile, battery left, game running: a one-way road rejected the move.
-					result.StopReasonCode = "blocked_direction"
-				}
-			}
-			result.AttemptedTo = &AttemptInfo{
-				X:        attemptedX,
-				Y:        attemptedY,
-				TileChar: tileChar,
-				TileType: tileType,
-				Passable: passable,
-			}
-			break
-		}
-
-		result.MovesExecuted++
-		newPos := sess.Engine.GetPlayerPosition()
-
-		// Build step info for this executed move
-		currState := sess.Engine.GetState()
-		batteryAfter := currState.Battery
-		tileChar, tileType := "", ""
-		charged := false
-		park := false
-		if newPos.Y >= 0 && newPos.Y < len(currState.Grid) && newPos.X >= 0 && newPos.X < len(currState.Grid[0]) {
-			cell := currState.Grid[newPos.Y][newPos.X]
-			tileChar, tileType = mapCellToCharAndType(cell)
-			charged = cell.Type == engine.Home || cell.Type == engine.Supercharger
-			park = cell.Type == engine.Park
-		}
-		victory := currState.Victory
-		step := StepInfo{
-			Idx:           i + 1,
-			Dir:           move,
-			From:          prevPos,
-			To:            newPos,
-			TileChar:      tileChar,
-			TileType:      tileType,
-			BatteryBefore: prevBattery,
-			BatteryAfter:  batteryAfter,
-			Success:       true,
-			Charged:       charged,
-			Park:          park,
-			Victory:       victory,
-		}
-		result.Steps = append(result.Steps, step)
-	}
-
-	result.GameState = sessionSnapshot(sess)
-	// Ensure backward-compat mirror
 	result.TotalMoves = len(moves)
 
-	// Finalize snapshots
-	endState := result.GameState
-	result.EndPos = endState.PlayerPos
-	result.EndBattery = endState.Battery
-	result.ScoreDelta = endState.Score - startScore
-	result.GameOver = endState.GameOver
-	result.Message = endState.Message
-	if result.StopReasonCode == "already_over" {
-		result.Message = alreadyOverMessage(endState)
-		result.StoppedReason = result.Message
-		result.GameOverCode = "game_over"
-		if endState.Victory {
-			result.GameOverCode = "victory"
-		}
-	}
+	start := sess.Engine.GetState()
+	result.StartPos = start.PlayerPos
+	result.StartBattery = start.Battery
+	startScore := start.Score
 
-	// If we ended due to game over without explicit stop reason code
-	if result.GameOver && result.StopReasonCode == "" {
-		if endState.Victory {
-			result.StopReasonCode = "victory"
-			result.GameOverCode = "victory"
-		} else if endState.Battery == 0 {
-			// Determine stranded vs out_of_battery by checking if we executed a move to 0 battery
-			if result.MovesExecuted > 0 {
-				// Last executed step battery_after should equal endState.Battery
-				last := result.Steps[len(result.Steps)-1]
-				if last.BatteryAfter == 0 {
-					// Stranded if not on charger
-					currCell := endState.Grid[endState.PlayerPos.Y][endState.PlayerPos.X]
-					if currCell.Type != engine.Home && currCell.Type != engine.Supercharger {
-						result.StopReasonCode = "stranded"
-						result.GameOverCode = "stranded"
-					} else {
-						result.StopReasonCode = "game_over"
-						result.GameOverCode = "game_over"
-					}
-				} else {
-					result.StopReasonCode = "game_over"
-					result.GameOverCode = "game_over"
+	var cancelErr error
+	if sess.Engine.IsGameOver() {
+		result.Success = false
+		result.StopReasonCode = "already_over"
+		if len(moves) > 0 {
+			result.StoppedOnMove = 1
+		}
+	} else {
+		for i, move := range moves {
+			if i > 0 && opts.StepDelay > 0 {
+				s.mu.Unlock()
+				cancelErr = sleepCtx(ctx, opts.StepDelay)
+				s.mu.Lock()
+				if cancelErr != nil {
+					break
 				}
-			} else {
-				// No executed moves, battery must have been 0 at start
-				result.StopReasonCode = "out_of_battery"
-				result.GameOverCode = "out_of_battery"
 			}
-		} else {
-			result.StopReasonCode = "game_over"
-			result.GameOverCode = "game_over"
+			done := bulkStep(sess, i, move, result)
+			if opts.OnStep != nil {
+				snap := decoratedSnapshot(sess)
+				s.mu.Unlock()
+				opts.OnStep(snap)
+				s.mu.Lock()
+			}
+			if done {
+				break
+			}
 		}
 	}
 
-	// Decision aids
+	end := decoratedSnapshot(sess)
+	result.GameState = end
+	result.EndPos = end.PlayerPos
+	result.EndBattery = end.Battery
+	result.ScoreDelta = end.Score - startScore
+	result.GameOver = end.GameOver
+	result.GameOverCode = gameOverCode(end)
+	result.Message = end.Message
+	switch {
+	case result.StopReasonCode == "already_over":
+		result.Message = alreadyOverMessage(end)
+		result.StoppedReason = result.Message
+	case result.StopReasonCode == "" && end.GameOver:
+		// The last executed move ended the game: victory, stranded, or another end.
+		result.StopReasonCode = result.GameOverCode
+		result.StoppedReason = end.Message
+	}
 	result.PossibleMoves = sess.Engine.GetPossibleMoves()
-	result.LocalView3x3 = buildLocal3x3(endState)
-	result.BatteryRisk = riskCode(engine.AnalyzeBatteryRisk(endState))
+	result.LocalView3x3 = end.LocalView3x3
+	result.BatteryRisk = end.BatteryRisk
 
-	// Also expose decision aids on the returned state for parity
-	endState.LocalView3x3 = result.LocalView3x3
-	endState.BatteryRisk = result.BatteryRisk
-
-	// Auto-save session after bulk moves
 	if err := s.sessions.Save(sessionID); err != nil {
 		fmt.Printf("Warning: Failed to persist session %s after bulk moves: %v\n", sessionID, err)
 	}
-
+	if cancelErr != nil {
+		return nil, cancelErr
+	}
 	return result, nil
+}
+
+// bulkStep runs moves[i] and records it on result. It reports whether the run must stop.
+func bulkStep(sess *Session, i int, move string, result *BulkMoveResult) bool {
+	if sess.Engine.IsGameOver() {
+		// Another request ended the game while this run waited between steps.
+		result.Success = false
+		result.StoppedOnMove = i + 1
+		result.StopReasonCode = "game_over"
+		result.StoppedReason = fmt.Sprintf("game ended before move %d", i+1)
+		return true
+	}
+	prevPos := sess.Engine.GetPlayerPosition()
+	prevBattery := sess.Engine.GetState().Battery
+	if !sess.Engine.Move(move) {
+		result.Success = false
+		result.StoppedOnMove = i + 1
+		result.StoppedReason = fmt.Sprintf("move %d blocked: %s", i+1, move)
+		result.AttemptedTo, result.StopReasonCode = rejectedMove(sess.Engine.GetState(), prevPos, move)
+		return true
+	}
+	st := sess.Engine.GetState()
+	result.MovesExecuted++
+	result.Steps = append(result.Steps, executedStep(i+1, move, prevPos, prevBattery, st))
+	return st.GameOver
+}
+
+// executedStep describes a move that succeeded; st is the state after the move.
+func executedStep(idx int, dir string, from engine.Position, batteryBefore int, st *engine.GameState) StepInfo {
+	step := StepInfo{
+		Idx:           idx,
+		Dir:           dir,
+		From:          from,
+		To:            st.PlayerPos,
+		BatteryBefore: batteryBefore,
+		BatteryAfter:  st.Battery,
+		Success:       true,
+		Victory:       st.Victory,
+	}
+	x, y := st.PlayerPos.X, st.PlayerPos.Y
+	if y >= 0 && y < len(st.Grid) && x >= 0 && x < len(st.Grid[y]) {
+		cell := st.Grid[y][x]
+		step.TileChar, step.TileType = mapCellToCharAndType(cell)
+		step.Charged = cell.Type == engine.Home || cell.Type == engine.Supercharger
+		step.Park = cell.Type == engine.Park
+	}
+	return step
+}
+
+// rejectedMove describes the cell a rejected move aimed at and classifies the
+// rejection; st is the state after the engine refused the move.
+func rejectedMove(st *engine.GameState, from engine.Position, dir string) (*AttemptInfo, string) {
+	x, y := from.X, from.Y
+	switch strings.ToLower(dir) {
+	case "up":
+		y--
+	case "down":
+		y++
+	case "left":
+		x--
+	case "right":
+		x++
+	}
+	attempt := &AttemptInfo{X: x, Y: y, TileChar: "B", TileType: "boundary"}
+	inside := y >= 0 && y < len(st.Grid) && x >= 0 && x < len(st.Grid[y])
+	var cellType engine.CellType
+	if inside {
+		cell := st.Grid[y][x]
+		cellType = cell.Type
+		attempt.TileChar, attempt.TileType = mapCellToCharAndType(cell)
+		attempt.Passable = cell.Type != engine.Water && cell.Type != engine.Building
+	}
+	switch {
+	case !st.GameOver:
+		// Rejected without ending the game: a one-way road.
+		return attempt, "blocked_direction"
+	case !inside:
+		return attempt, "blocked_boundary"
+	case cellType == engine.Water:
+		return attempt, "blocked_water"
+	case cellType == engine.Building:
+		return attempt, "blocked_building"
+	default:
+		return attempt, "out_of_battery"
+	}
+}
+
+// gameOverCode classifies how a finished game ended; empty while it is running.
+func gameOverCode(st *engine.GameState) string {
+	switch {
+	case !st.GameOver:
+		return ""
+	case st.Victory:
+		return "victory"
+	case strings.HasPrefix(st.Message, engine.DefaultMessages.HitWall):
+		return "crashed"
+	case st.Message == engine.DefaultMessages.Stranded:
+		return "stranded"
+	case st.Message == engine.DefaultMessages.OutOfBattery:
+		return "out_of_battery"
+	default:
+		return "game_over"
+	}
+}
+
+// decoratedSnapshot is sessionSnapshot plus the per-state decision aids.
+func decoratedSnapshot(sess *Session) *engine.GameState {
+	state := sessionSnapshot(sess)
+	state.LocalView3x3 = buildLocal3x3(state)
+	state.BatteryRisk = riskCode(engine.AnalyzeBatteryRisk(state))
+	return state
+}
+
+func sleepCtx(ctx context.Context, d time.Duration) error {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-t.C:
+		return nil
+	}
 }
 
 // alreadyOverMessage explains why a move was refused on a finished game.
@@ -622,10 +581,7 @@ func (s *gameServiceImpl) Reset(ctx context.Context, sessionID string) (*engine.
 
 	s.sessions.UpdateLastAction(sessionID)
 	sess.Engine.Reset()
-	state := sessionSnapshot(sess)
-	// Enrich state with decision aids
-	state.LocalView3x3 = buildLocal3x3(state)
-	state.BatteryRisk = riskCode(engine.AnalyzeBatteryRisk(state))
+	state := decoratedSnapshot(sess)
 
 	// Auto-save session after reset
 	if err := s.sessions.Save(sessionID); err != nil {
@@ -645,10 +601,7 @@ func (s *gameServiceImpl) GetGameState(ctx context.Context, sessionID string) (*
 		return nil, fmt.Errorf("session not found: %w", err)
 	}
 
-	state := sessionSnapshot(sess)
-	// Enrich state with decision aids
-	state.LocalView3x3 = buildLocal3x3(state)
-	state.BatteryRisk = riskCode(engine.AnalyzeBatteryRisk(state))
+	state := decoratedSnapshot(sess)
 	return state, nil
 }
 

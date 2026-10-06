@@ -50,73 +50,91 @@ When analyzing any grid row, you MUST:
 1. **Parse character-by-character** - Don't scan patterns visually
 2. **Verify suspected blockages** - If a row appears blocked, re-examine it position by position
 3. **Double-check R vs B/W** - These characters look similar in monospace fonts
-4. **Test with exploratory moves** - If uncertain, try moving to verify
+4. **Inspect, never probe** - If uncertain, read the cell data (`grid` / `nearbyGrid` `type` plus `allowedDirections`) before moving. Moving into a building, water, or off the map ends the game immediately, so exploratory "test" moves are never safe
 
 ## Game API Reference
 
+Gameplay uses GraphQL at `/graphql` (or the MCP tools at `/mcp`: `create_session`, `game_state`, `move`, `bulk_move`, `reset_game`, ...). The only REST routes are `POST/GET /api/sessions`; there is no REST move/state endpoint.
+
 ### Base URL
 ```
-http://localhost:8080/api
+http://localhost:8000/graphql
 ```
+
+### Create a Session
+```bash
+curl -s http://localhost:8000/graphql -H 'Content-Type: application/json' \
+  -d '{"query":"mutation { createSession(mapID: \"easy\", moveDelayMs: 0) { id gameState { playerPos { x y } battery maxBattery } } }"}' | jq
+```
+
+Fog variant: `createSession(mapID: "easy", fogEnabled: true, fogRadius: 2, gridPassword: "secret", moveDelayMs: 0)`.
 
 ### Get Current State
 ```bash
-curl -s http://localhost:8080/api | jq
+curl -s http://localhost:8000/graphql -H 'Content-Type: application/json' \
+  -d '{"query":"{ gameState(sessionID: \"SESSION_ID\") { playerPos { x y } battery maxBattery batteryRisk score totalParks gameOver victory message grid { type visited id allowedDirections } } }"}' | jq
 ```
 
-**Response includes:**
-- `player_pos`: {x, y} coordinates
-- `battery`: Current battery level
-- `max_battery`: Maximum capacity
-- `score`: Parks collected
-- `grid`: 2D array of game board
-- `visited_parks`: Collected park tracking
-- `game_over` / `victory`: Game state flags
-- `move_history`: Complete move trail
+**Key fields:**
+- `playerPos`: {x, y}; `grid` is row-major `grid[y][x]` (RIGHT = x+1, DOWN = y+1)
+- `battery` / `maxBattery`; `batteryRisk`: SAFE, LOW, CAUTION, DANGER, CRITICAL, WARNING (no charger), UNKNOWN. Its charger distance is Manhattan distance ignoring walls and one-way rules: a heuristic, not reachability
+- `score` / `totalParks` / `visitedParks`
+- `gameOver` / `victory`
+- `moveHistory`: complete move trail
+
+Always select `allowedDirections` with `type`. One-way rule: a move is allowed only if its direction (north=UP, south=DOWN, east=RIGHT, west=LEFT) is listed on both the cell you leave and the cell you enter, whenever those lists are non-empty. Wrong-way moves are rejected, cost no battery, and do not end the game.
+
+### Fog Sessions
+In a fog session never select `grid` unless you pass the right password (`grid(password: "secret")`): a wrong or missing password errors and nulls the whole `gameState` response. Use `nearbyGrid` instead, and select `x y` on its cells:
+```bash
+curl -s http://localhost:8000/graphql -H 'Content-Type: application/json' \
+  -d '{"query":"{ gameState(sessionID: \"SESSION_ID\") { playerPos { x y } battery fogRadius nearbyGrid { x y type id allowedDirections } } }"}' | jq
+```
+`nearbyGrid` is a (2r+1)x(2r+1) window with r = `fogRadius` (r = 1, a 3x3 window, without fog). Each cell's `x` / `y` are its map coordinates, so store cells by those; off-map cells read `building`.
 
 ### Single Move
 ```bash
-curl -X POST http://localhost:8080/api \
-  -H "Content-Type: application/json" \
-  -d '{"action":"right"}'
+curl -s http://localhost:8000/graphql -H 'Content-Type: application/json' \
+  -d '{"query":"mutation { move(sessionID: \"SESSION_ID\", direction: RIGHT) { success message gameState { playerPos { x y } battery gameOver victory } } }"}' | jq
 ```
 
-Actions: `up`, `down`, `left`, `right`
+Directions: `UP`, `DOWN`, `LEFT`, `RIGHT`. Each move costs 1 battery; entering H or S refills to `maxBattery`; reaching 0 battery away from a charger ends the game.
 
 ### Bulk Moves
 ```bash
-curl -X POST http://localhost:8080/api \
-  -H "Content-Type: application/json" \
-  -d '{"actions":["right","right","down","left"]}'
+curl -s http://localhost:8000/graphql -H 'Content-Type: application/json' \
+  -d '{"query":"mutation { bulkMove(sessionID: \"SESSION_ID\", moves: [RIGHT, RIGHT, DOWN, LEFT]) { movesExecuted stoppedReason truncated batteryRisk gameState { playerPos { x y } battery gameOver victory } } }"}' | jq
 ```
 
-- Processes up to 50 moves in sequence
-- Validates state after each move
-- Returns detailed audit trail
+- Processes up to 50 moves in sequence; extras are dropped with `truncated: true`
+- Stops early on a failed move (see `stoppedReason`)
 
-### Reset with Move
+### Reset
 ```bash
-curl -X POST http://localhost:8080/api \
-  -H "Content-Type: application/json" \
-  -d '{"action":"up","reset":true}'
+curl -s http://localhost:8000/graphql -H 'Content-Type: application/json' \
+  -d '{"query":"mutation { reset(sessionID: \"SESSION_ID\") { playerPos { x y } battery } }"}' | jq
 ```
 
-Combines reset + move in one API call.
+`move` and `bulkMove` also accept `reset: true` to reset before moving.
 
 ### Session Management
 ```bash
-# Create session
-curl -X POST http://localhost:8080/api/sessions \
-  -H "Content-Type: application/json" \
-  -d '{"config_name":"easy"}'
+# List recently active sessions
+curl -s http://localhost:8000/graphql -H 'Content-Type: application/json' \
+  -d '{"query":"{ sessions(sort: ACTION, order: DESC, limit: 5) { count total sessions { id mapName lastActionAt } } }"}' | jq
 
-# Get session state
-curl http://localhost:8080/api?sessionId=a3x7
-
-# Move in session
-curl -X POST http://localhost:8080/api?sessionId=a3x7 \
-  -d '{"action":"right"}'
+# Delete a session
+curl -s http://localhost:8000/graphql -H 'Content-Type: application/json' \
+  -d '{"query":"mutation { deleteSession(id: \"SESSION_ID\") { message } }"}' | jq
 ```
+
+The jq snippets below assume a state fetched into `state.json`:
+```bash
+curl -s http://localhost:8000/graphql -H 'Content-Type: application/json' \
+  -d '{"query":"{ gameState(sessionID: \"SESSION_ID\") { playerPos { x y } visitedParks { id visited } grid { type visited id allowedDirections } } }"}' \
+  | jq '.data.gameState' > state.json
+```
+(Non-fog sessions, or pass `grid(password: ...)` for fog.)
 
 ## Navigation Strategies
 
@@ -125,11 +143,11 @@ curl -X POST http://localhost:8080/api?sessionId=a3x7 \
 Create ASCII representations to track understanding:
 ```bash
 # Visual grid
-curl -s http://localhost:8080/api | jq -r '
-  .player_pos as $p |
-  .grid | to_entries | map(
+jq -r '
+  .playerPos as $p |
+  .grid | to_entries | map(.key as $row |
     .value | to_entries | map(
-      if .key == $p.x then "T"
+      if .key == $p.x and $row == $p.y then "T"
       elif .value.type == "road" then "R"
       elif .value.type == "building" then "B"
       elif .value.type == "water" then "W"
@@ -139,7 +157,7 @@ curl -s http://localhost:8080/api | jq -r '
       else "?"
       end
     ) | join("")
-  ) | join("\n")'
+  ) | join("\n")' state.json
 ```
 
 ### 🧩 Corridor Navigation Technique
@@ -151,19 +169,19 @@ Identify safe passages for efficient travel:
 
 **Find horizontal highways:**
 ```bash
-curl -s http://localhost:8080/api | jq '
+jq '
   .grid | to_entries | map({
     row: .key,
     road_count: (.value | map(select(.type == "road")) | length)
-  }) | sort_by(.road_count) | reverse | .[0:3]'
+  }) | sort_by(.road_count) | reverse | .[0:3]' state.json
 ```
 
 ### ⚡ Proactive Battery Management
 
 **Find nearest chargers:**
 ```bash
-curl -s http://localhost:8080/api | jq '
-  .player_pos as $p |
+jq '
+  .playerPos as $p |
   .grid | to_entries | map(.key as $y |
   .value | to_entries |
   map(select(.value.type == "supercharger" or .value.type == "home") |
@@ -171,8 +189,8 @@ curl -s http://localhost:8080/api | jq '
     type: .value.type,
     x: .key,
     y: $y,
-    distance: ((.key - $p.x)|abs + (($y|tonumber) - $p.y)|abs)
-  })) | flatten | sort_by(.distance)'
+    distance: (((.key - $p.x)|abs) + (($y - $p.y)|abs))
+  })) | flatten | sort_by(.distance)' state.json
 ```
 
 **Safety principles:**
@@ -249,28 +267,27 @@ For collecting all parks:
 
 **Check adjacent cells:**
 ```bash
-curl -s http://localhost:8080/api | jq '
-  .player_pos as $p |
+jq '
+  .playerPos as $p |
   {
-    up: .grid[$p.y - 1][$p.x].type,
-    down: .grid[$p.y + 1][$p.x].type,
-    left: .grid[$p.y][$p.x - 1].type,
-    right: .grid[$p.y][$p.x + 1].type
-  }'
+    up: .grid[$p.y - 1][$p.x],
+    down: .grid[$p.y + 1][$p.x],
+    left: .grid[$p.y][$p.x - 1],
+    right: .grid[$p.y][$p.x + 1]
+  }' state.json
 ```
 
 **Find uncollected parks:**
 ```bash
-curl -s http://localhost:8080/api | jq '
-  .visited_parks as $v |
+jq '
   .grid | to_entries | map(.key as $y |
   .value | to_entries |
   map(select(.value.type == "park") |
   {
     id: .value.id,
     position: {x: .key, y: $y},
-    visited: ($v[.value.id] // false)
-  })) | flatten'
+    visited: .value.visited
+  })) | flatten' state.json
 ```
 
 ## Key Success Principles

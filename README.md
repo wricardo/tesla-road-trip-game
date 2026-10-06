@@ -129,7 +129,7 @@ mutation {
   createSession(mapID: "easy") {
     id
     mapName
-    gameState { playerPos { x y } battery score message }
+    gameState { playerPos { x y } battery score message fogRadius nearbyGrid { x y type allowedDirections } }
   }
 }
 ```
@@ -171,19 +171,21 @@ The `move` mutation returns:
 - `attemptedTo`: present when move metadata is available for the attempted target
   - Fields: `x`, `y`, `tileChar`, `tileType`, `passable`
 - `gameState` includes:
-  - `localView3x3`: three short strings centered on player (T in center)
-  - `batteryRisk`: human-readable battery risk label
+  - `nearbyGrid { x y type visited id allowedDirections }`: `(2r+1) x (2r+1)` window around the player with `r = fogRadius` (3x3 without fog). Each cell's `x` / `y` are its map coordinates; off-map cells read `building` with their off-map coordinates.
+  - `grid(password:)`: full row-major map (`grid[y][x]`); in fog sessions it requires the grid password, and a wrong/missing password nulls the whole response.
+  - `batteryRisk`: `SAFE`, `LOW`, `CAUTION`, `DANGER`, `CRITICAL`, `WARNING` (no charger), or `UNKNOWN`
 
 The `bulkMove` mutation adds:
 - Summary fields: `requestedMoves`, `movesExecuted`, `stoppedReason`, `stopReasonCode`, `stoppedOnMove`, `truncated`, `limit`
 - Start/end snapshot: `startPos`, `endPos`, `startBattery`, `endBattery`, `scoreDelta`
 - `steps`: compact per-step entries for this call only
 - `attemptedTo`: failed/attempted target metadata when available
-- Decision aids: `possibleMoves`, `localView3x3`, `batteryRisk`
+- Decision aids: `possibleMoves` (directions you can legally move from the end position: walls, map edge, one-way roads, battery considered; empty after game over), `batteryRisk`
 
 Notes:
 - `totalMoves` is the GraphQL field name for cumulative session moves.
-- Bulk responses expose both `requestedMoves` and `movesExecuted` so agents can detect truncation or blocked routes.
+- Bulk responses expose both `requestedMoves` and `movesExecuted` so agents can detect truncation (max 50 moves per call) or blocked routes.
+- Cells carry `allowedDirections`; a move is allowed only if its direction is listed in every non-empty `allowedDirections` of the cell left and the cell entered. Wrong-way moves are rejected at no battery cost and do not end the game.
 
 
 ## Maps

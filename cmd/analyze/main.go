@@ -20,7 +20,6 @@ type AnalysisConfig struct {
 	StartingBattery   int               `json:"starting_battery"`
 	Layout            []string          `json:"layout"`
 	Legend            map[string]string `json:"legend"`
-	WallCrashEndsGame bool              `json:"wall_crash_ends_game"`
 	Messages          map[string]string `json:"messages"`
 }
 

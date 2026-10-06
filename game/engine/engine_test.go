@@ -26,7 +26,6 @@ func createTestConfig() *GameConfig {
 			"W": "water",
 			"B": "building",
 		},
-		WallCrashEndsGame: false,
 	}
 }
 
@@ -341,11 +340,7 @@ func TestEngine_GameOverScenarios(t *testing.T) {
 	// Reset for next test
 	engine.Reset()
 
-	// Test wall crash ending game
-	config.WallCrashEndsGame = true
-	engine.SetConfig(config)
-
-	// Try to move into wall
+	// Try to move into wall (water) — any collision now ends the game.
 	engine.Move("down") // Should hit water
 
 	if !engine.IsGameOver() {
@@ -376,7 +371,6 @@ func TestEngine_VictoryScenario(t *testing.T) {
 			"W": "water",
 			"B": "building",
 		},
-		WallCrashEndsGame: false,
 	}
 
 	engine, err := NewEngine(config)

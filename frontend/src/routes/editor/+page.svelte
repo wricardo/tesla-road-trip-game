@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
-	import { directionGlyph, standardDirectionalCellConfigs, directionalChars } from '$lib/directional';
+	import { directionGlyph, standardDirectionalCellConfigs, directionalChars, terrainGlyph } from '$lib/directional';
 	import uiAuthConfig from '$lib/config/ui-auth.json';
 
 	type CellType = string;
@@ -26,7 +26,6 @@
 		layout: string[];
 		legend: LegendEntry[];
 		cellConfigs: CellConfigEntry[];
-		wallCrashEndsGame: boolean;
 	}
 
 	const client = getContextClient();
@@ -53,10 +52,10 @@
 
 	const cellClasses: Record<string, string> = {
 		R: 'bg-white',
-		H: 'bg-red-500 ring-1 ring-red-200',
+		H: 'bg-red-500 ring-1 ring-red-200 text-white font-bold',
 		P: 'bg-emerald-500',
 		S: 'bg-yellow-400',
-		W: 'bg-blue-400',
+		W: 'bg-blue-400 text-white font-bold',
 		B: 'bg-slate-700',
 		'|': 'bg-white text-orange-500 font-bold',
 		'-': 'bg-white text-orange-500 font-bold',
@@ -69,6 +68,11 @@
 		'7': 'bg-white text-orange-500 font-bold',
 		r: 'bg-white text-orange-500 font-bold'
 	};
+
+	// Object keys sort integer-like keys ('7') first, so palette order is explicit.
+	const terrainPaletteKeys = ['R', 'H', 'P', 'S', 'W', 'B'];
+	const directionalPaletteKeys = ['|', '-', '^', 'v', '>', '<', 'J', 'L', '7', 'r'];
+	const terrainTypeByChar: Record<string, string> = { H: 'home', P: 'park', S: 'supercharger', W: 'water' };
 
 	const defaultLegend: LegendEntry[] = [
 		{ key: 'R', value: 'road' },
@@ -90,7 +94,6 @@
 	let description = $state('');
 	let maxBattery = $state(20);
 	let startingBattery = $state(20);
-	let wallCrashEndsGame = $state(true);
 
 	// Stats
 	let parkCount = $state(0);
@@ -163,10 +166,15 @@
 		}
 	}
 
-	function resizeGrid() {
-		const newSize = parseInt((document.getElementById('gridSize') as HTMLSelectElement)?.value || '10');
+	function resizeGrid(event: Event) {
+		const select = event.currentTarget as HTMLSelectElement;
+		const newSize = parseInt(select.value, 10);
+		if (newSize === gridSize) return;
 		if (confirm(`Resize grid to ${newSize}x${newSize}? This will clear current data.`)) {
 			initializeGrid(newSize);
+		} else {
+			// Revert the control: the select is not bound, so gridSize still matches gridData.
+			select.value = String(gridSize);
 		}
 	}
 
@@ -200,7 +208,10 @@
 	}
 
 	function displayGlyph(cell: CellType) {
-		return directionalChars.has(cell) ? directionGlyph(currentCellConfigs.find((entry) => entry.key === cell)?.allowedDirections ?? []) : '';
+		if (directionalChars.has(cell)) {
+			return directionGlyph(currentCellConfigs.find((entry) => entry.key === cell)?.allowedDirections ?? []);
+		}
+		return terrainGlyph(terrainTypeByChar[cell] ?? '');
 	}
 
 	function resetEditor() {
@@ -214,7 +225,6 @@
 		description = '';
 		maxBattery = 20;
 		startingBattery = 20;
-		wallCrashEndsGame = true;
 		currentTool = 'R';
 		currentCellConfigs = standardDirectionalCellConfigs;
 		initializeGrid(10);
@@ -265,8 +275,7 @@
 			startingBattery,
 			layout,
 			legend: defaultLegend,
-			cellConfigs: currentCellConfigs,
-			wallCrashEndsGame
+			cellConfigs: currentCellConfigs
 		};
 	}
 
@@ -386,7 +395,6 @@
 						startingBattery
 						layout
 						cellConfigs { key type allowedDirections }
-						wallCrashEndsGame
 					}
 				}
 			`;
@@ -400,7 +408,6 @@
 			description = map.description;
 			maxBattery = map.maxBattery;
 			startingBattery = map.startingBattery;
-			wallCrashEndsGame = map.wallCrashEndsGame;
 			gridSize = map.gridSize;
 
 			currentCellConfigs = map.cellConfigs?.length ? map.cellConfigs : standardDirectionalCellConfigs;
@@ -449,7 +456,7 @@
 	<div class="max-w-7xl mx-auto px-6 py-4">
 		<div class="flex items-center justify-between gap-4">
 			<div>
-				<p class="text-xs font-bold uppercase tracking-widest text-red-500 mb-1">🗺️ Map editor</p>
+				<p class="text-xs font-bold uppercase tracking-widest text-red-600 mb-1">🗺️ Map editor</p>
 				<h1 class="text-xl font-light text-[#171a20] tracking-tight">
 					{isEditMode ? `Edit ${mapName || originalMapId}` : isDuplicateMode ? `Duplicate ${duplicateSourceId}` : 'Design a road trip map'}
 				</h1>
@@ -484,13 +491,13 @@
 				<div class="rounded-2xl bg-[#f7f7f7] border border-gray-100 p-8 mb-6 text-center text-sm text-gray-400">Loading map…</div>
 			{:else}
 			<div class="overflow-x-auto rounded-2xl bg-[#f7f7f7] p-3 border border-gray-100 mb-6">
-				<div class="grid gap-0.5 min-w-fit" style={`grid-template-columns: repeat(${gridSize}, 2rem);`} aria-label="Editable map grid">
+				<div class="grid gap-px min-w-fit w-fit mx-auto bg-gray-300 border border-gray-300" style={`grid-template-columns: repeat(${gridSize}, 2rem);`} role="group" aria-label="Editable map grid">
 					{#each gridData as row, rowIdx}
 						{#each row as cell, colIdx}
 							<button
 								type="button"
 								onclick={() => paintCell(rowIdx, colIdx)}
-								class={`w-8 h-8 rounded-[3px] border border-white/70 text-xs cursor-pointer hover:ring-2 hover:ring-gray-300 focus:outline-none focus:ring-2 focus:ring-[#393c41] transition-all flex items-center justify-center ${displayClass(cell)}`}
+								class={`w-8 h-8 text-sm cursor-pointer hover:ring-2 hover:ring-inset hover:ring-gray-500 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#393c41] transition-all flex items-center justify-center ${displayClass(cell)}`}
 								aria-label={`${displayLabel(cell)} at row ${rowIdx + 1}, column ${colIdx + 1}`}
 								title={displayLabel(cell)}
 							>
@@ -508,21 +515,24 @@
 					<label for="gridSize" class="text-xs font-semibold text-[#393c41] mb-1.5 block">Grid size</label>
 					<select
 						id="gridSize"
-						bind:value={gridSize}
+						value={gridSize}
 						onchange={resizeGrid}
 						class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-gray-400"
 					>
-						<option value="5">5×5</option>
-						<option value="8">8×8</option>
-						<option value="10">10×10</option>
-						<option value="15">15×15</option>
-						<option value="20">20×20</option>
-						<option value="25">25×25</option>
-						<option value="30">30×30</option>
+						{#if ![5, 8, 10, 15, 20, 25, 30].includes(gridSize)}
+							<option value={gridSize}>{gridSize}×{gridSize}</option>
+						{/if}
+						<option value={5}>5×5</option>
+						<option value={8}>8×8</option>
+						<option value={10}>10×10</option>
+						<option value={15}>15×15</option>
+						<option value={20}>20×20</option>
+						<option value={25}>25×25</option>
+						<option value={30}>30×30</option>
 					</select>
 				</div>
 				<div class="flex-1 flex justify-end">
-					<button type="button" onclick={clearGrid} class="border border-red-200 bg-red-50 text-red-500 text-sm px-4 py-2.5 rounded-full hover:bg-red-100 transition-colors">Clear all</button>
+					<button type="button" onclick={clearGrid} class="border border-red-300 bg-red-50 text-red-700 text-sm px-4 py-2.5 rounded-full hover:bg-red-100 transition-colors">Clear all</button>
 				</div>
 			</div>
 
@@ -559,19 +569,14 @@
 				<h2 class="text-xl font-light text-[#393c41] mb-1">Cell palette</h2>
 				<p class="text-sm text-gray-400 mb-4">Selected: <span class="font-medium text-[#393c41]">{cellLabels[currentTool]}</span></p>
 				<div class="grid grid-cols-2 gap-2">
-					{#each Object.entries(cellLabels) as [type, label]}
-						<button
-							type="button"
-							onclick={() => selectCellType(type as CellType)}
-							class={`p-3 rounded-2xl text-sm font-medium transition-all border ${
-								currentTool === type
-									? 'border-[#393c41] bg-[#f7f7f7] text-[#171a20] shadow-sm'
-									: 'border-gray-200 bg-white text-gray-500 hover:border-gray-400 hover:text-[#393c41]'
-							}`}
-						>
-							<span class={`flex items-center justify-center h-7 w-7 rounded-md mx-auto mb-2 border border-white/70 ${displayClass(type as CellType)}`}>{displayGlyph(type as CellType)}</span>
-							<span class="text-xs">{label}</span>
-						</button>
+					{#each terrainPaletteKeys as type}
+						{@render paletteButton(type)}
+					{/each}
+				</div>
+				<h3 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mt-5 mb-2">Directional roads</h3>
+				<div class="grid grid-cols-2 gap-2">
+					{#each directionalPaletteKeys as type}
+						{@render paletteButton(type)}
 					{/each}
 				</div>
 			</section>
@@ -603,11 +608,6 @@
 						</div>
 					</div>
 
-					<label for="wallCrash" class="flex items-center gap-2 text-sm text-gray-500">
-						<input id="wallCrash" bind:checked={wallCrashEndsGame} type="checkbox" class="w-4 h-4 rounded border-gray-300 text-[#393c41] focus:ring-[#393c41]" />
-						Wall collision ends game
-					</label>
-
 					<button onclick={saveConfiguration} disabled={isSaving || isLoadingMap || isValidating} class="w-full bg-[#393c41] text-white text-sm px-4 py-3 rounded-full hover:bg-black transition-colors disabled:opacity-50 mt-2">
 						{isSaving ? 'Saving…' : isEditMode ? 'Save changes' : 'Save map'}
 					</button>
@@ -624,3 +624,19 @@
 		</aside>
 	</div>
 </div>
+
+{#snippet paletteButton(type: string)}
+	<button
+		type="button"
+		onclick={() => selectCellType(type as CellType)}
+		aria-pressed={currentTool === type}
+		class={`p-3 rounded-2xl text-sm font-medium transition-all border ${
+			currentTool === type
+				? 'border-[#393c41] bg-[#f7f7f7] text-[#171a20] shadow-sm'
+				: 'border-gray-200 bg-white text-gray-600 hover:border-gray-400 hover:text-[#393c41]'
+		}`}
+	>
+		<span class={`flex items-center justify-center h-7 w-7 rounded-md mx-auto mb-2 border border-gray-200 ${displayClass(type as CellType)}`}>{displayGlyph(type as CellType)}</span>
+		<span class="text-xs">{cellLabels[type]}</span>
+	</button>
+{/snippet}

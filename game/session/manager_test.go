@@ -27,7 +27,6 @@ func createTestConfig() *engine.GameConfig {
 			"R": "road", "H": "home", "P": "park",
 			"S": "supercharger", "W": "water", "B": "building",
 		},
-		WallCrashEndsGame: false,
 	}
 }
 

@@ -287,7 +287,6 @@ func (m *Manager) createMinimalConfig() *engine.GameConfig {
 			"RRRHR",
 			"RRPRR",
 		},
-		WallCrashEndsGame: false,
 	}
 	return cfg
 }

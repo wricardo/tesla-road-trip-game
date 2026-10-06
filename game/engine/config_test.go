@@ -29,7 +29,6 @@ func createValidConfig() *GameConfig {
 			"W": "water",
 			"B": "building",
 		},
-		WallCrashEndsGame: false,
 	}
 }
 
@@ -270,7 +269,6 @@ func TestLoadConfigByName(t *testing.T) {
 			"W": "water",
 			"B": "building"
 		},
-		"wall_crash_ends_game": false,
 		"messages": {
 			"welcome": "Welcome!",
 			"home_charge": "Home!",
@@ -344,7 +342,6 @@ func TestLoadGameConfig(t *testing.T) {
 			"W": "water",
 			"B": "building"
 		},
-		"wall_crash_ends_game": false,
 		"messages": {
 			"welcome": "Welcome!",
 			"home_charge": "Home!",

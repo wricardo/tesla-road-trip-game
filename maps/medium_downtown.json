@@ -28,6 +28,5 @@
     "S": "supercharger",
     "W": "water",
     "B": "building"
-  },
-  "wall_crash_ends_game": true
+  }
 }

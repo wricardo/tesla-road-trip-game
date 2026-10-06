@@ -297,7 +297,7 @@ func (s *Server) handleBulkMove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := s.service.BulkMove(r.Context(), sessionID, req.Moves, req.Reset)
+	result, err := s.service.BulkMove(r.Context(), sessionID, req.Moves, req.Reset, service.BulkMoveOptions{})
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return

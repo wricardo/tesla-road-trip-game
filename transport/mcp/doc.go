@@ -4,40 +4,39 @@
 //   - MCP server for AI agent integration
 //   - Tool definitions for game operations
 //   - Session-aware command execution
-//   - Stdio and HTTP transport modes
+//   - Streamable HTTP transport (stdio is not supported)
 //
 // MCP Tools:
 //
 // The package exposes the following tools for AI agents:
-//   - game_state: Get current game state with grid visualization
+//   - game_state: Get current game state (optional full grid for non-fog sessions)
 //   - move: Execute single directional movement
-//   - bulk_move: Execute multiple moves in sequence
+//   - bulk_move: Execute up to 50 moves in sequence
 //   - reset_game: Reset game to initial state
 //   - move_history: Retrieve move history with pagination
-//   - create_session: Create new game session with map selection
+//   - create_session: Create new game session (map, fog, move delay)
 //   - get_session: Get specific session details
-//   - list_sessions: List all active sessions
+//   - update_session: Update session display name
+//   - delete_session: Delete a session
+//   - list_sessions: List sessions with sort/order/limit
+//   - unified_sessions: List sessions with game state, optionally per map
 //   - list_maps: List available game maps
+//   - get_map: Get full map definition
+//   - validate_map: Validate a map definition without saving
+//   - create_map, update_map, delete_map: Admin map management
 //
-// Transport Modes:
+// Transport:
 //
-// The server supports two transport modes:
-//   - Stdio: Direct stdio communication for local MCP clients
-//   - HTTP: HTTP endpoint for remote MCP integration
+// The server is exposed over HTTP via Handler(), mounted at /mcp.
 //
 // Session Management:
 //
-// All game tools support optional session_id parameter for multi-session
-// gameplay. Without session_id, operations target the default session.
-// AI agents can manage multiple concurrent game sessions independently.
+// Session-scoped tools require a session_id (update_session and
+// delete_session take id). AI agents can manage multiple concurrent game
+// sessions independently.
 //
 // Usage:
 //
-//	// Stdio mode
-//	server := mcp.NewServer(gameService)
-//	server.RunStdio()
-//
-//	// HTTP mode
 //	hub := websocket.NewHub()
 //	go hub.Run()
 //	server := mcp.NewServer(gameService, hub)

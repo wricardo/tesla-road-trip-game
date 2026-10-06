@@ -58,6 +58,7 @@ var e=`
     createSession(mapID: $mapID, fogEnabled: $fogEnabled, fogRadius: $fogRadius, gridPassword: $gridPassword, moveDelayMs: $moveDelayMs) {
       id
       mapName
+      generatedGridPassword
     }
   }
 `,a=`
@@ -74,6 +75,8 @@ var e=`
         gameOver
         totalMoves
         resetCount
+        totalParks
+        message
         mapName
         fogEnabled
         fogRadius
@@ -93,6 +96,8 @@ var e=`
       gameOver
       totalMoves
       resetCount
+      totalParks
+      message
       mapName
       fogEnabled
       fogRadius

@@ -4,8 +4,21 @@
 	import { setContextClient } from '@urql/svelte';
 	import { makeClient } from '$lib/graphql';
 	import { browser } from '$app/environment';
+	import { page } from '$app/stores';
 
 	let { children } = $props();
+
+	const navItems = [
+		{ href: '/', label: 'Play' },
+		{ href: '/learn', label: 'How it works' },
+		{ href: '/lobby', label: 'Live sessions' },
+		{ href: '/maps', label: 'Maps' },
+		{ href: '/multi', label: 'Watch multiple' }
+	];
+
+	function isActive(href: string, pathname: string): boolean {
+		return href === '/' ? pathname === '/' || pathname.startsWith('/watch/') : pathname === href || pathname.startsWith(`${href}/`);
+	}
 
 	// ssr=false so this always runs in browser — safe to set client synchronously
 	if (browser) {
@@ -24,17 +37,16 @@
 		<a href="/" class="flex items-center gap-3 no-underline">
 			<span class="text-xl font-light tracking-widest text-[#393c41]">TESLA</span>
 			<span class="text-xs text-gray-400 font-light">Road Trip</span>
-			<span class="ml-2 inline-flex items-center gap-1 text-xs bg-red-50 text-red-500 border border-red-200 rounded-full px-2 py-0.5">
-				<span class="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse"></span>
-				LIVE
-			</span>
 		</a>
-		<nav class="flex items-center gap-6 text-sm text-gray-500">
-			<a href="/" class="hover:text-[#393c41] transition-colors">Play</a>
-			<a href="/learn" class="hover:text-[#393c41] transition-colors">How it works</a>
-			<a href="/lobby" class="hover:text-[#393c41] transition-colors">Live sessions</a>
-			<a href="/maps" class="hover:text-[#393c41] transition-colors">Maps</a>
-			<a href="/multi" class="hover:text-[#393c41] transition-colors">Multi-watch</a>
+		<nav class="flex items-center gap-1 text-sm" aria-label="Main">
+			{#each navItems as item}
+				{@const active = isActive(item.href, $page.url.pathname)}
+				<a
+					href={item.href}
+					aria-current={active ? 'page' : undefined}
+					class="px-3 py-1.5 rounded-full transition-colors {active ? 'bg-[#393c41] text-white' : 'text-gray-500 hover:text-[#393c41] hover:bg-gray-100'}"
+				>{item.label}</a>
+			{/each}
 		</nav>
 	</header>
 

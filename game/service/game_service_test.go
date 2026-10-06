@@ -246,11 +246,6 @@ func TestGameService_CreateSession_FogOptions(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "fog enabled requires password",
-			opts:    service.CreateSessionOptions{FogEnabled: true, FogRadius: 2},
-			wantErr: true,
-		},
-		{
 			name: "move delay can be disabled",
 			opts: service.CreateSessionOptions{MoveDelayMs: intPtr(0)},
 		},
@@ -439,7 +434,7 @@ func TestGameService_BulkMove(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := svc.BulkMove(ctx, tt.sessionID, tt.moves, tt.reset)
+			result, err := svc.BulkMove(ctx, tt.sessionID, tt.moves, tt.reset, service.BulkMoveOptions{})
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BulkMove() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -459,7 +454,7 @@ func TestGameService_BulkMove(t *testing.T) {
 	// Reset to start from Home (3,2)
 	_, _ = svc.Reset(ctx, sessionInfo.ID)
 	// Sequence: left (ok), right (ok, back to home), up (blocked by water)
-	res3, err := svc.BulkMove(ctx, sessionInfo.ID, []string{"left", "right", "up"}, false)
+	res3, err := svc.BulkMove(ctx, sessionInfo.ID, []string{"left", "right", "up"}, false, service.BulkMoveOptions{})
 	if err != nil {
 		t.Fatalf("BulkMove diagnostics failed with error: %v", err)
 	}
@@ -488,7 +483,7 @@ func TestGameService_GetMoveHistory(t *testing.T) {
 
 	// Make some moves to generate history
 	moves := []string{"up", "right", "down", "left"}
-	_, err = svc.BulkMove(ctx, sessionInfo.ID, moves, false)
+	_, err = svc.BulkMove(ctx, sessionInfo.ID, moves, false, service.BulkMoveOptions{})
 	if err != nil {
 		t.Fatalf("Failed to make moves: %v", err)
 	}
@@ -676,12 +671,67 @@ func TestGameService_BulkMove_WrongWayReportsBlockedDirection(t *testing.T) {
 		t.Fatal(err)
 	}
 	// RIGHT onto '>' is fine; LEFT back out of it violates the one-way rule.
-	res, err := svc.BulkMove(ctx, sess.ID, []string{"right", "left"}, false)
+	res, err := svc.BulkMove(ctx, sess.ID, []string{"right", "left"}, false, service.BulkMoveOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if res.MovesExecuted != 1 || res.StopReasonCode != "blocked_direction" {
 		t.Fatalf("want 1 move then blocked_direction, got %d moves, code %q (%s)", res.MovesExecuted, res.StopReasonCode, res.StoppedReason)
+	}
+}
+
+// Paced runs (moveDelayMs > 0, the UI default) must report the same codes and
+// decision aids as instant runs.
+func TestGameService_BulkMove_PacedRunsReportSameOutcome(t *testing.T) {
+	ctx := context.Background()
+	for _, delay := range []time.Duration{0, time.Millisecond} {
+		configs := NewMockConfigManager()
+		configs.configs["lane"] = &engine.GameConfig{
+			Name: "lane", GridSize: 5, MaxBattery: 5, StartingBattery: 5,
+			Layout: []string{"BBBBB", "BHRPB", "BBBBB", "BBBBB", "BBBBB"},
+			Legend: map[string]string{"R": "road", "H": "home", "P": "park", "S": "supercharger", "B": "building", "W": "water"},
+		}
+		svc := service.NewGameService(NewMockSessionManager(), configs)
+		sess, err := svc.CreateSession(ctx, "lane")
+		if err != nil {
+			t.Fatal(err)
+		}
+		steps := 0
+		opts := service.BulkMoveOptions{StepDelay: delay, OnStep: func(*engine.GameState) { steps++ }}
+		run := func(moves []string, reset bool) *service.BulkMoveResult {
+			t.Helper()
+			res, err := svc.BulkMove(ctx, sess.ID, moves, reset, opts)
+			if err != nil {
+				t.Fatalf("delay %v: %v", delay, err)
+			}
+			return res
+		}
+
+		crash := run([]string{"up", "right"}, false)
+		if !crash.GameOver || crash.StopReasonCode != "blocked_building" || crash.GameOverCode != "crashed" || crash.StoppedOnMove != 1 {
+			t.Fatalf("delay %v crash: gameOver=%v stop=%q gameOverCode=%q stoppedOn=%d", delay, crash.GameOver, crash.StopReasonCode, crash.GameOverCode, crash.StoppedOnMove)
+		}
+
+		restarted := run(nil, true)
+		if restarted.GameOver || restarted.StopReasonCode != "" || restarted.StartPos != (engine.Position{X: 1, Y: 1}) {
+			t.Fatalf("delay %v reset with no moves: gameOver=%v stop=%q start=%v", delay, restarted.GameOver, restarted.StopReasonCode, restarted.StartPos)
+		}
+
+		moved := run([]string{"right"}, false)
+		if len(moved.PossibleMoves) != 2 || moved.BatteryRisk == "" || moved.StopReasonCode != "" {
+			t.Fatalf("delay %v running game: possible=%v risk=%q stop=%q", delay, moved.PossibleMoves, moved.BatteryRisk, moved.StopReasonCode)
+		}
+
+		// The park is the last one: the win must stop the run before "left".
+		won := run([]string{"right", "left"}, false)
+		if won.MovesExecuted != 1 || won.StopReasonCode != "victory" || won.GameOverCode != "victory" {
+			t.Fatalf("delay %v win mid-run: moves=%d stop=%q gameOverCode=%q", delay, won.MovesExecuted, won.StopReasonCode, won.GameOverCode)
+		}
+
+		// One callback per attempted move: crash 1, reset run 0, right 1, win 1.
+		if steps != 3 {
+			t.Fatalf("delay %v: OnStep called %d times, want 3", delay, steps)
+		}
 	}
 }
 
@@ -736,11 +786,58 @@ func TestGameService_MovesAfterGameOverReportAlreadyOver(t *testing.T) {
 		t.Fatalf("move after game over: success=%v message=%q attempted=%v", mv.Success, mv.Message, mv.AttemptedTo)
 	}
 
-	bm, err := svc.BulkMove(ctx, sess.ID, []string{"left", "left"}, false)
+	bm, err := svc.BulkMove(ctx, sess.ID, []string{"left", "left"}, false, service.BulkMoveOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if bm.Success || bm.StopReasonCode != "already_over" || bm.MovesExecuted != 0 || !strings.Contains(bm.Message, "reset") {
 		t.Fatalf("bulkMove after game over: success=%v code=%q moves=%d message=%q", bm.Success, bm.StopReasonCode, bm.MovesExecuted, bm.Message)
+	}
+}
+
+func TestGameService_CreateSession_GeneratesFogPassword(t *testing.T) {
+	ctx := context.Background()
+	svc := service.NewGameService(NewMockSessionManager(), NewMockConfigManager())
+
+	for _, blank := range []string{"", "   "} {
+		created, err := svc.CreateSession(ctx, "test", service.CreateSessionOptions{FogEnabled: true, FogRadius: 2, GridPassword: blank})
+		if err != nil {
+			t.Fatalf("CreateSession(%q) error: %v", blank, err)
+		}
+		if len(created.GeneratedGridPassword) < 8 {
+			t.Fatalf("expected a generated password for blank %q, got %q", blank, created.GeneratedGridPassword)
+		}
+		if created.GameState.GridPassword != created.GeneratedGridPassword {
+			t.Fatalf("session must enforce the password it handed back")
+		}
+		fetched, err := svc.GetSession(ctx, created.ID)
+		if err != nil {
+			t.Fatalf("GetSession: %v", err)
+		}
+		if fetched.GeneratedGridPassword != "" {
+			t.Fatalf("generated password must only be returned on create, got %q", fetched.GeneratedGridPassword)
+		}
+	}
+
+	a, _ := svc.CreateSession(ctx, "test", service.CreateSessionOptions{FogEnabled: true, FogRadius: 1})
+	b, _ := svc.CreateSession(ctx, "test", service.CreateSessionOptions{FogEnabled: true, FogRadius: 1})
+	if a.GeneratedGridPassword == b.GeneratedGridPassword {
+		t.Fatalf("generated passwords must differ between sessions")
+	}
+
+	supplied, err := svc.CreateSession(ctx, "test", service.CreateSessionOptions{FogEnabled: true, FogRadius: 1, GridPassword: "mine"})
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+	if supplied.GeneratedGridPassword != "" || supplied.GameState.GridPassword != "mine" {
+		t.Fatalf("supplied password must be kept and nothing generated")
+	}
+
+	plain, err := svc.CreateSession(ctx, "test", service.CreateSessionOptions{})
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+	if plain.GeneratedGridPassword != "" {
+		t.Fatalf("non-fog sessions must not get a password")
 	}
 }

@@ -249,7 +249,6 @@ func TestGameConfigJSONMarshaling(t *testing.T) {
 		StartingBattery:   20,
 		Layout:            []string{"RRRR", "HPPP"},
 		Legend:            map[string]string{"R": "road", "H": "home", "P": "park"},
-		WallCrashEndsGame: true,
 	}
 	data, err := json.Marshal(config)
 	if err != nil {
@@ -270,9 +269,6 @@ func TestGameConfigJSONMarshaling(t *testing.T) {
 	}
 	if unmarshaled.MaxBattery != config.MaxBattery {
 		t.Errorf("MaxBattery: expected %d, got %d", config.MaxBattery, unmarshaled.MaxBattery)
-	}
-	if unmarshaled.WallCrashEndsGame != config.WallCrashEndsGame {
-		t.Errorf("WallCrashEndsGame: expected %v, got %v", config.WallCrashEndsGame, unmarshaled.WallCrashEndsGame)
 	}
 	if strings.Contains(string(data), "messages") {
 		t.Errorf("GameConfig JSON should not include messages, got: %s", string(data))

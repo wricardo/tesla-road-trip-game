@@ -142,11 +142,6 @@
         "additionalProperties": false
       },
       "default": {}
-    },
-    "wall_crash_ends_game": {
-      "type": "boolean",
-      "description": "Whether hitting a wall ends the game",
-      "default": false
     }
   },
   "additionalProperties": false,

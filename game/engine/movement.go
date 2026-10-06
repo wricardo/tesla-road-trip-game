@@ -105,13 +105,9 @@ func (gs *GameState) MovePlayer(direction string, config *GameConfig) bool {
 			obstacleType = string(gs.Grid[newY][newX].Type)
 		}
 
-		// Check if wall crash ends game
-		if config.WallCrashEndsGame {
-			gs.Message = DefaultMessages.HitWall + fmt.Sprintf(" [Hit: %s at (%d,%d)]", obstacleType, newX, newY)
-			gs.GameOver = true
-			return false
-		}
-		gs.Message = DefaultMessages.CantMove + fmt.Sprintf(" [Blocked by: %s]", obstacleType)
+		// Any collision (building, water, or map boundary) ends the game.
+		gs.Message = DefaultMessages.HitWall + fmt.Sprintf(" [Hit: %s at (%d,%d)]", obstacleType, newX, newY)
+		gs.GameOver = true
 		return false
 	}
 

@@ -54,3 +54,14 @@ export function directionalTitle(dirs: string[] = []): string {
 export function hasDirections(cell: DirectionalCell | null | undefined): boolean {
 	return (cell?.allowedDirections?.length ?? 0) > 0;
 }
+
+/** Glyph per terrain type so tiles stay distinguishable without relying on colour alone. */
+export function terrainGlyph(type: string): string {
+	switch (type) {
+		case 'home': return '⌂';
+		case 'park': return '🌳';
+		case 'supercharger': return '⚡';
+		case 'water': return '≈';
+		default: return '';
+	}
+}

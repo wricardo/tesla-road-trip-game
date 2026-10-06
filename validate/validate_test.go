@@ -32,7 +32,6 @@ func TestValidateConfig_ValidConfig(t *testing.T) {
 			"battery_status": "Battery: %d/%d",
 			"cant_move": "Can't move!"
 		},
-		"wall_crash_ends_game": false,
 		"legend": {
 			"R": "road",
 			"H": "home",
@@ -131,7 +130,6 @@ func TestValidateConfig_EmptyLayout(t *testing.T) {
 			"battery_status": "Battery: %d/%d",
 			"cant_move": "Can't move!"
 		},
-		"wall_crash_ends_game": false,
 		"legend": {}
 	}`
 
@@ -183,7 +181,6 @@ func TestValidateConfig_NoHome(t *testing.T) {
 			"battery_status": "Battery: %d/%d",
 			"cant_move": "Can't move!"
 		},
-		"wall_crash_ends_game": false,
 		"legend": {}
 	}`
 
@@ -235,7 +232,6 @@ func TestValidateConfig_NoParks(t *testing.T) {
 			"battery_status": "Battery: %d/%d",
 			"cant_move": "Can't move!"
 		},
-		"wall_crash_ends_game": false,
 		"legend": {}
 	}`
 
@@ -287,7 +283,6 @@ func TestValidateConfig_InvalidBattery(t *testing.T) {
 			"battery_status": "Battery: %d/%d",
 			"cant_move": "Can't move!"
 		},
-		"wall_crash_ends_game": false,
 		"legend": {}
 	}`
 

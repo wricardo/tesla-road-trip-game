@@ -126,15 +126,20 @@ func (r *mutationResolver) BulkMove(ctx context.Context, sessionID string, moves
 	if err != nil {
 		return nil, err
 	}
-	delayMs := state.MoveDelayMs
-	if delayMs > 0 {
-		return r.bulkMoveWithStepBroadcast(ctx, sessionID, dirs, resetValue, time.Duration(delayMs)*time.Millisecond)
+	opts := service.BulkMoveOptions{StepDelay: time.Duration(state.MoveDelayMs) * time.Millisecond}
+	broadcasted := false
+	if r.Hub != nil && opts.StepDelay > 0 {
+		// Paced runs let spectators watch each step.
+		opts.OnStep = func(st *engine.GameState) {
+			broadcasted = true
+			r.Hub.BroadcastToSession(sessionID, st)
+		}
 	}
-	result, err := r.Service.BulkMove(ctx, sessionID, dirs, resetValue)
+	result, err := r.Service.BulkMove(ctx, sessionID, dirs, resetValue, opts)
 	if err != nil {
 		return nil, err
 	}
-	if r.Hub != nil {
+	if r.Hub != nil && !broadcasted {
 		r.Hub.BroadcastToSession(sessionID, result.GameState)
 	}
 	return toBulkResult(result), nil

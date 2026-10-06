@@ -16,6 +16,7 @@ type GameState struct {
 	Battery           int                 `json:"battery"`
 	MaxBattery        int                 `json:"maxBattery"`
 	Score             int                 `json:"score"`
+	TotalParks        int                 `json:"totalParks"`
 	VisitedParks      []*VisitedPark      `json:"visitedParks"`
 	Message           string              `json:"message"`
 	GameOver          bool                `json:"gameOver"`
@@ -52,7 +53,6 @@ type GameMap struct {
 	Layout            []string           `json:"layout"`
 	Legend            []*LegendEntry     `json:"legend"`
 	CellConfigs       []*CellConfigEntry `json:"cellConfigs"`
-	WallCrashEndsGame bool               `json:"wallCrashEndsGame"`
 
 	access GridAccess
 }
