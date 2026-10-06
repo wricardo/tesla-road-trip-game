@@ -12,7 +12,7 @@ type CreateSessionOptions struct {
 	FogEnabled   bool
 	FogRadius    int
 	GridPassword string
-	// MoveDelayMs controls websocket broadcasting delay for move and per-step bulkMove.
+	// MoveDelayMs sets the per-step delay (and websocket broadcast) for bulkMove. Single moves are not delayed.
 	// nil leaves the session default unchanged.
 	MoveDelayMs *int
 }

@@ -96,17 +96,6 @@ func (r *mutationResolver) Move(ctx context.Context, sessionID string, direction
 		return nil, err
 	}
 	if r.Hub != nil {
-		delayMs := 0
-		if result.GameState != nil {
-			delayMs = result.GameState.MoveDelayMs
-		}
-		if delayMs > 0 {
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case <-time.After(time.Duration(delayMs) * time.Millisecond):
-			}
-		}
 		r.Hub.BroadcastToSession(sessionID, result.GameState)
 	}
 	return toMoveResult(result), nil
