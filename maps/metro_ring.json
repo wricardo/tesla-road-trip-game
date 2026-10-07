@@ -1,5 +1,5 @@
 {
-  "name": "metro_ring",
+  "name": "Metro Ring",
   "description": "Urban ring road with a few shortcuts and parks at high-value corners.",
   "grid_size": 16,
   "max_battery": 20,

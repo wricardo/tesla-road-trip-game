@@ -10,12 +10,13 @@
 
 	const navItems = [
 		{ href: '/', label: 'Play' },
-		{ href: '/learn', label: 'How it works' },
-		{ href: '/lobby', label: 'Live sessions' },
 		{ href: '/maps', label: 'Maps' },
+		{ href: '/lobby', label: 'Sessions' },
+		{ href: '/learn', label: 'How it works' },
 		{ href: '/multi', label: 'Watch multiple' }
 	];
 
+	// /watch/<id> is Tesla's play page (it has the drive controls), so it lights up Play.
 	function isActive(href: string, pathname: string): boolean {
 		return href === '/' ? pathname === '/' || pathname.startsWith('/watch/') : pathname === href || pathname.startsWith(`${href}/`);
 	}
@@ -63,17 +64,17 @@
 			<div>
 				<p class="font-semibold text-[#393c41] mb-2">Play</p>
 				<div class="flex flex-col gap-1.5">
-					<a href="/" class="hover:text-gray-600 transition-colors">Home / Create session</a>
+					<a href="/" class="hover:text-gray-600 transition-colors">Home</a>
 					<a href="/maps" class="hover:text-gray-600 transition-colors">Maps</a>
+					<a href="/lobby" class="hover:text-gray-600 transition-colors">Sessions</a>
+					<a href="/multi" class="hover:text-gray-600 transition-colors">Watch multiple</a>
 					<a href="/editor" class="hover:text-gray-600 transition-colors">Map editor</a>
-					<a href="/lobby" class="hover:text-gray-600 transition-colors">Live sessions</a>
-					<a href="/multi" class="hover:text-gray-600 transition-colors">Multi-watch</a>
 				</div>
 			</div>
 			<div>
 				<p class="font-semibold text-[#393c41] mb-2">Docs</p>
 				<div class="flex flex-col gap-1.5">
-					<a href="/learn" class="hover:text-gray-600 transition-colors">Learn</a>
+					<a href="/learn" class="hover:text-gray-600 transition-colors">How it works</a>
 					<a href="/llms.txt" target="_blank" rel="noreferrer" class="hover:text-gray-600 transition-colors">/llms.txt</a>
 					<a href="/graphql" target="_blank" rel="noreferrer" class="hover:text-gray-600 transition-colors">GraphQL endpoint</a>
 				</div>

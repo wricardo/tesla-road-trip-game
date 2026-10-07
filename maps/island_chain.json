@@ -1,5 +1,5 @@
 {
-  "name": "island_chain",
+  "name": "Island Chain",
   "description": "A chain of islands connected by narrow bridges over water.",
   "grid_size": 17,
   "max_battery": 24,

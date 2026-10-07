@@ -1,5 +1,5 @@
 {
-  "name": "hub_maze",
+  "name": "Hub Maze",
   "description": "A central hub maze with spokes and a costly outer loop.",
   "grid_size": 20,
   "max_battery": 22,

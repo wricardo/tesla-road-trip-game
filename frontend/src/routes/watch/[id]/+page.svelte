@@ -4,7 +4,14 @@
 	import { getContextClient, queryStore, gql } from '@urql/svelte';
 	import { createClient as createWsClient } from 'graphql-ws';
 	import { directionGlyph, hasDirections } from '$lib/directional';
-	import { MOVE_MUTATION, RESET_MUTATION } from '$lib/queries';
+	import { MAPS_QUERY, MOVE_MUTATION, RESET_MUTATION } from '$lib/queries';
+	import { mapLabel, nextMap as nextMapAfter, type MapSummary } from '$lib/maps';
+	import { crashDirections, crashWarning } from '$lib/crash';
+	import { createGameSession } from '$lib/createSession';
+	import AiPromptCard from '$lib/components/AiPromptCard.svelte';
+	import ConnectionBadge, { type ConnectionState } from '$lib/components/ConnectionBadge.svelte';
+	import ResultModal from '$lib/components/ResultModal.svelte';
+	import ShortcutsDialog from '$lib/components/ShortcutsDialog.svelte';
 
 	const GAME_STATE_QUERY = `
 		query GameState($sessionID: ID!) {
@@ -54,6 +61,8 @@
 
 	const sessionQuery = queryStore({ client, query: gql(SESSION_QUERY), variables: { id: sessionId } });
 	const sessionDisplayName = $derived($sessionQuery.data?.session?.displayName ?? null);
+	const mapsQuery = queryStore({ client, query: gql(MAPS_QUERY) });
+	const allMaps = $derived<MapSummary[]>($mapsQuery.data?.maps ?? []);
 	const sessionGridSize = $derived<number | null>($sessionQuery.data?.session?.gameMap?.gridSize ?? null);
 
 	type Position = { x: number; y: number };
@@ -93,6 +102,7 @@
 	}
 
 	let liveState = $state<GameState | null>(null);
+	let connection = $state<ConnectionState>('connecting');
 	let initialLoading = $state(true);
 	let initialError = $state<string | null>(null);
 	let animatedPos = $state<Position | null>(null);
@@ -169,7 +179,14 @@
 			? `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/graphql`
 			: 'ws://localhost:8080/graphql';
 
-		const wsClient = createWsClient({ url: WS_URL });
+		const wsClient = createWsClient({
+			url: WS_URL,
+			on: {
+				connected: () => (connection = 'live'),
+				closed: () => (connection = connection === 'live' ? 'reconnecting' : connection),
+				error: () => (connection = 'offline')
+			}
+		});
 
 		const unsubscribe = wsClient.subscribe(
 			{ query: SESSION_SUBSCRIPTION, variables: { sessionID: sessionId } },
@@ -215,8 +232,6 @@
 			cancelled = true;
 		};
 	});
-
-	let promptCopied = $state(false);
 
 	const llmPrompt = $derived(`Use this GraphQL API to control an existing Tesla Road Trip game session.
 
@@ -328,11 +343,55 @@ ${gameState?.fogEnabled
 	? `This session uses FOG (radius ${gameState.fogRadius}). nearbyGrid is the (2r+1)x(2r+1) window around the car; every cell carries its map coordinates in x and y, so key what you learn by those (off-map cells read as building, with off-map coordinates). Never select grid without the correct password: the error nulls the whole gameState response. If you already know the grid password, grid(password: ...) reveals the full map; otherwise skip it and explore via nearbyGrid/move/bulkMove — do not try to guess the password.`
 	: `Fog is off: grid needs no password (the password argument is ignored). nearbyGrid is the 3x3 window around the car; every cell carries its map coordinates in x and y.`}`);
 
-	function copyPrompt() {
-		navigator.clipboard.writeText(llmPrompt);
-		promptCopied = true;
-		setTimeout(() => promptCopied = false, 2000);
+	// gameState.mapName is the map's display name; the session carries the map id.
+	const sessionMapId = $derived<string>($sessionQuery.data?.session?.mapName ?? '');
+	const mapName = $derived(sessionMapId ? mapLabel(sessionMapId, allMaps) : gameState ? mapLabel(gameState.mapName, allMaps) : '');
+	const upcomingMap = $derived(sessionMapId ? nextMapAfter(allMaps, sessionMapId) : null);
+
+	// Result modal: shown once per finished run; closing keeps the board visible.
+	let resultDismissed = $state(false);
+	$effect(() => {
+		if (!isOver) resultDismissed = false;
+	});
+	const showResult = $derived(isOver && !resultDismissed);
+	let startingNext = $state(false);
+	let nextError = $state<string | null>(null);
+
+	async function playNextMap() {
+		if (!upcomingMap || startingNext) return;
+		startingNext = true;
+		nextError = null;
+		try {
+			const id = await createGameSession(client, {
+				mapID: upcomingMap.mapId,
+				name: sessionDisplayName ?? '',
+				fogEnabled: !!gameState?.fogEnabled,
+				fogRadius: gameState?.fogRadius
+			});
+			// Full navigation: this page keeps per-session state that a same-route goto would reuse.
+			window.location.assign(`/watch/${id}`);
+		} catch (err) {
+			nextError = err instanceof Error ? err.message : 'Could not start the next map';
+			startingNext = false;
+		}
 	}
+
+	let showShortcuts = $state(false);
+	const shortcuts = [
+		{ keys: ['↑', '↓', '←', '→'], action: 'Drive' },
+		{ keys: ['R'], action: 'Reset (press twice mid-run)' },
+		{ keys: ['?'], action: 'Show / hide shortcuts' },
+		{ keys: ['Esc'], action: 'Close dialog' }
+	];
+
+	type StatusTone = 'neutral' | 'active' | 'won' | 'lost';
+	const statusLine = $derived.by<{ label: string; reason: string; tone: StatusTone }>(() => {
+		if (!gameState) return { label: initialError ? 'Unavailable' : 'Loading…', reason: '', tone: 'neutral' };
+		if (gameState.victory) return { label: 'Won', reason: `all ${gameState.totalParks} parks in ${gameState.totalMoves} moves`, tone: 'won' };
+		if (gameState.gameOver) return { label: 'Lost', reason: outOfBattery ? 'out of battery' : 'crashed', tone: 'lost' };
+		if (gameState.totalMoves === 0) return { label: 'Ready', reason: 'press an arrow key to start', tone: 'neutral' };
+		return { label: 'Playing', reason: lowBattery ? 'battery low, find a charger' : '', tone: 'active' };
+	});
 
 	async function fetchFullGrid(password: string): Promise<Cell[][]> {
 		const result = await client
@@ -431,14 +490,19 @@ ${gameState?.fogEnabled
 	function animateManualMove(from: Position, to: Position, nextState: GameState) {
 		if (manualAnimationTimer) clearTimeout(manualAnimationTimer);
 
+		// Keep the trail already on the board; only add this move's cells, so it doesn't blink.
+		const trail = trailFromMoves(gameState?.currentMoves);
+		trail.add(`${from.x},${from.y}`);
+
 		isManualAnimating = true;
 		isAnimatingMoves = true;
 		animatedPos = from;
-		animatedTrailKeys = new Set([`${from.x},${from.y}`]);
+		animatedTrailKeys = new Set(trail);
 
 		manualAnimationTimer = setTimeout(() => {
 			animatedPos = to;
-			animatedTrailKeys = new Set([`${from.x},${from.y}`, `${to.x},${to.y}`]);
+			trail.add(`${to.x},${to.y}`);
+			animatedTrailKeys = new Set(trail);
 
 			manualAnimationTimer = setTimeout(() => {
 				liveState = nextState;
@@ -533,9 +597,21 @@ ${gameState?.fogEnabled
 
 	onMount(() => {
 		function handleKeydown(event: KeyboardEvent) {
+			if (event.key === 'Escape') {
+				if (showShortcuts) showShortcuts = false;
+				else if (showResult) resultDismissed = true;
+				return;
+			}
 			if (isEditableTarget(event.target)) return;
 
-			if (event.key.toLowerCase() === 'r') {
+			if (event.key === '?') {
+				event.preventDefault();
+				showShortcuts = !showShortcuts;
+				return;
+			}
+			if (showShortcuts) return;
+
+			if (event.key.toLowerCase() === 'r' && !event.metaKey && !event.ctrlKey) {
 				event.preventDefault();
 				void resetSession();
 				return;
@@ -673,18 +749,20 @@ ${gameState?.fogEnabled
 		};
 	});
 
-	const trailKeys = $derived.by(() => {
+	function trailFromMoves(moves: GameState['currentMoves'] | null | undefined): Set<string> {
 		const keys = new Set<string>();
-		if (!gameState) return keys;
-		if (isAnimatingMoves) return animatedTrailKeys;
-
-		for (const move of gameState.currentMoves ?? []) {
+		for (const move of moves ?? []) {
 			if (!move.success) continue;
 			keys.add(`${move.fromPosition.x},${move.fromPosition.y}`);
 			keys.add(`${move.toPosition.x},${move.toPosition.y}`);
 		}
-
 		return keys;
+	}
+
+	const trailKeys = $derived.by(() => {
+		if (!gameState) return new Set<string>();
+		if (isAnimatingMoves) return animatedTrailKeys;
+		return trailFromMoves(gameState.currentMoves);
 	});
 
 	function toNearbyIndex(x: number, y: number): { ix: number; iy: number } | null {
@@ -726,6 +804,18 @@ ${gameState?.fogEnabled
 		return x === centerX && y === centerY;
 	}
 
+	// Directions that would end the run, from tiles the client already knows (fog: only the visible window).
+	const crashDirs = $derived.by(() => {
+		if (!gameState || isOver) return {};
+		const gs = gameState;
+		const cellAt = (x: number, y: number) => {
+			if (isUsingFullGrid) return fullGrid?.[y]?.[x];
+			const idx = toNearbyIndex(x, y);
+			return idx ? gs.nearbyGrid[idx.iy]?.[idx.ix] : undefined;
+		};
+		return crashDirections(gs.playerPos, cellAt, isUsingFullGrid ? (fullGrid?.length ?? null) : sessionGridSize);
+	});
+
 	function isTrailCell(x: number, y: number): boolean {
 		if (!(isUsingFullGrid || showFogMaskBoard)) return false;
 		return trailKeys.has(`${x},${y}`);
@@ -733,115 +823,36 @@ ${gameState?.fogEnabled
 </script>
 
 <svelte:head>
-	<title>{sessionDisplayName ?? sessionId} — Tesla Road Trip</title>
+	<title>{mapName || 'Session'} · {sessionDisplayName ?? 'Unnamed session'} — Tesla Road Trip</title>
 </svelte:head>
 
 <div class="max-w-[1900px] mx-auto px-3 sm:px-4 py-4 lg:py-6">
-	<div class={`grid grid-cols-1 gap-4 xl:gap-6 items-start ${isLargeMap ? '' : 'lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_26rem]'}`}>
-		<!-- left: header, status, board -->
-		<section class="min-w-0 bg-white rounded-2xl border border-[#e8e8e8] shadow-sm">
-			<div class="p-3 sm:p-4 border-b border-gray-100">
-				<div class="flex flex-wrap items-start justify-between gap-3">
-					<div class="min-w-0">
-						<div class="flex flex-wrap items-center gap-2 text-xs uppercase tracking-widest text-gray-500">
-							<span>Session</span>
-							{#if gameState}
-								<span>·</span>
-								<span class="normal-case tracking-normal font-mono">{gameState.mapName}</span>
-								{#if gameState.fogEnabled}
-									<span class="normal-case tracking-normal inline-flex items-center rounded-full bg-blue-100 text-blue-800 px-2 py-0.5 text-xs">🌫 Fog r{gameState.fogRadius}</span>
-								{/if}
-							{/if}
-						</div>
-						<div class="mt-1 flex items-center gap-2">
-							{#if sessionDisplayName}
-								<span class="text-lg leading-none text-gray-800 font-medium">{sessionDisplayName}</span>
-								<button
-									onclick={() => navigator.clipboard.writeText(sessionId)}
-									class="font-mono text-sm leading-none text-gray-500 hover:text-blue-700 transition-colors"
-									title="Copy session ID"
-								>({sessionId})</button>
-							{:else}
-								<button
-									onclick={() => navigator.clipboard.writeText(sessionId)}
-									class="font-mono text-lg leading-none text-gray-800 hover:text-blue-700 transition-colors"
-									title="Copy session ID"
-								>{sessionId}</button>
-							{/if}
-						</div>
-					</div>
-
-					{#if gameState}
-						<div class="grid grid-cols-3 gap-2 text-center">
-							<div class="bg-gray-50 rounded-xl px-4 py-2 min-w-[5.5rem]">
-								<div class="text-xl font-medium leading-tight text-gray-800">{gameState.score}<span class="text-gray-500 font-light">/{gameState.totalParks}</span></div>
-								<div class="text-xs text-gray-600">Parks</div>
-							</div>
-							<div class="bg-gray-50 rounded-xl px-4 py-2 min-w-[5.5rem]">
-								<div class="text-xl font-light leading-tight text-gray-800">{gameState.totalMoves}</div>
-								<div class="text-xs text-gray-600">Moves</div>
-							</div>
-							<div class="bg-gray-50 rounded-xl px-4 py-2 min-w-[5.5rem]">
-								<div class="text-xl font-light leading-tight text-gray-800">{gameState.resetCount}</div>
-								<div class="text-xs text-gray-600">Resets</div>
-							</div>
-						</div>
-					{:else}
-						<p class="text-sm text-gray-500">Loading…</p>
-					{/if}
-				</div>
-
-				{#if gameState}
-					<div class="mt-4">
-						<div class="flex items-center justify-between text-sm mb-1.5">
-							<span class="font-medium text-gray-700">⚡ Battery</span>
-							<span class="tabular-nums font-medium {lowBattery || outOfBattery ? 'text-red-700' : 'text-gray-700'}">{gameState.battery} / {gameState.maxBattery}</span>
-						</div>
-						<div
-							class="h-3.5 bg-gray-100 rounded-full overflow-hidden"
-							role="progressbar"
-							aria-label="Battery"
-							aria-valuemin={0}
-							aria-valuemax={gameState.maxBattery}
-							aria-valuenow={gameState.battery}
-						>
-							<div
-								class="h-full rounded-full transition-all duration-300 {batteryPct > 50 ? 'bg-green-500' : batteryPct > 25 ? 'bg-orange-500' : 'bg-red-500'} {lowBattery ? 'low-battery' : ''}"
-								style="width: {batteryPct}%"
-							></div>
-						</div>
-					</div>
+	<!-- header: map name · player name · live badge -->
+	<header class="mb-4 flex flex-wrap items-end justify-between gap-3">
+		<div class="min-w-0">
+			<div class="flex flex-wrap items-center gap-2">
+				<h1 class="text-2xl lg:text-3xl font-light text-[#171a20] tracking-tight">{mapName || 'Loading…'}</h1>
+				{#if gameState?.fogEnabled}
+					<span class="inline-flex items-center rounded-full bg-blue-100 text-blue-800 px-2 py-0.5 text-xs">🌫 Fog r{gameState.fogRadius}</span>
 				{/if}
 			</div>
+			<p class="mt-1 text-sm text-gray-600">
+				{sessionDisplayName ?? 'Unnamed session'}
+				<span class="text-gray-400">·</span>
+				<button
+					onclick={() => navigator.clipboard.writeText(sessionId)}
+					class="font-mono text-xs text-gray-500 hover:text-blue-700 transition-colors"
+					title="Copy session ID"
+				>{sessionId}</button>
+			</p>
+		</div>
+		<ConnectionBadge state={connection} />
+	</header>
 
+	<div class={`grid grid-cols-1 gap-4 xl:gap-6 items-start ${isLargeMap ? '' : 'lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_26rem]'}`}>
+		<!-- left: board -->
+		<section class="min-w-0 bg-white rounded-2xl border border-[#e8e8e8] shadow-sm">
 			{#if gameState}
-				{#if isOver}
-				<div class="px-3 sm:px-4 pt-3 sm:pt-4">
-					{#if gameState.victory}
-						<div role="status" class="status-bar flex flex-wrap items-center justify-between gap-3 rounded-xl border border-green-300 bg-green-50 px-4 py-3">
-							<div>
-								<p class="font-medium text-green-900">🏆 You won!</p>
-								<p class="text-sm text-green-900">All {gameState.totalParks} parks in {gameState.totalMoves} moves{gameState.resetCount > 0 ? ` · ${gameState.resetCount} reset${gameState.resetCount === 1 ? '' : 's'}` : ''}.</p>
-							</div>
-							<button type="button" onclick={resetSession} disabled={isResetting}
-								class="text-sm px-4 py-2 rounded-full bg-green-700 text-white hover:bg-green-800 transition-colors disabled:opacity-50">
-								{isResetting ? 'Resetting…' : 'Play again'} <kbd class="kbd-inline" aria-hidden="true">R</kbd>
-							</button>
-						</div>
-					{:else if gameState.gameOver}
-						<div role="status" class="status-bar flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-300 bg-red-50 px-4 py-3">
-							<div>
-								<p class="font-medium text-red-900">{outOfBattery ? '🪫 Out of battery' : '💥 Crashed'}</p>
-								<p class="text-sm text-red-900">{endDetail}</p>
-							</div>
-							<button type="button" onclick={resetSession} disabled={isResetting}
-								class="text-sm px-4 py-2 rounded-full bg-red-700 text-white hover:bg-red-800 transition-colors disabled:opacity-50">
-								{isResetting ? 'Resetting…' : 'Try again'} <kbd class="kbd-inline" aria-hidden="true">R</kbd>
-							</button>
-						</div>
-					{/if}
-				</div>
-				{/if}
 				<div class="sr-only" aria-live="polite">
 					Battery {gameState.battery} of {gameState.maxBattery}. Parks {gameState.score} of {gameState.totalParks}.
 					{#if gameState.victory}You won.{:else if gameState.gameOver}Game over. {endDetail}{/if}
@@ -894,8 +905,9 @@ ${gameState?.fogEnabled
 						</div>
 					</div>
 				{:else if initialError}
-					<div class="flex items-center justify-center h-64 text-red-700">
+					<div class="flex flex-col items-center justify-center h-64 gap-3 text-red-700">
 						<p class="text-sm">Session not found: {initialError}</p>
+						<a href="/" class="bg-[#393c41] text-white text-sm px-5 py-2.5 rounded-full hover:bg-black transition-colors">Pick a map</a>
 					</div>
 				{:else}
 					<div class="flex items-center justify-center h-64 text-gray-500">
@@ -921,30 +933,77 @@ ${gameState?.fogEnabled
 			</div>
 		</section>
 
-		<!-- right: controls + AI -->
+		<!-- right: status · stats · controls · help · AI -->
 		<aside class={`min-w-0 space-y-3 ${isLargeMap ? '' : 'lg:sticky lg:top-4'}`}>
+			<!-- 1. status line -->
+			<div class="rounded-2xl bg-white border border-[#e8e8e8] shadow-sm px-4 py-3 flex items-center gap-2 text-sm" data-testid="status-line">
+				<span class="h-2.5 w-2.5 shrink-0 rounded-full {statusLine.tone === 'won' ? 'bg-green-600' : statusLine.tone === 'lost' ? 'bg-red-600' : statusLine.tone === 'active' ? 'bg-[#3e6ae1]' : 'bg-gray-400'}" aria-hidden="true"></span>
+				<span class="font-medium {statusLine.tone === 'won' ? 'text-green-800' : statusLine.tone === 'lost' ? 'text-red-700' : 'text-[#393c41]'}">{statusLine.label}</span>
+				{#if gameState?.gameOver && !gameState.victory}
+					<span class="text-gray-400">·</span>
+					<span class="text-gray-600 min-w-0 truncate" title={endDetail}>{endDetail}</span>
+				{:else if statusLine.reason}
+					<span class="text-gray-400">·</span>
+					<span class="text-gray-600 min-w-0 truncate">{statusLine.reason}</span>
+				{/if}
+				{#if isOver && resultDismissed}
+					<button type="button" onclick={() => (resultDismissed = false)} class="ml-auto shrink-0 text-xs text-gray-600 underline hover:text-gray-900">Show result</button>
+				{/if}
+			</div>
+
 			{#if gameState}
+				<!-- 2. stats row -->
+				<dl class="grid grid-cols-4 gap-2 text-center" data-testid="stats">
+					<div class="rounded-xl bg-white border border-[#e8e8e8] px-2 py-2">
+						<dt class="text-[11px] text-gray-500">Battery</dt>
+						<dd class="text-base font-medium tabular-nums {lowBattery || outOfBattery ? 'text-red-700' : 'text-gray-800'}">{gameState.battery} / {gameState.maxBattery}</dd>
+						<div class="mt-1 h-1.5 bg-gray-100 rounded-full overflow-hidden" role="progressbar" aria-label="Battery" aria-valuemin={0} aria-valuemax={gameState.maxBattery} aria-valuenow={gameState.battery}>
+							<div class="h-full rounded-full transition-all duration-300 {batteryPct > 50 ? 'bg-green-500' : batteryPct > 25 ? 'bg-orange-500' : 'bg-red-500'} {lowBattery ? 'low-battery' : ''}" style="width: {batteryPct}%"></div>
+						</div>
+					</div>
+					<div class="rounded-xl bg-white border border-[#e8e8e8] px-2 py-2">
+						<dt class="text-[11px] text-gray-500">Parks</dt>
+						<dd class="text-base font-medium tabular-nums text-gray-800">{gameState.score} / {gameState.totalParks}</dd>
+					</div>
+					<div class="rounded-xl bg-white border border-[#e8e8e8] px-2 py-2">
+						<dt class="text-[11px] text-gray-500">Moves</dt>
+						<dd class="text-base font-medium tabular-nums text-gray-800">{gameState.totalMoves}</dd>
+					</div>
+					<div class="rounded-xl bg-white border border-[#e8e8e8] px-2 py-2">
+						<dt class="text-[11px] text-gray-500">Resets</dt>
+						<dd class="text-base font-medium tabular-nums text-gray-800">{gameState.resetCount}</dd>
+					</div>
+				</dl>
+
+				<!-- 3. controls -->
 				<div class="rounded-2xl bg-white border border-[#e8e8e8] shadow-sm p-4">
 					<h2 class="text-xs font-semibold uppercase tracking-widest text-gray-600">Controls</h2>
 					<div class="mt-3 flex items-center gap-5">
 						<div class="grid grid-cols-3 gap-1 shrink-0" role="group" aria-label="Drive controls">
 							{#each [['', ''], ['UP', '↑'], ['', ''], ['LEFT', '←'], ['DOWN', '↓'], ['RIGHT', '→']] as [dir, glyph]}
 								{#if dir}
+									{@const danger = crashDirs[dir as Direction]}
 									<button
 										type="button"
-										aria-label={`Drive ${dir.toLowerCase()}`}
+										aria-label={danger ? `Drive ${dir.toLowerCase()} (warning: ${crashWarning(danger)})` : `Drive ${dir.toLowerCase()}`}
+										title={danger ? `⚠ ${crashWarning(danger)}` : `Drive ${dir.toLowerCase()}`}
 										onclick={() => sendMove(dir as Direction)}
 										disabled={isOver || isMoving || isResetting || isManualAnimating}
 										class="dpad-btn"
-									>{glyph}</button>
+										class:dpad-danger={!!danger}
+										data-crash={danger ?? undefined}
+									>{glyph}{#if danger}<span class="dpad-warn" aria-hidden="true">⚠</span>{/if}</button>
 								{:else}
 									<span></span>
 								{/if}
 							{/each}
 						</div>
 						<div class="min-w-0 text-xs text-gray-600 space-y-2">
-							<p><kbd class="kbd">↑</kbd><kbd class="kbd">↓</kbd><kbd class="kbd">←</kbd><kbd class="kbd">→</kbd> to drive</p>
-							<p>Keys are ignored while typing in a field.</p>
+							{#if Object.keys(crashDirs).length > 0}
+								<p class="text-red-700">⚠ Red arrow: {Object.entries(crashDirs).map(([d, k]) => `${d.toLowerCase()} ${crashWarning(k)}`).join('; ')}.</p>
+							{:else}
+								<p>No crash ahead in any direction{gameState.fogEnabled && !isUsingFullGrid ? ' that the car can see' : ''}.</p>
+							{/if}
 							{#if moveError}
 								<p class="text-amber-800">⚠ {moveError}</p>
 							{/if}
@@ -964,90 +1023,100 @@ ${gameState?.fogEnabled
 					</div>
 				</div>
 
-				{#if gameState?.fogEnabled}
-					<div class="rounded-2xl bg-white border border-[#e8e8e8] shadow-sm p-4">
-						<h2 class="text-xs font-semibold uppercase tracking-widest text-gray-600">Fog mode</h2>
-						<p class="text-xs text-gray-600 mt-1">This session hides the map beyond {gameState.fogRadius} cell{gameState.fogRadius === 1 ? '' : 's'} of the car. Enter the password chosen at creation to reveal the full map.</p>
-						{#if generatedFogPassword}
-							<p class="text-xs text-gray-700 mt-2">
-								Auto-generated password:
-								<button type="button" onclick={() => navigator.clipboard.writeText(generatedFogPassword)} title="Copy password" class="font-mono font-semibold underline decoration-dotted hover:text-blue-700">{generatedFogPassword}</button>
-							</p>
-						{/if}
-						<div class="mt-3 flex flex-wrap items-center gap-2">
-							<input
-								type="text"
-								bind:value={gridPasswordInput}
-								placeholder="Grid password"
-								aria-label="Grid password"
-								class="min-w-[10rem] flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-xs bg-white focus-visible:outline-2 focus-visible:outline-blue-600"
-							/>
-							<button
-								type="button"
-								onclick={unlockFullGrid}
-								disabled={loadingFullGrid || !gridPasswordInput.trim()}
-								class="text-xs px-3 py-1.5 rounded-full border border-blue-300 text-blue-700 hover:bg-blue-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-							>
-								{loadingFullGrid ? 'Unlocking…' : 'Unlock full grid'}
-							</button>
-							{#if isUsingFullGrid}
-								<button
-									type="button"
-									onclick={clearFullGrid}
-									class="text-xs px-3 py-1.5 rounded-full border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
-								>
-									Use nearby grid
-								</button>
-							{/if}
-						</div>
-						{#if appliedGridPassword && isUsingFullGrid}
-							<p class="text-xs text-green-800 mt-2">Full grid unlocked for this session.</p>
-						{/if}
-						{#if fullGridError}
-							<p class="text-xs text-red-700 mt-2">{fullGridError}</p>
-						{/if}
-					</div>
-				{/if}
+				<!-- 4. help -->
+				<div class="rounded-2xl bg-white border border-[#e8e8e8] shadow-sm p-4">
+					<h2 class="text-xs font-semibold uppercase tracking-widest text-gray-600">Help</h2>
+					<ul class="mt-2 space-y-1.5 text-xs text-gray-600">
+						<li><kbd class="kbd">↑</kbd><kbd class="kbd">↓</kbd><kbd class="kbd">←</kbd><kbd class="kbd">→</kbd> drive one tile (1 battery)</li>
+						<li><kbd class="kbd">R</kbd> reset — twice mid-run</li>
+						<li><kbd class="kbd">?</kbd> for shortcuts</li>
+						<li>Visit every park; ⌂ and ⚡ refill the battery</li>
+						<li>Water, buildings and the map edge end the run</li>
+					</ul>
+					<a href="/learn" class="mt-3 inline-block text-xs font-medium text-[#393c41] hover:underline">All rules →</a>
+				</div>
 			{/if}
 
-			<div class="rounded-2xl bg-white border border-[#e8e8e8] shadow-sm p-4">
-				<div class="flex items-start justify-between gap-3">
-					<div class="min-w-0">
-						<h2 class="text-xs font-semibold uppercase tracking-widest text-gray-600">Play with an AI</h2>
-						<p class="mt-1 text-sm text-gray-700">Copy the prompt into an AI chat to let it drive session <code class="font-mono font-semibold">{sessionId}</code>.</p>
+			<!-- 5. play with an AI -->
+			<AiPromptCard prompt={llmPrompt} blurb={`Copy the prompt into an AI chat to let it drive session ${sessionId}.`} />
+
+			{#if gameState?.fogEnabled}
+				<div class="rounded-2xl bg-white border border-[#e8e8e8] shadow-sm p-4">
+					<h2 class="text-xs font-semibold uppercase tracking-widest text-gray-600">Fog mode</h2>
+					<p class="text-xs text-gray-600 mt-1">This session hides the map beyond {gameState.fogRadius} cell{gameState.fogRadius === 1 ? '' : 's'} of the car. Enter the password chosen at creation to reveal the full map.</p>
+					{#if generatedFogPassword}
+						<p class="text-xs text-gray-700 mt-2">
+							Auto-generated password:
+							<button type="button" onclick={() => navigator.clipboard.writeText(generatedFogPassword)} title="Copy password" class="font-mono font-semibold underline decoration-dotted hover:text-blue-700">{generatedFogPassword}</button>
+						</p>
+					{/if}
+					<div class="mt-3 flex flex-wrap items-center gap-2">
+						<input
+							type="text"
+							bind:value={gridPasswordInput}
+							placeholder="Grid password"
+							aria-label="Grid password"
+							class="min-w-[10rem] flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-xs bg-white focus-visible:outline-2 focus-visible:outline-blue-600"
+						/>
+						<button
+							type="button"
+							onclick={unlockFullGrid}
+							disabled={loadingFullGrid || !gridPasswordInput.trim()}
+							class="text-xs px-3 py-1.5 rounded-full border border-blue-300 text-blue-700 hover:bg-blue-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+						>
+							{loadingFullGrid ? 'Unlocking…' : 'Unlock full grid'}
+						</button>
+						{#if isUsingFullGrid}
+							<button
+								type="button"
+								onclick={clearFullGrid}
+								class="text-xs px-3 py-1.5 rounded-full border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+							>
+								Use nearby grid
+							</button>
+						{/if}
 					</div>
-					<button
-						onclick={copyPrompt}
-						class="text-sm px-4 py-2 rounded-full border transition-colors shrink-0 {promptCopied ? 'bg-green-50 border-green-300 text-green-800' : 'border-blue-300 text-blue-700 hover:bg-blue-50'}"
-					>{promptCopied ? 'Copied!' : 'Copy'}</button>
+					{#if appliedGridPassword && isUsingFullGrid}
+						<p class="text-xs text-green-800 mt-2">Full grid unlocked for this session.</p>
+					{/if}
+					{#if fullGridError}
+						<p class="text-xs text-red-700 mt-2">{fullGridError}</p>
+					{/if}
 				</div>
-				<details class="mt-3 group">
-					<summary class="cursor-pointer text-xs font-medium text-gray-600 hover:text-gray-900 select-none">Show full prompt</summary>
-					<textarea
-						readonly
-						aria-label="Prompt for an AI"
-						value={llmPrompt}
-						class="mt-2 w-full text-xs font-mono text-gray-700 bg-gray-50 rounded-xl p-3 resize-none prompt-pane focus-visible:outline-2 focus-visible:outline-blue-600 leading-relaxed border border-gray-100"
-						onclick={(e) => (e.target as HTMLTextAreaElement).select()}
-					></textarea>
-				</details>
-			</div>
+			{/if}
 		</aside>
 	</div>
 </div>
 
+{#if showResult && gameState}
+	<ResultModal
+		won={gameState.victory}
+		title={gameState.victory ? '🏆 You won!' : outOfBattery ? '🪫 Out of battery' : '💥 Crashed'}
+		detail={gameState.victory ? `All ${gameState.totalParks} parks in ${gameState.totalMoves} moves.` : endDetail}
+		moves={gameState.totalMoves}
+		parks={gameState.score}
+		totalParks={gameState.totalParks}
+		battery={gameState.battery}
+		maxBattery={gameState.maxBattery}
+		resets={gameState.resetCount}
+		nextMapName={upcomingMap ? mapLabel(upcomingMap.mapId, allMaps) : null}
+		resetting={isResetting}
+		{startingNext}
+		{nextError}
+		onreset={resetSession}
+		onnext={playNextMap}
+		onclose={() => (resultDismissed = true)}
+	/>
+{/if}
+
+{#if showShortcuts}
+	<ShortcutsDialog {shortcuts} onclose={() => (showShortcuts = false)} />
+{/if}
+
 <style>
 	.board-pane {
-		min-height: calc(100vh - 24rem);
+		min-height: calc(100vh - 16rem);
 		overflow: visible;
-	}
-
-	.prompt-pane {
-		height: 24rem;
-	}
-
-	.status-bar {
-		min-height: 4rem;
 	}
 
 	.game-board {
@@ -1055,7 +1124,7 @@ ${gameState?.fogEnabled
 			1.75rem,
 			min(
 				calc((var(--board-width) - 5rem) / var(--grid-size)),
-				calc((100vh - 23rem) / var(--grid-size))
+				calc((100vh - 16rem) / var(--grid-size))
 			),
 			4.1rem
 		);
@@ -1123,7 +1192,6 @@ ${gameState?.fogEnabled
 		line-height: 1;
 	}
 
-	.kbd-inline,
 	.kbd-inline-light {
 		display: inline-flex;
 		align-items: center;
@@ -1135,10 +1203,6 @@ ${gameState?.fogEnabled
 		font-size: 0.65rem;
 		font-weight: 600;
 		line-height: 1;
-	}
-
-	.kbd-inline {
-		background: rgba(255, 255, 255, 0.25);
 	}
 
 	.kbd-inline-light {
@@ -1164,6 +1228,28 @@ ${gameState?.fogEnabled
 	.dpad-btn:focus-visible {
 		outline: 2px solid #2563eb;
 		outline-offset: 2px;
+	}
+
+	.dpad-btn {
+		position: relative;
+	}
+
+	.dpad-danger {
+		border-color: #dc2626;
+		background: #fef2f2;
+		color: #b91c1c;
+	}
+
+	.dpad-danger:hover:not(:disabled) {
+		background: #fee2e2;
+	}
+
+	.dpad-warn {
+		position: absolute;
+		top: -0.4rem;
+		right: -0.4rem;
+		font-size: 0.7rem;
+		line-height: 1;
 	}
 
 	.dpad-btn:disabled {

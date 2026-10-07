@@ -6,6 +6,7 @@
 	import { onMount, untrack } from 'svelte';
 	import { SESSIONS_QUERY, MAPS_QUERY } from '$lib/queries';
 	import { directionGlyph, hasDirections, terrainGlyph } from '$lib/directional';
+	import { prettyMapName } from '$lib/maps';
 
 	const GAME_STATE_QUERY = `
 		query GameState($sessionID: ID!) {
@@ -442,17 +443,33 @@
 		}
 	}
 
-	// Only maps that have sessions, busiest first.
+	const isActiveSession = (s: (typeof allSessions)[number]) => !s.gameState?.victory && !s.gameState?.gameOver;
+
+	// Only maps that have sessions; maps with drivers still on the road first, then busiest.
 	const mapChips = $derived(
 		maps
-			.map((m) => ({ ...m, count: allSessions.filter((s) => s.mapName === m.mapId).length }))
+			.map((m) => {
+				const onMap = allSessions.filter((s) => s.mapName === m.mapId);
+				return { ...m, label: prettyMapName(m.name || m.mapId), count: onMap.length, active: onMap.filter(isActiveSession).length };
+			})
 			.filter((m) => m.count > 0)
-			.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+			.sort((a, b) => b.active - a.active || b.count - a.count || a.label.localeCompare(b.label))
 	);
 
 	// Land on something useful instead of an empty board.
 	$effect(() => {
 		if (!selectedMap && mapChips.length > 0) selectMap(mapChips[0].mapId);
+	});
+
+	// First load only: pre-select up to 4 sessions still in progress on the chosen map.
+	const AUTO_SELECT_MAX = 4;
+	let autoSelected = false;
+	$effect(() => {
+		if (autoSelected || !selectedMap || allSessions.length === 0) return;
+		autoSelected = true;
+		if ($page.url.searchParams.get('sessions')) return;
+		const active = allSessions.filter((s) => s.mapName === selectedMap && isActiveSession(s)).map((s) => s.id);
+		if (active.length > 0) setSelectedSessions(active.slice(0, AUTO_SELECT_MAX));
 	});
 
 	function setSelectedSessions(ids: string[]) {
@@ -480,7 +497,7 @@
 					class="border border-gray-300 rounded-full px-3 py-1.5 text-sm bg-white"
 				>
 					{#each mapChips as m}
-						<option value={m.mapId}>{m.name} ({m.count})</option>
+						<option value={m.mapId}>{m.label} ({m.count})</option>
 					{/each}
 				</select>
 			</label>
@@ -490,17 +507,17 @@
 					onclick={() => selectMap(m.mapId)}
 					aria-pressed={selectedMap === m.mapId}
 					class="text-xs px-3 py-1.5 rounded-full border transition-colors {selectedMap === m.mapId ? 'bg-[#393c41] text-white border-[#393c41]' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}"
-				>{m.name} <span class="opacity-70">{m.count}</span></button>
+				>{m.label} <span class="opacity-70">{m.count}</span></button>
 			{/each}
 		{/if}
-		<a href="/lobby" class="ml-auto text-xs text-gray-600 hover:text-gray-900 transition-colors">← Live sessions</a>
+		<a href="/lobby" class="ml-auto text-xs text-gray-600 hover:text-gray-900 transition-colors">← Sessions</a>
 	</div>
 
 	<div class="flex flex-col lg:flex-row gap-6">
 		<!-- shared grid -->
 		<div class="flex-1 min-w-0">
 			<div class="bg-white rounded-2xl border border-[#e8e8e8] p-4 shadow-sm overflow-auto">
-				{#if baseGrid}
+				{#if baseGrid && selectedIds.length > 0}
 					<table class="border-collapse">
 						<tbody>
 						{#each baseGrid as row, y}
@@ -549,18 +566,20 @@
 						<span class="inline-flex items-center gap-1"><span class="h-4 w-4 rounded-sm bg-slate-700"></span>Blocked</span>
 					</div>
 				{:else if !selectedMap}
-					<div class="flex flex-col items-center justify-center h-64 text-gray-400 gap-3">
+					<div class="flex flex-col items-center justify-center h-64 text-gray-500 gap-3">
 						<span class="text-4xl">🗺️</span>
-						<p class="text-sm">Select a map above to choose sessions.</p>
+						<p class="text-sm">No sessions to watch yet.</p>
+						<a href="/" class="bg-[#393c41] text-white text-sm px-5 py-2.5 rounded-full hover:bg-black transition-colors">+ New session</a>
 					</div>
 				{:else if availableIds.length === 0}
-					<div class="flex items-center justify-center h-64 text-gray-400">
-						<p class="text-sm">No sessions for this map.</p>
+					<div class="flex flex-col items-center justify-center h-64 text-gray-500 gap-3">
+						<p class="text-sm">No sessions on this map.</p>
+						<a href="/" class="bg-[#393c41] text-white text-sm px-5 py-2.5 rounded-full hover:bg-black transition-colors">+ New session</a>
 					</div>
 				{:else if selectedIds.length === 0}
-					<div class="flex flex-col items-center justify-center h-64 text-gray-400 gap-3">
+					<div class="flex flex-col items-center justify-center h-64 text-gray-500 gap-3">
 						<span class="text-4xl">☑️</span>
-						<p class="text-sm">Select one or more sessions from the list.</p>
+						<p class="text-sm">Pick sessions on the right to watch them</p>
 					</div>
 				{:else}
 					<div class="flex items-center justify-center h-64 text-gray-400">
@@ -597,12 +616,8 @@
 					<div class="flex-1 min-w-0">
 						<div class="flex items-center justify-between gap-1">
 							<div class="min-w-0">
-								{#if meta?.displayName}
-									<div class="text-sm font-medium text-[#393c41] truncate">{meta.displayName}</div>
-									<div class="font-mono text-[11px] text-gray-400 truncate">{id}</div>
-								{:else}
-									<div class="font-mono text-xs font-medium text-[#393c41] truncate">{id}</div>
-								{/if}
+								<div class="text-sm font-medium text-[#393c41] truncate">{meta?.displayName || 'Unnamed session'}</div>
+								<div class="font-mono text-[11px] text-gray-400 truncate">{id} · <a href="/watch/{id}" class="font-sans underline hover:text-gray-700">open</a></div>
 								<div class="text-[11px] text-gray-400">{s ? `${s.score} parks · ${s.totalMoves} moves` : 'Loading…'}</div>
 								{#if meta?.fogEnabled}
 									<div class="mt-1 inline-flex items-center rounded-full bg-blue-100 text-blue-700 px-2 py-0.5 text-[10px]">🌫 Fog r{meta.fogRadius}</div>

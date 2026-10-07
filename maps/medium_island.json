@@ -1,5 +1,5 @@
 {
-  "name": "medium_island",
+  "name": "Medium Island",
   "description": "Medium difficulty - Navigate between islands connected by bridges",
   "grid_size": 14,
   "max_battery": 20,

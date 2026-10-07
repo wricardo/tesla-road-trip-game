@@ -1,5 +1,5 @@
 {
-  "name": "strategic",
+  "name": "Strategic",
   "description": "The 16x16 Strategic Maze with 5 parks - our main challenge puzzle",
   "grid_size": 16,
   "max_battery": 22,

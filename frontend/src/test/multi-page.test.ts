@@ -8,7 +8,8 @@ const runtime = vi.hoisted(() => ({
 	sessionFogRadius: 2,
 	mapGridSize: 5,
 	wsSinks: [] as Array<{ next: (payload: unknown) => void }>,
-	fetchResponse: () => ({
+	// Loosely typed so tests can swap in other game states (full grid, move history).
+	fetchResponse: (): { data: { gameState: Record<string, unknown> } } => ({
 		data: {
 			gameState: {
 				battery: 17,

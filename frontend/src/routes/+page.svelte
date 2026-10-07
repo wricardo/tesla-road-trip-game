@@ -1,125 +1,82 @@
 <script lang="ts">
 	import { getContextClient, queryStore, gql } from '@urql/svelte';
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
-	import { MAPS_QUERY, MAP_QUERY, CREATE_SESSION_MUTATION, UPDATE_SESSION_MUTATION } from '$lib/queries';
-	import { directionsForChar, directionGlyph, terrainGlyph, type CellConfigEntry } from '$lib/directional';
-	import uiAuthConfig from '$lib/config/ui-auth.json';
+	import { MAPS_QUERY, SESSIONS_QUERY } from '$lib/queries';
+	import { mapLabel, prettyMapName, sortMaps, type MapLayout, type MapSummary } from '$lib/maps';
+	import { fetchMapLayout } from '$lib/mapData';
+	import { createGameSession, DEFAULT_MOVE_DELAY_MS } from '$lib/createSession';
+	import { recentSessions, sessionStatus, type SessionSummary } from '$lib/sessions';
+	import { absoluteTime, relativeTime } from '$lib/time';
+	import MapCard from '$lib/components/MapCard.svelte';
 
-	type LegendEntry = { key: string; value: string };
-	type MapPreview = {
-		name: string;
-		description: string;
-		gridSize: number;
-		maxBattery: number;
-		startingBattery: number;
-		layout: string[];
-		legend: LegendEntry[];
-		cellConfigs: CellConfigEntry[];
-	};
+	const PICK_COUNT = 6;
 
 	const client = getContextClient();
-	const mapQueryPassword = uiAuthConfig.uiMapPassword ?? '';
 	const mapsResult = queryStore({ client, query: gql(MAPS_QUERY) });
-	// Some maps use their slug as display name ("bayou_braids"); render those readably.
-	const prettyMapName = (name: string) =>
-		name.includes('_') || name === name.toLowerCase()
-			? name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
-			: name;
-	const maps = $derived(
-		[...($mapsResult?.data?.maps ?? [])]
-			.map((m: { mapId: string; name: string }) => ({ ...m, label: prettyMapName(m.name) }))
-			.sort((a, b) => a.label.localeCompare(b.label))
+	const sessionsResult = queryStore({ client, query: gql(SESSIONS_QUERY), requestPolicy: 'network-only' });
+
+	const maps = $derived<MapSummary[]>(sortMaps($mapsResult?.data?.maps ?? []));
+	const pickMaps = $derived(maps.slice(0, PICK_COUNT));
+	const firstMap = $derived(maps[0] ?? null);
+
+	// undefined = loading, null = failed.
+	let previews = $state<Record<string, MapLayout | null>>({});
+	const requested = new Set<string>();
+	$effect(() => {
+		for (const m of pickMaps) {
+			if (requested.has(m.mapId)) continue;
+			requested.add(m.mapId);
+			void fetchMapLayout(client, m.mapId).then((p) => (previews[m.mapId] = p));
+		}
+	});
+
+	type RecentRow = SessionSummary & { battery: number; maxBattery: number };
+	const recent = $derived<RecentRow[]>(
+		recentSessions(
+			($sessionsResult?.data?.sessions?.sessions ?? []).map(
+				(s: { id: string; displayName: string | null; mapName: string; lastActionAt: string; gameState: RecentRow }) => ({
+					id: s.id,
+					displayName: s.displayName ?? null,
+					mapName: s.mapName,
+					lastActionAt: s.lastActionAt,
+					score: s.gameState.score,
+					totalMoves: s.gameState.totalMoves,
+					victory: s.gameState.victory,
+					gameOver: s.gameState.gameOver,
+					battery: s.gameState.battery,
+					maxBattery: s.gameState.maxBattery
+				})
+			)
+		)
 	);
 
-	let showCreate = $state(false);
-	let selectedMap = $state($page.url.searchParams.get('map') ?? '');
 	let sessionName = $state('');
 	let fogEnabled = $state(false);
 	let fogRadius = $state(1);
-	let moveDelayMs = $state(300);
+	let moveDelayMs = $state(DEFAULT_MOVE_DELAY_MS);
 	let gridPassword = $state('');
 	let createError = $state('');
-	let creating = $state(false);
-	let preview = $state<MapPreview | null>(null);
-	let previewError = $state('');
-	let previewLoading = $state(false);
-	const previewMapID = $derived(selectedMap || maps.find((m: { mapId: string }) => m.mapId === 'classic')?.mapId || maps[0]?.mapId || '');
-	// Make the dropdown show the map that will actually be used.
-	$effect(() => {
-		if (!selectedMap && previewMapID) selectedMap = previewMapID;
-	});
-	let previewRequest = 0;
+	let creatingId = $state<string | null>(null);
 
-	$effect(() => {
-		const mapID = previewMapID;
-		if (!mapID) {
-			preview = null;
-			previewError = '';
-			return;
-		}
-
-		const requestID = ++previewRequest;
-		previewLoading = true;
-		previewError = '';
-		client.query(gql(MAP_QUERY), { name: mapID, password: mapQueryPassword || null }).toPromise().then((result) => {
-			if (requestID !== previewRequest) return;
-			previewLoading = false;
-			if (result.error) {
-				preview = null;
-				previewError = result.error.message;
-				return;
-			}
-			preview = result.data?.map ?? null;
-		});
-	});
-
-	function tileType(char: string, legend: LegendEntry[] = [], cellConfigs: CellConfigEntry[] = []) {
-		return cellConfigs.find((entry) => entry.key === char)?.type ?? legend.find((entry) => entry.key === char)?.value ?? 'road';
-	}
-
-	function tileClass(char: string, legend: LegendEntry[] = [], cellConfigs: CellConfigEntry[] = []) {
-		switch (tileType(char, legend, cellConfigs)) {
-			case 'home': return 'bg-red-500 ring-2 ring-red-200';
-			case 'park': return 'bg-emerald-500';
-			case 'supercharger': return 'bg-yellow-400';
-			case 'water': return 'bg-blue-400';
-			case 'building': return 'bg-slate-700';
-			default: return 'bg-white';
-		}
-	}
-
-	async function createSession() {
-		if (creating) return;
-		creating = true;
+	async function play(mapId: string) {
+		if (creatingId) return;
 		createError = '';
 		if (!Number.isFinite(moveDelayMs) || moveDelayMs < 0) {
 			createError = 'Move delay must be 0 or greater';
-			creating = false;
 			return;
 		}
-		// A blank password with fog on is generated by the server and returned once;
-		// remember it locally so the creator can still reveal the full grid on the watch page.
-		const result = await client.mutation(gql(CREATE_SESSION_MUTATION), {
-			mapID: selectedMap || null,
-			fogEnabled,
-			fogRadius: fogEnabled ? fogRadius : 1,
-			gridPassword: fogEnabled && gridPassword.trim() ? gridPassword : null,
-			moveDelayMs: Math.trunc(moveDelayMs)
-		}).toPromise();
-		creating = false;
-		if (result.error) { createError = result.error.message; return; }
-		const id = result.data?.createSession?.id;
-		const generatedPassword = result.data?.createSession?.generatedGridPassword;
-		if (id && generatedPassword) localStorage.setItem(`fogPassword:${id}`, generatedPassword);
-		if (id) {
-			const name = sessionName.trim();
-			if (name) {
-				await client.mutation(gql(UPDATE_SESSION_MUTATION), { id, displayName: name }).toPromise();
-			}
+		creatingId = mapId;
+		try {
+			const id = await createGameSession(client, { mapID: mapId, name: sessionName, fogEnabled, fogRadius, gridPassword, moveDelayMs });
 			goto(`/watch/${id}`);
+		} catch (err) {
+			createError = err instanceof Error ? err.message : 'Could not create the session';
+		} finally {
+			creatingId = null;
 		}
 	}
+
+	const statusText = { playing: 'Playing', won: '🏆 Won', lost: '💥 Lost' } as const;
 </script>
 
 <svelte:head>
@@ -128,160 +85,122 @@
 
 <!-- Hero -->
 <div class="bg-white border-b border-[#e8e8e8]">
-	<div class="max-w-7xl mx-auto px-6 py-10 lg:py-12">
-		<div class="lg:grid lg:grid-cols-[1fr_380px] gap-12 items-start">
-			<!-- Left: intro -->
-			<div>
-				<p class="text-xs font-bold uppercase tracking-widest text-red-600 mb-4">🚗 Educational AI project</p>
-				<h1 class="text-4xl lg:text-5xl font-light text-[#171a20] leading-tight tracking-tight mb-6">
-					Drive the car across the map.<br>Visit every park.<br>Don't run out of battery.
-				</h1>
-				<p class="text-lg text-gray-500 font-light leading-relaxed max-w-2xl mb-6">
-					Tesla Road Trip is a small game for exploring how people and AI agents make decisions. Move through the grid, collect all parks, manage battery, and plan a route around chargers, water, and blocked tiles. <a href="/learn" class="text-red-600 font-medium hover:underline">Learn more</a>
-				</p>
+	<div class="max-w-7xl mx-auto px-6 py-6 lg:py-8">
+		<p class="text-xs font-bold uppercase tracking-widest text-red-600 mb-2">🚗 Educational AI project</p>
+		<h1 class="text-2xl lg:text-3xl font-light text-[#171a20] leading-tight tracking-tight mb-2">
+			Reach every park before the battery runs dry.
+		</h1>
+		<p class="text-base text-gray-500 font-light leading-relaxed max-w-2xl">
+			Plan a route around chargers, water and buildings with the arrow keys, or hand the wheel to an AI agent and watch it drive live. <a href="/learn" class="text-red-600 font-medium hover:underline">How it works</a>
+		</p>
+	</div>
+</div>
 
-				<div class="max-w-md rounded-2xl border border-[#e8e8e8] bg-[#f7f7f7] p-4">
-					<div class="flex items-start justify-between gap-3 mb-3">
+<!-- Pick a map -->
+<section id="pick-a-map" class="max-w-7xl mx-auto px-6 py-10 scroll-mt-6">
+	{#if createError}
+		<p class="text-sm text-red-700 mb-3">{createError}</p>
+	{/if}
+	<div class="flex flex-wrap items-end justify-between gap-4 mb-4">
+		<div>
+			<h2 class="text-xl font-light text-[#393c41]">Pick a map</h2>
+			<p class="text-sm text-gray-500 mt-0.5">Smallest maps first. Press Play to start a session.</p>
+		</div>
+		<div class="w-full sm:w-72">
+			<label for="session-name" class="block text-xs font-semibold text-[#393c41] mb-1.5">Name <span class="font-normal text-gray-400">(optional)</span></label>
+			<input
+				id="session-name"
+				type="text"
+				bind:value={sessionName}
+				placeholder="e.g. Claude's first run"
+				class="w-full border border-gray-200 rounded-full px-4 py-2 text-sm bg-white focus:outline-none focus:border-gray-400"
+			/>
+		</div>
+	</div>
+
+	<details class="mb-6 rounded-2xl border border-[#e8e8e8] bg-white p-3">
+		<summary class="cursor-pointer text-xs font-semibold uppercase tracking-wide text-gray-500">Advanced options{fogEnabled ? ` · fog r${fogRadius}` : ''}{moveDelayMs !== DEFAULT_MOVE_DELAY_MS ? ` · ${moveDelayMs} ms delay` : ''}</summary>
+		<p class="text-xs text-gray-500 mt-2">Optional settings for AI experiments, applied to whichever map you start. Defaults are fine for playing yourself.</p>
+		<div class="mt-3 grid gap-3 md:grid-cols-2">
+			<div class="rounded-2xl border border-gray-200 bg-white p-3">
+				<div class="flex items-center justify-between mb-2">
+					<p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Fog mode</p>
+					<label class="inline-flex items-center gap-2 text-xs text-gray-600">
+						<input type="checkbox" bind:checked={fogEnabled} class="rounded border-gray-300" />
+						Enable
+					</label>
+				</div>
+				{#if fogEnabled}
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 						<div>
-							<p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Map preview</p>
-							<p class="text-sm font-medium text-[#393c41]">{preview?.name ?? 'Loading map…'}</p>
+							<label for="fog-radius" class="block text-xs font-semibold text-[#393c41] mb-1.5">Radius</label>
+							<input id="fog-radius" type="number" min="1" bind:value={fogRadius} class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:border-gray-400" />
 						</div>
-						{#if preview}
-							<span class="shrink-0 text-[11px] text-gray-400 bg-[#f7f7f7] rounded-full px-2 py-1">{preview.gridSize}×{preview.gridSize}</span>
-						{/if}
+						<div>
+							<label for="grid-password" class="block text-xs font-semibold text-[#393c41] mb-1.5">Grid password</label>
+							<input id="grid-password" type="text" bind:value={gridPassword} placeholder="leave blank to auto-generate" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:border-gray-400" />
+						</div>
 					</div>
-
-					{#if previewLoading && !preview}
-						<div class="h-44 rounded-xl bg-[#f7f7f7] animate-pulse"></div>
-					{:else if previewError}
-						<p class="text-xs text-red-700">Could not load preview: {previewError}</p>
-					{:else if preview}
-						<div class="overflow-hidden rounded-xl bg-white p-2">
-							<div class="grid gap-0.5 aspect-square" style={`grid-template-columns: repeat(${preview.gridSize}, minmax(0, 1fr));`} aria-label={`Preview of ${preview.name}`}>
-								{#each preview.layout as row}
-									{#each row.split('') as char}
-										{@const t = tileType(char, preview.legend, preview.cellConfigs)}
-										<div class={`aspect-square rounded-[2px] flex items-center justify-center text-[0.6rem] leading-none font-bold ${t === 'home' || t === 'water' ? 'text-white' : 'text-orange-500'} ${tileClass(char, preview.legend, preview.cellConfigs)}`} title={t}>{terrainGlyph(t) || directionGlyph(directionsForChar(char, preview.cellConfigs))}</div>
-									{/each}
-								{/each}
-							</div>
-						</div>
-						<div class="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-600">
-							<span class="inline-flex items-center gap-1"><span class="inline-flex h-4 w-4 items-center justify-center rounded-sm bg-red-500 text-white text-[10px] font-bold leading-none">⌂</span>Home</span>
-							<span class="inline-flex items-center gap-1"><span class="inline-flex h-4 w-4 items-center justify-center rounded-sm bg-emerald-500 text-[9px] leading-none">🌳</span>Park</span>
-							<span class="inline-flex items-center gap-1"><span class="inline-flex h-4 w-4 items-center justify-center rounded-sm bg-yellow-400 text-[9px] leading-none">⚡</span>Charger</span>
-							<span class="inline-flex items-center gap-1"><span class="inline-flex h-4 w-4 items-center justify-center rounded-sm bg-blue-400 text-white text-[10px] font-bold leading-none">≈</span>Water</span>
-							<span class="inline-flex items-center gap-1"><span class="h-4 w-4 rounded-sm bg-slate-700"></span>Blocked</span>
-						</div>
-					{/if}
-				</div>
-			</div>
-
-			<!-- Right: quick actions -->
-			<div class="mt-10 lg:mt-0 bg-[#f7f7f7] rounded-2xl p-6 border border-[#e8e8e8]">
-				<h2 class="text-xl font-light text-[#393c41] mb-1">Start playing</h2>
-				<p class="text-sm text-gray-400 mb-5">Create a session, then drive with the arrow keys to visit every park before your battery runs out.</p>
-
-				<div class="mb-4">
-					<label for="cfg" class="block text-xs font-semibold text-[#393c41] mb-1.5">Map</label>
-					<select id="cfg" bind:value={selectedMap}
-						class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-gray-400">
-						{#each maps as m}
-							<option value={m.mapId}>{m.label}</option>
-						{/each}
-					</select>
-				</div>
-
-				<div class="mb-4">
-					<label for="session-name" class="block text-xs font-semibold text-[#393c41] mb-1.5">Name <span class="font-normal text-gray-400">(optional)</span></label>
-					<input
-						id="session-name"
-						type="text"
-						bind:value={sessionName}
-						placeholder="e.g. Claude's first run"
-						class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-gray-400"
-					/>
-				</div>
-
-				<details class="mb-4 rounded-2xl border border-gray-200 bg-white p-3">
-					<summary class="cursor-pointer text-xs font-semibold uppercase tracking-wide text-gray-400">Advanced options</summary>
-					<p class="text-xs text-gray-400 mt-2">Optional settings for AI experiments. Defaults are fine for playing yourself.</p>
-				<div class="mt-3 mb-4 rounded-2xl border border-gray-200 bg-white p-3">
-					<div class="flex items-center justify-between mb-2">
-						<p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Fog mode</p>
-						<label class="inline-flex items-center gap-2 text-xs text-gray-600">
-							<input type="checkbox" bind:checked={fogEnabled} class="rounded border-gray-300" />
-							Enable
-						</label>
-					</div>
-					{#if fogEnabled}
-						<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-							<div>
-								<label for="fog-radius" class="block text-xs font-semibold text-[#393c41] mb-1.5">Radius</label>
-								<input id="fog-radius" type="number" min="1" bind:value={fogRadius} class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:border-gray-400" />
-							</div>
-							<div>
-								<label for="grid-password" class="block text-xs font-semibold text-[#393c41] mb-1.5">Grid password</label>
-								<input id="grid-password" type="text" bind:value={gridPassword} placeholder="leave blank to auto-generate" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:border-gray-400" />
-							</div>
-						</div>
-						<p class="text-xs text-gray-400 mt-2">Fog hides the map from API clients: they only see the cells within this radius of the car. The full grid needs this password via GraphQL <code>grid(password: ...)</code>.</p>
-					{:else}
-						<p class="text-xs text-gray-400">Hide the full map from AI agents so they must explore.</p>
-					{/if}
-				</div>
-
-				<div class="rounded-2xl border border-gray-200 bg-white p-3">
-					<label for="move-delay" class="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1.5">Move delay (ms)</label>
-					<input
-						id="move-delay"
-						type="number"
-						min="0"
-						step="1"
-						bind:value={moveDelayMs}
-						class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:border-gray-400"
-					/>
-					<p class="text-xs text-gray-400 mt-2">Pause between moves on the live view so spectators can follow an AI's fast moves. 0 = no delay.</p>
-				</div>
-				</details>
-
-
-				<button
-					onclick={createSession}
-					disabled={creating}
-					class="w-full bg-[#393c41] text-white text-sm px-4 py-3 rounded-full hover:bg-black transition-colors disabled:opacity-50 mb-3">
-					{creating ? 'Creating…' : '+ Create session'}
-				</button>
-
-				<a href="/lobby" class="block w-full text-center border border-gray-200 bg-white text-[#393c41] text-sm px-4 py-3 rounded-full hover:border-gray-400 transition-colors">
-					Watch live sessions
-				</a>
-
-				{#if createError}
-					<p class="text-xs text-red-500 mt-3">{createError}</p>
+					<p class="text-xs text-gray-500 mt-2">Fog hides the map from API clients: they only see the cells within this radius of the car. The full grid needs this password via GraphQL <code>grid(password: ...)</code>.</p>
+				{:else}
+					<p class="text-xs text-gray-500">Hide the full map from AI agents so they must explore.</p>
 				{/if}
 			</div>
+			<div class="rounded-2xl border border-gray-200 bg-white p-3">
+				<label for="move-delay" class="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5">Move delay (ms)</label>
+				<input id="move-delay" type="number" min="0" step="1" bind:value={moveDelayMs} class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:border-gray-400" />
+				<p class="text-xs text-gray-500 mt-2">Pause between moves on the live view so spectators can follow an AI's fast moves. 0 = no delay.</p>
+			</div>
 		</div>
-	</div>
-</div>
+	</details>
 
-<!-- Feature overview -->
-<div class="max-w-7xl mx-auto px-6 py-10">
-	<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-		<div class="bg-white border border-[#e8e8e8] rounded-2xl p-5">
-			<div class="text-2xl mb-2" aria-hidden="true">🗺️</div>
-			<div class="font-medium text-[#393c41] mb-1">Explore the grid</div>
-			<p class="text-sm text-gray-500 leading-relaxed">Choose a map and decide which roads, parks, chargers, and obstacles matter for the trip.</p>
+	{#if $mapsResult.fetching && maps.length === 0}
+		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+			{#each Array(3) as _}<div class="h-96 rounded-2xl bg-white border border-[#e8e8e8] animate-pulse"></div>{/each}
 		</div>
-		<div class="bg-white border border-[#e8e8e8] rounded-2xl p-5">
-			<div class="text-2xl mb-2" aria-hidden="true">⚡</div>
-			<div class="font-medium text-[#393c41] mb-1">Manage battery</div>
-			<p class="text-sm text-gray-500 leading-relaxed">Each move costs energy, so the route has to include enough chargers to keep going.</p>
+	{:else if $mapsResult.error}
+		<p class="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">Could not load maps: {$mapsResult.error.message}</p>
+	{:else}
+		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+			{#each pickMaps as map (map.mapId)}
+				<MapCard
+					{map}
+					preview={previews[map.mapId] ?? undefined}
+					previewError={previews[map.mapId] === null}
+					busy={creatingId === map.mapId}
+					onplay={(m) => play(m.mapId)}
+				/>
+			{/each}
 		</div>
-		<div class="bg-white border border-[#e8e8e8] rounded-2xl p-5">
-			<div class="text-2xl mb-2" aria-hidden="true">🤖</div>
-			<div class="font-medium text-[#393c41] mb-1">Try it with an AI</div>
-			<p class="text-sm text-gray-500 leading-relaxed">Use the tools and APIs to let an agent inspect the session and choose the next move.</p>
+		<div class="mt-6 text-center">
+			<a href="/maps" class="text-sm font-medium text-[#393c41] hover:underline">Browse all {maps.length} maps →</a>
 		</div>
+	{/if}
+</section>
+
+<!-- Recent sessions -->
+<section class="max-w-7xl mx-auto px-6 pb-12">
+	<div class="flex items-end justify-between gap-4 mb-4">
+		<h2 class="text-xl font-light text-[#393c41]">Recent sessions</h2>
+		<a href="/lobby" class="text-sm text-gray-600 hover:text-gray-900">All sessions →</a>
 	</div>
-</div>
+	{#if recent.length === 0}
+		<div class="rounded-2xl border border-[#e8e8e8] bg-white px-5 py-8 text-center text-sm text-gray-500">
+			No one is driving yet. <button type="button" onclick={() => firstMap && play(firstMap.mapId)} class="font-medium text-[#393c41] underline">Start a session</button>
+		</div>
+	{:else}
+		<ul class="divide-y divide-gray-100 rounded-2xl border border-[#e8e8e8] bg-white">
+			{#each recent as s (s.id)}
+				{@const st = sessionStatus(s)}
+				<li>
+					<a href="/watch/{s.id}" class="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3 hover:bg-gray-50 transition-colors">
+						<span class="min-w-0 flex-1 truncate text-sm text-[#393c41]">{s.displayName ?? 'Unnamed session'} <span class="text-gray-400">· {mapLabel(s.mapName, maps)}</span></span>
+						<span class="text-xs text-gray-500 tabular-nums">🌳 {s.score} parks · {s.totalMoves} moves</span>
+						<span class="text-xs w-20 {st === 'won' ? 'text-green-700' : st === 'lost' ? 'text-red-700' : 'text-gray-600'}">{statusText[st]}</span>
+						<span class="text-xs text-gray-500 w-16 text-right" title={absoluteTime(s.lastActionAt)}>{relativeTime(s.lastActionAt)}</span>
+					</a>
+				</li>
+			{/each}
+		</ul>
+	{/if}
+</section>

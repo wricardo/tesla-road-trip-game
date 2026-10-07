@@ -291,12 +291,59 @@ describe('watch page', () => {
 				})
 			}
 		});
-		await screen.findByText('Hit: water at (2,1)');
+		// The crash reason shows in both the status line and the result modal.
+		expect((await screen.findAllByText('Hit: water at (2,1)')).length).toBeGreaterThan(0);
+		expect(screen.getByTestId('result-modal')).toBeInTheDocument();
 
 		await fireEvent.keyDown(window, { key: 'r' });
 		await waitFor(() => {
 			expect(mockRuntime.mutationCalls.some((call) => typeof call.query === 'string' && call.query.includes('mutation Reset'))).toBe(true);
 		});
+	});
+
+	it('marks arrow pad directions that would crash', async () => {
+		const grid = makeNearbyGrid();
+		grid[0][1] = { type: 'water', visited: false, id: '1,0', allowedDirections: [] };
+		grid[1][0] = { type: 'building', visited: false, id: '0,1', allowedDirections: [] };
+		mockRuntime.queryImpl = (query) => {
+			if (typeof query === 'string' && query.includes('query GameState')) {
+				return { data: { gameState: makeGameState({ nearbyGrid: grid }) }, error: null };
+			}
+			throw new Error(`Unexpected query: ${String(query)}`);
+		};
+
+		render(WatchPage);
+		const up = await screen.findByRole('button', { name: 'Drive up (warning: would crash into water)' });
+		expect(up).toHaveAttribute('data-crash', 'water');
+		expect(up).toHaveAttribute('title', '⚠ would crash into water');
+		expect(screen.getByRole('button', { name: 'Drive left (warning: would crash into building)' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'Drive right' })).not.toHaveAttribute('data-crash');
+	});
+
+	it('shows the result modal with Try again, Next map and All maps; Escape keeps the board', async () => {
+		render(WatchPage);
+		await screen.findByText('Reset session');
+		mockRuntime.wsSinks[0].next({ data: { sessionUpdated: makeGameState({ victory: true, score: 3 }) } });
+
+		const modal = await screen.findByTestId('result-modal');
+		expect(modal).toHaveTextContent('All 3 parks in 2 moves.');
+		expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'Next map' })).toBeInTheDocument();
+		expect(screen.getByRole('link', { name: 'All maps' })).toHaveAttribute('href', '/maps');
+
+		await fireEvent.keyDown(window, { key: 'Escape' });
+		await waitFor(() => expect(screen.queryByTestId('result-modal')).not.toBeInTheDocument());
+		expect(screen.getByRole('grid', { name: 'Game board' })).toBeInTheDocument();
+		expect(screen.getByTestId('status-line')).toHaveTextContent('Won');
+	});
+
+	it('opens the shortcuts dialog with ?', async () => {
+		render(WatchPage);
+		await screen.findByText('Reset session');
+		await fireEvent.keyDown(window, { key: '?' });
+		expect(await screen.findByRole('dialog', { name: 'Keyboard shortcuts' })).toBeInTheDocument();
+		await fireEvent.keyDown(window, { key: 'Escape' });
+		await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Keyboard shortcuts' })).not.toBeInTheDocument());
 	});
 
 	it('unlocks and clears full grid view with password flow', async () => {
@@ -341,7 +388,7 @@ describe('watch page', () => {
 		await screen.findByText('Play with an AI');
 		vi.useFakeTimers();
 
-		const copyButton = screen.getByRole('button', { name: 'Copy' });
+		const copyButton = screen.getByRole('button', { name: 'Copy prompt' });
 		await fireEvent.click(copyButton);
 
 		expect(navigator.clipboard.writeText).toHaveBeenCalledTimes(1);
@@ -349,7 +396,7 @@ describe('watch page', () => {
 
 		await vi.advanceTimersByTimeAsync(2000);
 
-		expect(screen.getByRole('button', { name: 'Copy' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'Copy prompt' })).toBeInTheDocument();
 	});
 
 	it('renders active, won, and crashed status from game state updates', async () => {

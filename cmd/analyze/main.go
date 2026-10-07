@@ -13,14 +13,14 @@ import (
 
 // AnalysisConfig is a light struct for reading config files used by analysis.
 type AnalysisConfig struct {
-	Name              string            `json:"name"`
-	Description       string            `json:"description"`
-	GridSize          int               `json:"grid_size"`
-	MaxBattery        int               `json:"max_battery"`
-	StartingBattery   int               `json:"starting_battery"`
-	Layout            []string          `json:"layout"`
-	Legend            map[string]string `json:"legend"`
-	Messages          map[string]string `json:"messages"`
+	Name            string            `json:"name"`
+	Description     string            `json:"description"`
+	GridSize        int               `json:"grid_size"`
+	MaxBattery      int               `json:"max_battery"`
+	StartingBattery int               `json:"starting_battery"`
+	Layout          []string          `json:"layout"`
+	Legend          map[string]string `json:"legend"`
+	Messages        map[string]string `json:"messages"`
 }
 
 // AnalysisPoint denotes a grid coordinate used during analysis output.

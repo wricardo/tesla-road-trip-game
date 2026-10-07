@@ -73,14 +73,14 @@ var DefaultMessages = GameMessages{
 
 // GameConfig represents the game configuration from JSON
 type GameConfig struct {
-	Name              string                `json:"name"`
-	Description       string                `json:"description"`
-	GridSize          int                   `json:"grid_size"`
-	MaxBattery        int                   `json:"max_battery"`
-	StartingBattery   int                   `json:"starting_battery"`
-	Layout            []string              `json:"layout"`
-	Legend            map[string]string     `json:"legend"`
-	CellConfigs       map[string]CellConfig `json:"cell_configs,omitempty"` // extra chars with direction constraints
+	Name            string                `json:"name"`
+	Description     string                `json:"description"`
+	GridSize        int                   `json:"grid_size"`
+	MaxBattery      int                   `json:"max_battery"`
+	StartingBattery int                   `json:"starting_battery"`
+	Layout          []string              `json:"layout"`
+	Legend          map[string]string     `json:"legend"`
+	CellConfigs     map[string]CellConfig `json:"cell_configs,omitempty"` // extra chars with direction constraints
 }
 
 // SurroundingCell represents a cell with its absolute position

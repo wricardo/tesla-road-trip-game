@@ -1,9 +1,12 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
-import { defineConfig } from 'vitest/config';
+import { defineConfig, type UserConfig } from 'vitest/config';
+
+// vitest bundles its own (older) vite, so its Plugin type differs from vite 8's; the plugins work fine at runtime.
+const plugins = [tailwindcss(), sveltekit()] as unknown as NonNullable<UserConfig['plugins']>;
 
 export default defineConfig({
-	plugins: [tailwindcss(), sveltekit()],
+	plugins,
 	resolve: {
 		conditions: ['browser']
 	},

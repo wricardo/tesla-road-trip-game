@@ -242,13 +242,13 @@ func TestSurroundingCellJSONMarshaling(t *testing.T) {
 
 func TestGameConfigJSONMarshaling(t *testing.T) {
 	config := GameConfig{
-		Name:              "Test Config",
-		Description:       "A test configuration",
-		GridSize:          10,
-		MaxBattery:        25,
-		StartingBattery:   20,
-		Layout:            []string{"RRRR", "HPPP"},
-		Legend:            map[string]string{"R": "road", "H": "home", "P": "park"},
+		Name:            "Test Config",
+		Description:     "A test configuration",
+		GridSize:        10,
+		MaxBattery:      25,
+		StartingBattery: 20,
+		Layout:          []string{"RRRR", "HPPP"},
+		Legend:          map[string]string{"R": "road", "H": "home", "P": "park"},
 	}
 	data, err := json.Marshal(config)
 	if err != nil {

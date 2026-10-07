@@ -45,14 +45,14 @@ func (g *GameState) GridAccess() GridAccess { return g.access }
 // GameMap is bound in gqlgen.yml instead of being generated so it can carry
 // the unexported layout access policy.
 type GameMap struct {
-	Name              string             `json:"name"`
-	Description       string             `json:"description"`
-	GridSize          int                `json:"gridSize"`
-	MaxBattery        int                `json:"maxBattery"`
-	StartingBattery   int                `json:"startingBattery"`
-	Layout            []string           `json:"layout"`
-	Legend            []*LegendEntry     `json:"legend"`
-	CellConfigs       []*CellConfigEntry `json:"cellConfigs"`
+	Name            string             `json:"name"`
+	Description     string             `json:"description"`
+	GridSize        int                `json:"gridSize"`
+	MaxBattery      int                `json:"maxBattery"`
+	StartingBattery int                `json:"startingBattery"`
+	Layout          []string           `json:"layout"`
+	Legend          []*LegendEntry     `json:"legend"`
+	CellConfigs     []*CellConfigEntry `json:"cellConfigs"`
 
 	access GridAccess
 }

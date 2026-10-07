@@ -1,5 +1,5 @@
 {
-  "name": "harbor_hop",
+  "name": "Harbor Hop",
   "description": "Harbor district with a central loop and four docks to visit in the right order.",
   "grid_size": 15,
   "max_battery": 18,

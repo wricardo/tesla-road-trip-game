@@ -47,6 +47,23 @@
 		['Clear the map in sections', 'Split the grid into areas and finish one before moving on, so you never backtrack across the whole map.'],
 		['Read the grid carefully', 'Roads and buildings can look alike in plain text. Parse the map character by character before deciding a route is blocked.']
 	];
+
+	const sections = [
+		['game', 'The game'],
+		['tiles', 'Tiles'],
+		['rules', 'Rules'],
+		['controls', 'Controls'],
+		['ai', 'How an AI plays'],
+		['connect', 'Let an AI play'],
+		['tips', 'Tips']
+	];
+
+	const controls = [
+		[['↑', '↓', '←', '→'], 'Drive one tile (the on-screen arrow pad works too)'],
+		[['R'], 'Reset the run — press twice mid-run, once after it ended'],
+		[['?'], 'Show the keyboard shortcuts'],
+		[['Esc'], 'Close the result or shortcuts dialog (the board stays visible)']
+	] as const;
 </script>
 
 <svelte:head>
@@ -54,7 +71,15 @@
 </svelte:head>
 
 <div class="max-w-3xl mx-auto px-6 py-8">
-	<h1 class="sr-only">Learn AI with Tesla Road Trip</h1>
+	<h1 class="text-3xl lg:text-4xl font-light text-[#171a20] tracking-tight mb-3">How Tesla Road Trip works</h1>
+	<p class="text-base text-gray-600 font-light leading-relaxed mb-5">
+		A car, a battery and a map full of parks. This page covers the tiles, the rules, the controls, and how to hand the wheel to an AI agent.
+	</p>
+	<nav aria-label="Sections" class="flex flex-wrap gap-2 mb-10">
+		{#each sections as [id, label]}
+			<a href="#{id}" class="text-xs px-3 py-1.5 rounded-full border border-gray-300 bg-white text-gray-700 hover:border-[#393c41] hover:text-[#393c41] transition-colors">{label}</a>
+		{/each}
+	</nav>
 
 	<!-- the game -->
 	<section id="game" class="mb-12 scroll-mt-6">
@@ -66,6 +91,11 @@
 			you can watch a run live, which makes it a handy way to see how an AI plans, recovers from mistakes and
 			manages a limited resource.
 		</p>
+	</section>
+
+	<!-- tiles -->
+	<section id="tiles" class="mb-12 scroll-mt-6">
+		<h2 class="text-lg font-medium text-[#393c41] mb-4">Tiles</h2>
 		<div class="grid grid-cols-3 sm:grid-cols-7 gap-3">
 			{#each legendTiles as tile}
 				<div class="bg-white rounded-xl border border-[#e8e8e8] p-3 text-center">
@@ -78,7 +108,7 @@
 
 	<!-- rules -->
 	<section id="rules" class="mb-12 scroll-mt-6">
-		<h2 class="text-lg font-medium text-[#393c41] mb-4">Rules at a glance</h2>
+		<h2 class="text-lg font-medium text-[#393c41] mb-4">Rules</h2>
 		<div class="grid gap-3 sm:grid-cols-2">
 			{#each rules as rule}
 				<div class="bg-white rounded-xl border border-[#e8e8e8] p-4">
@@ -87,6 +117,23 @@
 				</div>
 			{/each}
 		</div>
+	</section>
+
+	<!-- controls -->
+	<section id="controls" class="mb-12 scroll-mt-6">
+		<h2 class="text-lg font-medium text-[#393c41] mb-4">Controls</h2>
+		<dl class="bg-white rounded-xl border border-[#e8e8e8] p-4 space-y-2">
+			{#each controls as [keys, action]}
+				<div class="flex items-center gap-4 text-sm">
+					<dt class="flex gap-1 w-28 shrink-0">{#each keys as k}<kbd class="inline-flex min-w-[1.5rem] h-6 items-center justify-center rounded-md border border-gray-300 bg-gray-50 px-1.5 text-xs font-semibold text-gray-700">{k}</kbd>{/each}</dt>
+					<dd class="text-gray-600">{action}</dd>
+				</div>
+			{/each}
+		</dl>
+		<p class="text-sm text-gray-600 leading-relaxed mt-3">
+			On the play screen, an arrow on the pad turns red with a ⚠ when the tile in that direction would end the run (water, a building or the edge of the map).
+			In fog sessions it only warns about tiles the car can currently see.
+		</p>
 	</section>
 
 	<!-- how an AI plays -->
@@ -122,11 +169,7 @@
 			</p>
 			<a href="/llms.txt" target="_blank" rel="noreferrer" class="inline-block bg-[#393c41] text-white text-sm px-5 py-2.5 rounded-full hover:bg-black transition-colors">Open llms.txt</a>
 		</div>
-	</section>
-
-	<!-- fog -->
-	<section id="fog" class="mb-12 scroll-mt-6">
-		<h2 class="text-lg font-medium text-[#393c41] mb-4">Fog mode</h2>
+		<h3 id="fog" class="text-sm font-medium text-[#393c41] mt-6 mb-2 scroll-mt-6">Fog mode</h3>
 		<p class="text-sm text-gray-600 leading-relaxed mb-3">
 			Fog turns the puzzle into an exploration problem. In a fog session the agent only sees the tiles within a few cells of the car
 			(you choose the radius), so it has to discover the map as it drives instead of planning the whole route up front.
@@ -138,9 +181,9 @@
 		</p>
 	</section>
 
-	<!-- strategies -->
-	<section id="strategies" class="scroll-mt-6">
-		<h2 class="text-lg font-medium text-[#393c41] mb-4">Strategies that work</h2>
+	<!-- tips -->
+	<section id="tips" class="scroll-mt-6">
+		<h2 class="text-lg font-medium text-[#393c41] mb-4">Tips</h2>
 		<div class="grid gap-3 sm:grid-cols-2">
 			{#each strategies as [title, desc]}
 				<div class="bg-white rounded-xl border border-[#e8e8e8] p-4">
