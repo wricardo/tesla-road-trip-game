@@ -47,6 +47,9 @@ saves/
 sessions/
 test_sessions/
 
+# User-created maps (edit tokens live here too — never commit)
+maps/custom/
+
 # Temporary files
 tmp/
 temp/

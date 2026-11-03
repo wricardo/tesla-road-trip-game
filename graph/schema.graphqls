@@ -21,7 +21,8 @@ type Mutation {
   bulkMove(sessionID: ID!, moves: [Direction!]!, reset: Boolean = false): BulkMoveResult!
   reset(sessionID: ID!): GameState!
   createMap(name: String!, map: GameMapInput!): GameMap!
-  updateMap(name: String!, patch: GameMapPatchInput!): GameMap!
+  updateMap(name: String!, patch: GameMapPatchInput!, editKey: String): GameMap!
+  deleteMap(name: String!, editKey: String): DeleteSessionResult!
   validateMap(map: GameMapInput!): MapValidationResult!
 }
 
@@ -134,6 +135,14 @@ type GameMap {
   layout(password: String): [String!]!
   legend: [LegendEntry!]!
   cellConfigs: [CellConfigEntry!]!
+  "True for maps shipped with the server; only an admin key may change them."
+  builtin: Boolean!
+  """
+  Only set in the createMap response: the token that authorizes updateMap and
+  deleteMap for this map (send it as the editKey argument). It is never returned
+  again, so store it. Always null on every other query/mutation.
+  """
+  editKey: String
 }
 
 type LegendEntry { key: String!, value: String! }
@@ -174,6 +183,8 @@ type MapInfo {
   description: String!
   gridSize: Int!
   maxBattery: Int!
+  "True for maps shipped with the server."
+  builtin: Boolean!
 }
 
 type MoveResult {

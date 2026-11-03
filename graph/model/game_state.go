@@ -54,6 +54,12 @@ type GameMap struct {
 	Legend          []*LegendEntry     `json:"legend"`
 	CellConfigs     []*CellConfigEntry `json:"cellConfigs"`
 
+	// Builtin marks maps shipped with the server. Only an admin key may change them.
+	Builtin bool `json:"builtin"`
+	// EditKey holds the one-time token returned by createMap. It is cleared for
+	// every other response so it never leaks through normal queries.
+	EditKey *string `json:"editKey,omitempty"`
+
 	access GridAccess
 }
 

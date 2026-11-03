@@ -111,8 +111,10 @@ type ComplexityRoot struct {
 	}
 
 	GameMap struct {
+		Builtin         func(childComplexity int) int
 		CellConfigs     func(childComplexity int) int
 		Description     func(childComplexity int) int
+		EditKey         func(childComplexity int) int
 		GridSize        func(childComplexity int) int
 		Layout          func(childComplexity int, password *string) int
 		Legend          func(childComplexity int) int
@@ -161,6 +163,7 @@ type ComplexityRoot struct {
 	}
 
 	MapInfo struct {
+		Builtin     func(childComplexity int) int
 		Description func(childComplexity int) int
 		Filename    func(childComplexity int) int
 		GridSize    func(childComplexity int) int
@@ -199,10 +202,11 @@ type ComplexityRoot struct {
 		BulkMove      func(childComplexity int, sessionID string, moves []model.Direction, reset *bool) int
 		CreateMap     func(childComplexity int, name string, mapArg model.GameMapInput) int
 		CreateSession func(childComplexity int, mapID *string, mapName *string, fogEnabled *bool, fogRadius *int, gridPassword *string, moveDelayMs *int) int
+		DeleteMap     func(childComplexity int, name string, editKey *string) int
 		DeleteSession func(childComplexity int, id string) int
 		Move          func(childComplexity int, sessionID string, direction model.Direction, reset *bool) int
 		Reset         func(childComplexity int, sessionID string) int
-		UpdateMap     func(childComplexity int, name string, patch model.GameMapPatchInput) int
+		UpdateMap     func(childComplexity int, name string, patch model.GameMapPatchInput, editKey *string) int
 		UpdateSession func(childComplexity int, id string, displayName string) int
 		ValidateMap   func(childComplexity int, mapArg model.GameMapInput) int
 	}
@@ -283,6 +287,9 @@ type ComplexityRoot struct {
 
 type GameMapResolver interface {
 	Layout(ctx context.Context, obj *model.GameMap, password *string) ([]string, error)
+
+	Builtin(ctx context.Context, obj *model.GameMap) (bool, error)
+	EditKey(ctx context.Context, obj *model.GameMap) (*string, error)
 }
 type GameStateResolver interface {
 	Grid(ctx context.Context, obj *model.GameState, password *string) ([][]*model.Cell, error)
@@ -295,7 +302,8 @@ type MutationResolver interface {
 	BulkMove(ctx context.Context, sessionID string, moves []model.Direction, reset *bool) (*model.BulkMoveResult, error)
 	Reset(ctx context.Context, sessionID string) (*model.GameState, error)
 	CreateMap(ctx context.Context, name string, mapArg model.GameMapInput) (*model.GameMap, error)
-	UpdateMap(ctx context.Context, name string, patch model.GameMapPatchInput) (*model.GameMap, error)
+	UpdateMap(ctx context.Context, name string, patch model.GameMapPatchInput, editKey *string) (*model.GameMap, error)
+	DeleteMap(ctx context.Context, name string, editKey *string) (*model.DeleteSessionResult, error)
 	ValidateMap(ctx context.Context, mapArg model.GameMapInput) (*model.MapValidationResult, error)
 }
 type QueryResolver interface {
@@ -625,6 +633,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.GameEvent.Type(childComplexity), true
 
+	case "GameMap.builtin":
+		if e.complexity.GameMap.Builtin == nil {
+			break
+		}
+
+		return e.complexity.GameMap.Builtin(childComplexity), true
+
 	case "GameMap.cellConfigs":
 		if e.complexity.GameMap.CellConfigs == nil {
 			break
@@ -638,6 +653,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.GameMap.Description(childComplexity), true
+
+	case "GameMap.editKey":
+		if e.complexity.GameMap.EditKey == nil {
+			break
+		}
+
+		return e.complexity.GameMap.EditKey(childComplexity), true
 
 	case "GameMap.gridSize":
 		if e.complexity.GameMap.GridSize == nil {
@@ -901,6 +923,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.LegendEntry.Value(childComplexity), true
 
+	case "MapInfo.builtin":
+		if e.complexity.MapInfo.Builtin == nil {
+			break
+		}
+
+		return e.complexity.MapInfo.Builtin(childComplexity), true
+
 	case "MapInfo.description":
 		if e.complexity.MapInfo.Description == nil {
 			break
@@ -1098,6 +1127,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Mutation.CreateSession(childComplexity, args["mapID"].(*string), args["mapName"].(*string), args["fogEnabled"].(*bool), args["fogRadius"].(*int), args["gridPassword"].(*string), args["moveDelayMs"].(*int)), true
 
+	case "Mutation.deleteMap":
+		if e.complexity.Mutation.DeleteMap == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteMap_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DeleteMap(childComplexity, args["name"].(string), args["editKey"].(*string)), true
+
 	case "Mutation.deleteSession":
 		if e.complexity.Mutation.DeleteSession == nil {
 			break
@@ -1144,7 +1185,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Mutation.UpdateMap(childComplexity, args["name"].(string), args["patch"].(model.GameMapPatchInput)), true
+		return e.complexity.Mutation.UpdateMap(childComplexity, args["name"].(string), args["patch"].(model.GameMapPatchInput), args["editKey"].(*string)), true
 
 	case "Mutation.updateSession":
 		if e.complexity.Mutation.UpdateSession == nil {
@@ -1676,7 +1717,8 @@ type Mutation {
   bulkMove(sessionID: ID!, moves: [Direction!]!, reset: Boolean = false): BulkMoveResult!
   reset(sessionID: ID!): GameState!
   createMap(name: String!, map: GameMapInput!): GameMap!
-  updateMap(name: String!, patch: GameMapPatchInput!): GameMap!
+  updateMap(name: String!, patch: GameMapPatchInput!, editKey: String): GameMap!
+  deleteMap(name: String!, editKey: String): DeleteSessionResult!
   validateMap(map: GameMapInput!): MapValidationResult!
 }
 
@@ -1789,6 +1831,14 @@ type GameMap {
   layout(password: String): [String!]!
   legend: [LegendEntry!]!
   cellConfigs: [CellConfigEntry!]!
+  "True for maps shipped with the server; only an admin key may change them."
+  builtin: Boolean!
+  """
+  Only set in the createMap response: the token that authorizes updateMap and
+  deleteMap for this map (send it as the editKey argument). It is never returned
+  again, so store it. Always null on every other query/mutation.
+  """
+  editKey: String
 }
 
 type LegendEntry { key: String!, value: String! }
@@ -1829,6 +1879,8 @@ type MapInfo {
   description: String!
   gridSize: Int!
   maxBattery: Int!
+  "True for maps shipped with the server."
+  builtin: Boolean!
 }
 
 type MoveResult {
@@ -2237,6 +2289,57 @@ func (ec *executionContext) field_Mutation_createSession_argsMoveDelayMs(
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Mutation_deleteMap_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_deleteMap_argsName(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["name"] = arg0
+	arg1, err := ec.field_Mutation_deleteMap_argsEditKey(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["editKey"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_deleteMap_argsName(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["name"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+	if tmp, ok := rawArgs["name"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteMap_argsEditKey(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	if _, ok := rawArgs["editKey"]; !ok {
+		var zeroVal *string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("editKey"))
+	if tmp, ok := rawArgs["editKey"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Mutation_deleteSession_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -2380,6 +2483,11 @@ func (ec *executionContext) field_Mutation_updateMap_args(ctx context.Context, r
 		return nil, err
 	}
 	args["patch"] = arg1
+	arg2, err := ec.field_Mutation_updateMap_argsEditKey(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["editKey"] = arg2
 	return args, nil
 }
 func (ec *executionContext) field_Mutation_updateMap_argsName(
@@ -2415,6 +2523,24 @@ func (ec *executionContext) field_Mutation_updateMap_argsPatch(
 	}
 
 	var zeroVal model.GameMapPatchInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateMap_argsEditKey(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	if _, ok := rawArgs["editKey"]; !ok {
+		var zeroVal *string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("editKey"))
+	if tmp, ok := rawArgs["editKey"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
 	return zeroVal, nil
 }
 
@@ -5311,6 +5437,91 @@ func (ec *executionContext) fieldContext_GameMap_cellConfigs(_ context.Context, 
 	return fc, nil
 }
 
+func (ec *executionContext) _GameMap_builtin(ctx context.Context, field graphql.CollectedField, obj *model.GameMap) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_GameMap_builtin(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.GameMap().Builtin(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_GameMap_builtin(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameMap",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameMap_editKey(ctx context.Context, field graphql.CollectedField, obj *model.GameMap) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_GameMap_editKey(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.GameMap().EditKey(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_GameMap_editKey(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameMap",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _GameState_grid(ctx context.Context, field graphql.CollectedField, obj *model.GameState) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_GameState_grid(ctx, field)
 	if err != nil {
@@ -6994,6 +7205,50 @@ func (ec *executionContext) fieldContext_MapInfo_maxBattery(_ context.Context, f
 	return fc, nil
 }
 
+func (ec *executionContext) _MapInfo_builtin(ctx context.Context, field graphql.CollectedField, obj *model.MapInfo) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MapInfo_builtin(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Builtin, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MapInfo_builtin(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MapInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _MapValidationResult_valid(ctx context.Context, field graphql.CollectedField, obj *model.MapValidationResult) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_MapValidationResult_valid(ctx, field)
 	if err != nil {
@@ -8368,6 +8623,10 @@ func (ec *executionContext) fieldContext_Mutation_createMap(ctx context.Context,
 				return ec.fieldContext_GameMap_legend(ctx, field)
 			case "cellConfigs":
 				return ec.fieldContext_GameMap_cellConfigs(ctx, field)
+			case "builtin":
+				return ec.fieldContext_GameMap_builtin(ctx, field)
+			case "editKey":
+				return ec.fieldContext_GameMap_editKey(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type GameMap", field.Name)
 		},
@@ -8400,7 +8659,7 @@ func (ec *executionContext) _Mutation_updateMap(ctx context.Context, field graph
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().UpdateMap(rctx, fc.Args["name"].(string), fc.Args["patch"].(model.GameMapPatchInput))
+		return ec.resolvers.Mutation().UpdateMap(rctx, fc.Args["name"].(string), fc.Args["patch"].(model.GameMapPatchInput), fc.Args["editKey"].(*string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -8441,6 +8700,10 @@ func (ec *executionContext) fieldContext_Mutation_updateMap(ctx context.Context,
 				return ec.fieldContext_GameMap_legend(ctx, field)
 			case "cellConfigs":
 				return ec.fieldContext_GameMap_cellConfigs(ctx, field)
+			case "builtin":
+				return ec.fieldContext_GameMap_builtin(ctx, field)
+			case "editKey":
+				return ec.fieldContext_GameMap_editKey(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type GameMap", field.Name)
 		},
@@ -8453,6 +8716,65 @@ func (ec *executionContext) fieldContext_Mutation_updateMap(ctx context.Context,
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_updateMap_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteMap(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_deleteMap(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DeleteMap(rctx, fc.Args["name"].(string), fc.Args["editKey"].(*string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.DeleteSessionResult)
+	fc.Result = res
+	return ec.marshalNDeleteSessionResult2ᚖgithubᚗcomᚋwricardoᚋteslaᚑroadᚑtripᚑgameᚋgraphᚋmodelᚐDeleteSessionResult(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deleteMap(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "message":
+				return ec.fieldContext_DeleteSessionResult_message(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DeleteSessionResult", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteMap_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -9036,6 +9358,8 @@ func (ec *executionContext) fieldContext_Query_maps(_ context.Context, field gra
 				return ec.fieldContext_MapInfo_gridSize(ctx, field)
 			case "maxBattery":
 				return ec.fieldContext_MapInfo_maxBattery(ctx, field)
+			case "builtin":
+				return ec.fieldContext_MapInfo_builtin(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type MapInfo", field.Name)
 		},
@@ -9098,6 +9422,10 @@ func (ec *executionContext) fieldContext_Query_map(ctx context.Context, field gr
 				return ec.fieldContext_GameMap_legend(ctx, field)
 			case "cellConfigs":
 				return ec.fieldContext_GameMap_cellConfigs(ctx, field)
+			case "builtin":
+				return ec.fieldContext_GameMap_builtin(ctx, field)
+			case "editKey":
+				return ec.fieldContext_GameMap_editKey(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type GameMap", field.Name)
 		},
@@ -9607,6 +9935,10 @@ func (ec *executionContext) fieldContext_Session_gameMap(_ context.Context, fiel
 				return ec.fieldContext_GameMap_legend(ctx, field)
 			case "cellConfigs":
 				return ec.fieldContext_GameMap_cellConfigs(ctx, field)
+			case "builtin":
+				return ec.fieldContext_GameMap_builtin(ctx, field)
+			case "editKey":
+				return ec.fieldContext_GameMap_editKey(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type GameMap", field.Name)
 		},
@@ -10923,6 +11255,10 @@ func (ec *executionContext) fieldContext_UnifiedSession_gameMap(_ context.Contex
 				return ec.fieldContext_GameMap_legend(ctx, field)
 			case "cellConfigs":
 				return ec.fieldContext_GameMap_cellConfigs(ctx, field)
+			case "builtin":
+				return ec.fieldContext_GameMap_builtin(ctx, field)
+			case "editKey":
+				return ec.fieldContext_GameMap_editKey(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type GameMap", field.Name)
 		},
@@ -13845,6 +14181,75 @@ func (ec *executionContext) _GameMap(ctx context.Context, sel ast.SelectionSet, 
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "builtin":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._GameMap_builtin(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "editKey":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._GameMap_editKey(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -14192,6 +14597,11 @@ func (ec *executionContext) _MapInfo(ctx context.Context, sel ast.SelectionSet, 
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "builtin":
+			out.Values[i] = ec._MapInfo_builtin(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -14464,6 +14874,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "updateMap":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_updateMap(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteMap":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteMap(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

@@ -34,25 +34,35 @@ var (
 	cachedUIMapPwd string
 )
 
-// checkAdminKey requires X-Admin-Key for admin mutations. ADMIN_API_KEY must be
-// configured; local development can opt out explicitly with
-// ALLOW_UNAUTHENTICATED_ADMIN=true.
-func checkAdminKey(ctx context.Context) error {
+// adminAuthorized reports whether the request carries valid admin credentials
+// (X-Admin-Key matches ADMIN_API_KEY, or the local-dev bypass).
+func adminAuthorized(ctx context.Context) bool {
 	required := os.Getenv("ADMIN_API_KEY")
 	if required == "" {
-		if os.Getenv("ALLOW_UNAUTHENTICATED_ADMIN") == "true" {
-			return nil
-		}
-		return errors.New("admin operation disabled: set ADMIN_API_KEY and send X-Admin-Key")
+		return os.Getenv("ALLOW_UNAUTHENTICATED_ADMIN") == "true"
 	}
 	r, _ := ctx.Value(mcpHTTPRequestKey{}).(*http.Request)
-	if r == nil {
-		return errors.New("admin operation requires X-Admin-Key header")
+	return r != nil && r.Header.Get("X-Admin-Key") == required
+}
+
+// authorizeMapMutation enforces the map write policy for MCP tools:
+//   - built-in maps: admin key required.
+//   - user-created maps: the edit token returned by create_map is required.
+//   - an admin key always overrides, so operators can repair any map.
+//
+// It returns allowBuiltin=true only when the admin override was used.
+func (s *Server) authorizeMapMutation(ctx context.Context, name string, editKey string) (allowBuiltin bool, err error) {
+	builtin, exists, err := s.svc.MapAuthorization(ctx, name)
+	if err != nil || !exists {
+		return false, fmt.Errorf("map %q not found", name)
 	}
-	if r.Header.Get("X-Admin-Key") != required {
-		return errors.New("forbidden: invalid or missing X-Admin-Key")
+	if adminAuthorized(ctx) {
+		return true, nil
 	}
-	return nil
+	if builtin {
+		return false, errors.New("forbidden: built-in maps can only be modified with an admin key")
+	}
+	return false, s.svc.VerifyMapEditToken(ctx, name, strings.TrimSpace(editKey))
 }
 
 func loadUIMapPassword() string {
@@ -294,7 +304,7 @@ func (s *Server) registerTools() {
 	}, s.handleGetMap)
 	s.mcpServer.AddTool(mcp.Tool{
 		Name:        "create_map",
-		Description: "Create a new map. Layout rows are strings of R/H/P/S/W/B characters. Requires at least one P (park) and one H (home).",
+		Description: "Create a new map. No credentials required. Returns a one-time edit_key that update_map and delete_map require; store it. Fails if the name is already taken (built-in maps cannot be overwritten). Layout rows are strings of R/H/P/S/W/B characters. Requires at least one P (park) and one H (home).",
 		InputSchema: mcp.ToolInputSchema{
 			Type:     "object",
 			Required: []string{"name", "grid_size", "max_battery", "starting_battery", "layout", "legend"},
@@ -313,12 +323,13 @@ func (s *Server) registerTools() {
 
 	s.mcpServer.AddTool(mcp.Tool{
 		Name:        "update_map",
-		Description: "Partially update an existing map. Only provided fields are changed; omitted fields keep their current values.",
+		Description: "Partially update a user-created map. Requires the edit_key returned by create_map (built-in maps need the X-Admin-Key header instead). Only provided fields are changed; omitted fields keep their current values.",
 		InputSchema: mcp.ToolInputSchema{
 			Type:     "object",
 			Required: []string{"name"},
 			Properties: map[string]interface{}{
 				"name":             map[string]interface{}{"type": "string", "description": "Map name/ID to update"},
+				"edit_key":         map[string]interface{}{"type": "string", "description": "Edit token returned by create_map (not needed with the X-Admin-Key header)"},
 				"description":      map[string]interface{}{"type": "string", "description": "New description"},
 				"grid_size":        map[string]interface{}{"type": "integer", "description": "New grid size"},
 				"max_battery":      map[string]interface{}{"type": "integer", "description": "New max battery"},
@@ -357,12 +368,13 @@ func (s *Server) registerTools() {
 
 	s.mcpServer.AddTool(mcp.Tool{
 		Name:        "delete_map",
-		Description: "Permanently delete a map by name.",
+		Description: "Permanently delete a user-created map. Requires the edit_key returned by create_map; built-in maps are protected and need the X-Admin-Key header.",
 		InputSchema: mcp.ToolInputSchema{
 			Type:     "object",
 			Required: []string{"name"},
 			Properties: map[string]interface{}{
-				"name": map[string]interface{}{"type": "string", "description": "Map name/ID to delete"},
+				"name":     map[string]interface{}{"type": "string", "description": "Map name/ID to delete"},
+				"edit_key": map[string]interface{}{"type": "string", "description": "Edit token returned by create_map (not needed with the X-Admin-Key header)"},
 			},
 		},
 	}, s.handleDeleteMap)
@@ -967,9 +979,6 @@ func (s *Server) handleGetMap(ctx context.Context, req mcp.CallToolRequest) (*mc
 }
 
 func (s *Server) handleCreateMap(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	if err := checkAdminKey(ctx); err != nil {
-		return errResult(err)
-	}
 	args := req.GetArguments()
 	name := str(req, "name")
 	if name == "" {
@@ -979,20 +988,27 @@ func (s *Server) handleCreateMap(ctx context.Context, req mcp.CallToolRequest) (
 	if cfg.Name == "" {
 		cfg.Name = name
 	}
-	if err := s.svc.SaveMap(ctx, name, cfg); err != nil {
+	res, err := s.svc.CreateMap(ctx, name, cfg)
+	if err != nil {
 		return errResult(err)
 	}
-	return mcp.NewToolResultText(fmt.Sprintf("map %q created", name)), nil
+	return mcp.NewToolResultText(toTOON(map[string]interface{}{
+		"message":  fmt.Sprintf("map %q created", name),
+		"map_id":   name,
+		"edit_key": res.EditKey,
+		"note":     "store edit_key; it is required by update_map and delete_map and will not be shown again",
+	})), nil
 }
 
 func (s *Server) handleUpdateMap(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	if err := checkAdminKey(ctx); err != nil {
-		return errResult(err)
-	}
 	args := req.GetArguments()
 	name := str(req, "name")
 	if name == "" {
 		return errResult(fmt.Errorf("name is required"))
+	}
+	allowBuiltin, err := s.authorizeMapMutation(ctx, name, str(req, "edit_key"))
+	if err != nil {
+		return errResult(err)
 	}
 	cfg, err := s.svc.LoadMap(ctx, name)
 	if err != nil {
@@ -1025,7 +1041,7 @@ func (s *Server) handleUpdateMap(ctx context.Context, req mcp.CallToolRequest) (
 	if cellConfigs := decodeCellConfigs(args["cell_configs"]); cellConfigs != nil {
 		cfg.CellConfigs = cellConfigs
 	}
-	if err := s.svc.SaveMap(ctx, name, cfg); err != nil {
+	if err := s.svc.UpdateMap(ctx, name, cfg, allowBuiltin); err != nil {
 		return errResult(err)
 	}
 	return mcp.NewToolResultText(fmt.Sprintf("map %q updated", name)), nil
@@ -1057,14 +1073,15 @@ func (s *Server) handleValidateMap(ctx context.Context, req mcp.CallToolRequest)
 }
 
 func (s *Server) handleDeleteMap(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	if err := checkAdminKey(ctx); err != nil {
-		return errResult(err)
-	}
 	name := str(req, "name")
 	if name == "" {
 		return errResult(fmt.Errorf("name is required"))
 	}
-	if err := s.svc.DeleteMap(ctx, name); err != nil {
+	allowBuiltin, err := s.authorizeMapMutation(ctx, name, str(req, "edit_key"))
+	if err != nil {
+		return errResult(err)
+	}
+	if err := s.svc.DeleteMap(ctx, name, allowBuiltin); err != nil {
 		return errResult(err)
 	}
 	return mcp.NewToolResultText(fmt.Sprintf("map %q deleted", name)), nil

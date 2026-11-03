@@ -1,6 +1,6 @@
 # Tesla Road Trip Game - MCP Tools Reference
 
-MCP is served over Streamable HTTP at `POST /mcp` (stdio is not supported). Most tools return **TOON format** (Token-Oriented Object Notation) text with snake_case fields. Exceptions: `create_map`, `update_map`, and `delete_map` return plain text (`map "name" created|updated|deleted`); `list_maps` returns a plain list of map names followed by a TOON table.
+MCP is served over Streamable HTTP at `POST /mcp` (stdio is not supported). Most tools return **TOON format** (Token-Oriented Object Notation) text with snake_case fields. Exceptions: `update_map` and `delete_map` return plain text (`map "name" updated|deleted`); `create_map` returns TOON (it includes the one-time `edit_key`); `list_maps` returns a plain list of map names followed by a TOON table.
 
 With the bundled `mcp.json` the server is named `tesla-game`, so Claude Code exposes tools as `mcp__tesla-game__<tool>`.
 
@@ -11,9 +11,9 @@ With the bundled `mcp.json` the server is named `tesla-game`, so Claude Code exp
 | `list_maps` | List available game maps/configs | (none) |
 | `get_map` | Get full map definition | `name` |
 | `validate_map` | Validate a map definition without saving | `map` |
-| `create_map` | Create a new map (admin) | `name`, `grid_size`, `max_battery`, `starting_battery`, `layout`, `legend` |
-| `update_map` | Partially update a map (admin) | `name` |
-| `delete_map` | Delete a map (admin) | `name` |
+| `create_map` | Create a new map (no auth; returns `edit_key`) | `name`, `grid_size`, `max_battery`, `starting_battery`, `layout`, `legend` |
+| `update_map` | Partially update a map you created (needs `edit_key`) | `name` |
+| `delete_map` | Delete a map you created (needs `edit_key`) | `name` |
 | `create_session` | Create new game session | (none) |
 | `get_session` | Get session details (metadata) | `session_id` |
 | `update_session` | Set session display name | `id`, `display_name` |
@@ -88,16 +88,22 @@ On failure: `valid: false`, `winnable: false`, plus `message` and `error` with t
 ---
 
 ### 4. create_map / update_map / delete_map
-**Purpose:** Create, partially update, or permanently delete a map. Require admin authorization (`ADMIN_API_KEY`, or `ALLOW_UNAUTHENTICATED_ADMIN=true` locally).
+**Purpose:** Create, partially update, or permanently delete a map.
+
+Creating needs no credentials. `create_map` returns an `edit_key` **once**; `update_map` and
+`delete_map` require it. Whoever holds the key owns the map. Built-in maps (`builtin: true` in
+`list_maps`) are read-only for key holders — copy them under a new name instead. Operators can
+override with `ADMIN_API_KEY` (`X-Admin-Key`), or `ALLOW_UNAUTHENTICATED_ADMIN=true` locally.
 
 **Parameters:**
-- `create_map`: `name` (unique ID, lowercase/underscores), `grid_size`, `max_battery`, `starting_battery`, `layout`, `legend` (all required); `description`, `cell_configs` (optional). Layout needs at least one P and one H.
-- `update_map`: `name` (required); any of `description`, `grid_size`, `max_battery`, `starting_battery`, `layout`, `legend`, `cell_configs`. Omitted fields keep current values.
-- `delete_map`: `name` (required).
+- `create_map`: `name` (unique ID, lowercase/underscores), `grid_size`, `max_battery`, `starting_battery`, `layout`, `legend` (all required); `description`, `cell_configs` (optional). Layout needs at least one P and one H. Fails if the name is taken.
+- `update_map`: `name` (required), `edit_key` (required for maps you created); any of `description`, `grid_size`, `max_battery`, `starting_battery`, `layout`, `legend`, `cell_configs`. Omitted fields keep current values.
+- `delete_map`: `name` and `edit_key` (required).
 
 `layout`, `legend`, `cell_configs` use the same shapes as `validate_map`.
 
-**Response (plain text):** `map "my_map" created` / `map "my_map" updated` / `map "my_map" deleted`
+**Response:** `create_map` returns TOON with `message`, `map_id`, and `edit_key`;
+`update_map`/`delete_map` return plain text (`map "my_map" updated` / `map "my_map" deleted`).
 
 ---
 

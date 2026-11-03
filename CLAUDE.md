@@ -157,7 +157,8 @@ Configured via environment variables in `.env`:
 - `GRAPHQL_PLAYGROUND` (default true)
 - `MCP_ENABLED` (default true)
 - `ALLOWED_ORIGINS` for WebSocket origin allowlist
-- `ADMIN_API_KEY` (required for map create/update/delete in GraphQL and MCP)
+- Map creation is open: `createMap`/`create_map` return a one-time edit token.
+- `ADMIN_API_KEY` (X-Admin-Key) overrides map ownership and is required to change built-in maps
 - `ALLOW_UNAUTHENTICATED_ADMIN=true` for local-only admin bypass
 
 ### Configuration System

@@ -62,8 +62,9 @@ cp .env.example .env
 | `GRAPHQL_INTROSPECTION` | `true` | GraphQL schema introspection |
 | `GRAPHQL_PLAYGROUND` | `true` | `/playground` UI |
 | `MCP_ENABLED` | `true` | `/mcp` endpoint |
-| `ADMIN_API_KEY` | unset | Required for map create/update/delete (`X-Admin-Key` header) |
-| `ALLOW_UNAUTHENTICATED_ADMIN` | `false` | Local-only bypass for admin operations |
+| `ADMIN_API_KEY` | unset | Optional. `X-Admin-Key` header value that overrides map ownership (edit built-in maps) |
+| `ALLOW_UNAUTHENTICATED_ADMIN` | `false` | Local-only bypass: treat every request as admin |
+| `CUSTOM_MAPS_DIR` | `$CONFIG_DIR/custom` | Writable directory for user-created maps (and their edit tokens) |
 | `ALLOWED_ORIGINS` | all | WebSocket origin allowlist (comma-separated) |
 
 ## Endpoints

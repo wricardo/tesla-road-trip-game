@@ -28,6 +28,17 @@ func (r *gameMapResolver) Layout(ctx context.Context, obj *model.GameMap, passwo
 	return obj.Layout, nil
 }
 
+// Builtin is the resolver for the builtin field.
+func (r *gameMapResolver) Builtin(ctx context.Context, obj *model.GameMap) (bool, error) {
+	return obj.Builtin, nil
+}
+
+// EditKey is the resolver for the editKey field. The token is only ever set on
+// the createMap response; everywhere else it is nil.
+func (r *gameMapResolver) EditKey(ctx context.Context, obj *model.GameMap) (*string, error) {
+	return obj.EditKey, nil
+}
+
 // Grid is the resolver for the grid field.
 func (r *gameStateResolver) Grid(ctx context.Context, obj *model.GameState, password *string) ([][]*model.Cell, error) {
 	policy := obj.GridAccess()
@@ -65,7 +76,7 @@ func (r *mutationResolver) CreateSession(ctx context.Context, mapID *string, map
 	if err != nil {
 		return nil, err
 	}
-	return toSession(s), nil
+	return r.annotateSessionMap(ctx, toSession(s), s), nil
 }
 
 // DeleteSession is the resolver for the deleteSession field.
@@ -82,7 +93,7 @@ func (r *mutationResolver) UpdateSession(ctx context.Context, id string, display
 	if err != nil {
 		return nil, err
 	}
-	return toSession(s), nil
+	return r.annotateSessionMap(ctx, toSession(s), s), nil
 }
 
 // Move is the resolver for the move field.
@@ -147,23 +158,27 @@ func (r *mutationResolver) Reset(ctx context.Context, sessionID string) (*model.
 }
 
 // CreateMap is the resolver for the createMap field.
+// Creating a map needs no credentials: it never overwrites, and the returned
+// editKey is the only way to update or delete the map afterwards.
 func (r *mutationResolver) CreateMap(ctx context.Context, name string, mapArg model.GameMapInput) (*model.GameMap, error) {
-	if err := checkAdminKey(ctx); err != nil {
-		return nil, err
-	}
 	cfg := fromGameMapInput(mapArg)
 	if cfg.Name == "" {
 		cfg.Name = name
 	}
-	if err := r.Service.SaveMap(ctx, name, cfg); err != nil {
+	res, err := r.Service.CreateMap(ctx, name, cfg)
+	if err != nil {
 		return nil, err
 	}
-	return toGameMap(cfg), nil
+	out := toGameMap(res.Map)
+	out.Builtin = false
+	out.EditKey = &res.EditKey
+	return out, nil
 }
 
 // UpdateMap is the resolver for the updateMap field.
-func (r *mutationResolver) UpdateMap(ctx context.Context, name string, patch model.GameMapPatchInput) (*model.GameMap, error) {
-	if err := checkAdminKey(ctx); err != nil {
+func (r *mutationResolver) UpdateMap(ctx context.Context, name string, patch model.GameMapPatchInput, editKey *string) (*model.GameMap, error) {
+	allowBuiltin, err := r.authorizeMapMutation(ctx, name, editKey)
+	if err != nil {
 		return nil, err
 	}
 	cfg, err := r.Service.LoadMap(ctx, name)
@@ -171,10 +186,24 @@ func (r *mutationResolver) UpdateMap(ctx context.Context, name string, patch mod
 		return nil, fmt.Errorf("map %q not found: %w", name, err)
 	}
 	applyPatch(cfg, patch)
-	if err := r.Service.SaveMap(ctx, name, cfg); err != nil {
+	if err := r.Service.UpdateMap(ctx, name, cfg, allowBuiltin); err != nil {
 		return nil, err
 	}
-	return toGameMap(cfg), nil
+	out := toGameMap(cfg)
+	r.annotateMapOwnership(ctx, out, name)
+	return out, nil
+}
+
+// DeleteMap is the resolver for the deleteMap field.
+func (r *mutationResolver) DeleteMap(ctx context.Context, name string, editKey *string) (*model.DeleteSessionResult, error) {
+	allowBuiltin, err := r.authorizeMapMutation(ctx, name, editKey)
+	if err != nil {
+		return nil, err
+	}
+	if err := r.Service.DeleteMap(ctx, name, allowBuiltin); err != nil {
+		return nil, err
+	}
+	return &model.DeleteSessionResult{Message: fmt.Sprintf("map %q deleted", name)}, nil
 }
 
 // ValidateMap is the resolver for the validateMap field.
@@ -205,7 +234,7 @@ func (r *queryResolver) Session(ctx context.Context, id string) (*model.Session,
 	if err != nil {
 		return nil, err
 	}
-	return toSession(s), nil
+	return r.annotateSessionMap(ctx, toSession(s), s), nil
 }
 
 // Sessions is the resolver for the sessions field.
@@ -238,7 +267,7 @@ func (r *queryResolver) Sessions(ctx context.Context, sort *model.SessionSort, o
 	}
 	out := make([]*model.Session, len(sessions))
 	for i, s := range sessions {
-		out[i] = toSession(s)
+		out[i] = r.annotateSessionMap(ctx, toSession(s), s)
 	}
 	return &model.SessionList{Count: len(out), Total: total, Sessions: out, Sort: sortName, Order: orderName}, nil
 }
@@ -266,7 +295,9 @@ func (r *queryResolver) UnifiedSessions(ctx context.Context, mapName *string) (*
 	}
 	out := make([]*model.UnifiedSession, len(sessions))
 	for i, s := range sessions {
-		out[i] = toUnifiedSession(s)
+		us := toUnifiedSession(s)
+		r.annotateMapOwnership(ctx, us.GameMap, s.MapName)
+		out[i] = us
 	}
 	return &model.UnifiedSessions{MapName: name, Count: len(out), Sessions: out}, nil
 }
@@ -321,7 +352,9 @@ func (r *queryResolver) Map(ctx context.Context, name string, password *string) 
 	if err != nil {
 		return nil, err
 	}
-	return toGameMap(cfg), nil
+	out := toGameMap(cfg)
+	r.annotateMapOwnership(ctx, out, name)
+	return out, nil
 }
 
 // SessionUpdated is the resolver for the sessionUpdated field.

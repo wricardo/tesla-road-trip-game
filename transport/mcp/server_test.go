@@ -77,7 +77,21 @@ func (m *mockGameService) LoadMap(ctx context.Context, mapName string) (*engine.
 func (m *mockGameService) SaveMap(ctx context.Context, mapName string, config *engine.GameConfig) error {
 	return nil
 }
-func (m *mockGameService) DeleteMap(ctx context.Context, mapName string) error { return nil }
+func (m *mockGameService) CreateMap(ctx context.Context, mapName string, config *engine.GameConfig) (*service.MapCreateResult, error) {
+	return &service.MapCreateResult{Map: config, EditKey: "test-edit-key"}, nil
+}
+func (m *mockGameService) UpdateMap(ctx context.Context, mapName string, config *engine.GameConfig, allowBuiltin bool) error {
+	return nil
+}
+func (m *mockGameService) MapAuthorization(ctx context.Context, mapName string) (bool, bool, error) {
+	return true, true, nil
+}
+func (m *mockGameService) VerifyMapEditToken(ctx context.Context, mapName, editKey string) error {
+	return nil
+}
+func (m *mockGameService) DeleteMap(ctx context.Context, mapName string, allowBuiltin bool) error {
+	return nil
+}
 
 func expectState(t *testing.T, ch <-chan *websocket.StateUpdate, want *engine.GameState) {
 	t.Helper()

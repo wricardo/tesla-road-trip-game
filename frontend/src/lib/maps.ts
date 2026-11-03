@@ -6,6 +6,7 @@ export type MapSummary = {
 	description: string;
 	gridSize: number;
 	maxBattery: number;
+	builtin?: boolean;
 };
 
 export type LegendEntry = { key: string; value: string };

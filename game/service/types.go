@@ -143,4 +143,14 @@ type MapInfo struct {
 	Description string `json:"description"`
 	GridSize    int    `json:"grid_size"`
 	MaxBattery  int    `json:"max_battery"`
+	// Builtin marks maps shipped with the server. They cannot be edited or
+	// deleted by API-key-less callers (only an admin key may change them).
+	Builtin bool `json:"builtin"`
+}
+
+// MapCreateResult is returned by CreateMap: the stored map plus the edit token
+// that authorizes later updates and deletes. The token is returned exactly once.
+type MapCreateResult struct {
+	Map     *engine.GameConfig
+	EditKey string
 }

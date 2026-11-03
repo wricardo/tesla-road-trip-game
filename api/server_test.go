@@ -150,7 +150,28 @@ func (m *MockGameService) SaveMap(ctx context.Context, configName string, config
 	return nil
 }
 
-func (m *MockGameService) DeleteMap(ctx context.Context, configName string) error { return nil }
+func (m *MockGameService) CreateMap(ctx context.Context, configName string, config *engine.GameConfig) (*service.MapCreateResult, error) {
+	return &service.MapCreateResult{Map: config, EditKey: "test-edit-key"}, nil
+}
+
+func (m *MockGameService) UpdateMap(ctx context.Context, configName string, config *engine.GameConfig, allowBuiltin bool) error {
+	if m.SaveMapFunc != nil {
+		return m.SaveMapFunc(ctx, configName, config)
+	}
+	return nil
+}
+
+func (m *MockGameService) MapAuthorization(ctx context.Context, mapName string) (bool, bool, error) {
+	return true, true, nil
+}
+
+func (m *MockGameService) VerifyMapEditToken(ctx context.Context, mapName, editKey string) error {
+	return nil
+}
+
+func (m *MockGameService) DeleteMap(ctx context.Context, configName string, allowBuiltin bool) error {
+	return nil
+}
 
 func (m *MockGameService) UpdateSessionDisplayName(ctx context.Context, sessionID, displayName string) (*service.SessionInfo, error) {
 	return nil, nil

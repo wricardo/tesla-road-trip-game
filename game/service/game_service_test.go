@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/wricardo/tesla-road-trip-game/game/config"
 	"github.com/wricardo/tesla-road-trip-game/game/engine"
 	"github.com/wricardo/tesla-road-trip-game/game/service"
 )
@@ -106,6 +107,7 @@ func (m *MockSessionManager) UpdateDisplayName(id, displayName string) error {
 // MockConfigManager implements service.ConfigManager for testing
 type MockConfigManager struct {
 	configs map[string]*engine.GameConfig
+	builtin map[string]bool
 }
 
 func NewMockConfigManager() *MockConfigManager {
@@ -137,6 +139,10 @@ func NewMockConfigManager() *MockConfigManager {
 		configs: map[string]*engine.GameConfig{
 			"test":    defaultConfig,
 			"default": defaultConfig,
+		},
+		builtin: map[string]bool{
+			"test":    true,
+			"default": true,
 		},
 	}
 }
@@ -174,6 +180,39 @@ func (m *MockConfigManager) SaveConfig(name string, config *engine.GameConfig) e
 }
 
 func (m *MockConfigManager) DeleteConfig(name string) error {
+	delete(m.configs, name)
+	return nil
+}
+
+func (m *MockConfigManager) CreateCustom(name string, cfg *engine.GameConfig) (string, error) {
+	if _, exists := m.configs[name]; exists {
+		return "", config.ErrMapExists
+	}
+	m.configs[name] = cfg
+	return "test-edit-key", nil
+}
+
+func (m *MockConfigManager) IsBuiltin(name string) bool {
+	_, ok := m.builtin[name]
+	return ok
+}
+
+func (m *MockConfigManager) VerifyEditToken(name, token string) error {
+	if m.IsBuiltin(name) {
+		return config.ErrReadOnlyMap
+	}
+	if token != "test-edit-key" {
+		return config.ErrInvalidEditToken
+	}
+	return nil
+}
+
+func (m *MockConfigManager) SaveBuiltin(name string, cfg *engine.GameConfig) error {
+	m.configs[name] = cfg
+	return nil
+}
+
+func (m *MockConfigManager) DeleteBuiltin(name string) error {
 	delete(m.configs, name)
 	return nil
 }

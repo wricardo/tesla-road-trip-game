@@ -2,6 +2,7 @@ package graph
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -32,6 +33,72 @@ func newTestGraphQLServer(t *testing.T) *httptest.Server {
 	resolver := NewResolver(svc, nil)
 	h := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
 	return httptest.NewServer(h)
+}
+
+// newTestGraphQLServerAt builds a GraphQL server rooted at the given maps dir
+// and returns its URL. Unlike the plain helper it injects the request context,
+// which resolvers need to read header credentials.
+func newTestGraphQLServerAt(t *testing.T, mapsDir string) string {
+	t.Helper()
+	cfg, err := config.NewManager(mapsDir)
+	if err != nil {
+		t.Fatalf("config.NewManager: %v", err)
+	}
+	sessions := session.NewManager()
+	svc := service.NewGameService(sessions, cfg)
+	resolver := NewResolver(svc, nil)
+	h := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
+	srv := httptest.NewServer(withRequestContext(h))
+	t.Cleanup(srv.Close)
+	return srv.URL
+}
+
+// withRequestContext mirrors main.go: it makes the *http.Request available to
+// resolvers so header-based credentials can be read.
+func withRequestContext(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), HTTPRequestKey{}, r)))
+	})
+}
+
+// decodeData re-decodes a raw GraphQL data payload into out.
+func decodeData(t *testing.T, raw json.RawMessage, out any) {
+	t.Helper()
+	if err := json.Unmarshal(raw, out); err != nil {
+		t.Fatalf("decode gql data: %v", err)
+	}
+}
+
+// newAdminRequest builds a GraphQL POST carrying the X-Admin-Key header.
+func newAdminRequest(t *testing.T, url, query string, variables map[string]any, adminKey string) *http.Request {
+	t.Helper()
+	body, err := json.Marshal(map[string]any{"query": query, "variables": variables})
+	if err != nil {
+		t.Fatalf("marshal gql body: %v", err)
+	}
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Admin-Key", adminKey)
+	return req
+}
+
+// doGQL executes req and decodes the GraphQL response.
+func doGQL(t *testing.T, req *http.Request) gqlResp {
+	t.Helper()
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("gql request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	var out gqlResp
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		t.Fatalf("decode gql response: %v", err)
+	}
+	return out
 }
 
 func gqlPost(t *testing.T, url, query string, variables map[string]any) gqlResp {

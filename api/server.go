@@ -421,14 +421,16 @@ func (s *Server) handleCreateMap(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.service.SaveMap(r.Context(), gameConfig.Name, &gameConfig); err != nil {
+	res, err := s.service.CreateMap(r.Context(), gameConfig.Name, &gameConfig)
+	if err != nil {
 		respondError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to save map: %v", err))
 		return
 	}
 
 	respondJSON(w, http.StatusCreated, map[string]interface{}{
-		"message": "Map saved successfully",
-		"map_id":  gameConfig.Name,
+		"message":  "Map saved successfully",
+		"map_id":   gameConfig.Name,
+		"edit_key": res.EditKey,
 	})
 }
 

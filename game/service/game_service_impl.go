@@ -684,13 +684,52 @@ func (s *gameServiceImpl) LoadMap(ctx context.Context, mapName string) (*engine.
 	return s.configs.LoadConfig(mapName)
 }
 
-// SaveMap saves a game map configuration to disk
-func (s *gameServiceImpl) SaveMap(ctx context.Context, mapName string, config *engine.GameConfig) error {
+// CreateMap stores a new user map and returns its one-time edit token.
+func (s *gameServiceImpl) CreateMap(ctx context.Context, mapName string, config *engine.GameConfig) (*MapCreateResult, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	token, err := s.configs.CreateCustom(mapName, config)
+	if err != nil {
+		return nil, err
+	}
+	return &MapCreateResult{Map: config, EditKey: token}, nil
+}
+
+// UpdateMap overwrites an existing map. allowBuiltin is set only after the
+// transport has verified admin credentials; without it built-in maps are refused.
+func (s *gameServiceImpl) UpdateMap(ctx context.Context, mapName string, config *engine.GameConfig, allowBuiltin bool) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if allowBuiltin {
+		return s.configs.SaveBuiltin(mapName, config)
+	}
 	return s.configs.SaveConfig(mapName, config)
 }
 
-// DeleteMap removes a map configuration from disk
-func (s *gameServiceImpl) DeleteMap(ctx context.Context, mapName string) error {
+// MapAuthorization reports whether mapName is built-in and whether it exists.
+func (s *gameServiceImpl) MapAuthorization(ctx context.Context, mapName string) (bool, bool, error) {
+	if s.configs.IsBuiltin(mapName) {
+		return true, true, nil
+	}
+	if _, err := s.configs.LoadConfig(mapName); err != nil {
+		return false, false, err
+	}
+	return false, true, nil
+}
+
+// VerifyMapEditToken reports whether editKey authorizes mutating mapName.
+func (s *gameServiceImpl) VerifyMapEditToken(ctx context.Context, mapName, editKey string) error {
+	return s.configs.VerifyEditToken(mapName, editKey)
+}
+
+// DeleteMap removes a map.
+func (s *gameServiceImpl) DeleteMap(ctx context.Context, mapName string, allowBuiltin bool) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if allowBuiltin {
+		return s.configs.DeleteBuiltin(mapName)
+	}
 	return s.configs.DeleteConfig(mapName)
 }
 

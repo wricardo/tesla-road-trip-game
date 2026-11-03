@@ -5,6 +5,7 @@
 	import { onMount } from 'svelte';
 	import { directionGlyph, standardDirectionalCellConfigs, directionalChars, terrainGlyph } from '$lib/directional';
 	import uiAuthConfig from '$lib/config/ui-auth.json';
+	import { getMapEditKey, setMapEditKey, mapSaveErrorMessage } from '$lib/mapEditKeys';
 
 	type CellType = string;
 
@@ -12,6 +13,7 @@
 		mapId: string;
 		name: string;
 		description: string;
+		builtin?: boolean;
 	}
 
 	type LegendEntry = { key: string; value: string };
@@ -114,6 +116,7 @@
 	let lastSavedMapId = $state('');
 	let hasSavedMap = $state(false);
 	const isEditMode = $derived(Boolean(originalMapId));
+	const builtinMapIds = $derived(new Set(configs.filter((c) => c.builtin).map((c) => c.mapId)));
 
 	onMount(async () => {
 		initializeGrid(gridSize);
@@ -279,7 +282,7 @@
 		};
 	}
 
-	async function persistMap(targetMapId: string, successMessage: string) {
+	async function persistMap(targetMapId: string, successMessage: string, mode: 'create' | 'update') {
 		isSaving = true;
 
 		try {
@@ -287,13 +290,42 @@
 				mutation CreateMap($name: String!, $map: GameMapInput!) {
 					createMap(name: $name, map: $map) {
 						name
+						editKey
 					}
 				}
 			`;
 
-			const result = await client.mutation(CREATE_MAP, { name: targetMapId, map: buildMapConfig() }).toPromise();
+			const UPDATE_MAP = gql`
+				mutation UpdateMap($name: String!, $patch: GameMapPatchInput!, $editKey: String) {
+					updateMap(name: $name, patch: $patch, editKey: $editKey) {
+						name
+						builtin
+					}
+				}
+			`;
 
-			if (result.error) throw result.error;
+			if (mode === 'update') {
+				const result = await client
+					.mutation(UPDATE_MAP, {
+						name: targetMapId,
+						patch: buildMapConfig(),
+						editKey: getMapEditKey(targetMapId)
+					})
+					.toPromise();
+
+				if (result.error) throw result.error;
+			} else {
+				const result = await client
+					.mutation(CREATE_MAP, { name: targetMapId, map: buildMapConfig() })
+					.toPromise();
+
+				if (result.error) throw result.error;
+
+				// The token is returned exactly once; keep it so later saves edit
+				// this map instead of being refused.
+				const editKey = result.data?.createMap?.editKey as string | undefined;
+				if (editKey) setMapEditKey(targetMapId, editKey);
+			}
 
 			await loadAvailableConfigs();
 			selectedConfigId = targetMapId;
@@ -305,21 +337,31 @@
 			goto(`/editor?map=${encodeURIComponent(targetMapId)}`, { replaceState: true, noScroll: true });
 		} catch (error) {
 			validationType = 'error';
-			validationMessage = `❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}`;
+			validationMessage = `❌ Error: ${mapSaveErrorMessage(error)}`;
 		} finally {
 			isSaving = false;
 		}
 	}
 
+	const editingBuiltin = $derived(isEditMode && builtinMapIds.has(originalMapId));
+	// Editing an existing map requires the token this browser received when it
+	// created that map. Without it the save would be refused, so don't offer it.
+	const hasEditKey = $derived(!isEditMode || Boolean(getMapEditKey(originalMapId)));
+	const canSaveEdits = $derived(hasEditKey);
+
 	async function saveConfiguration() {
 		if (!validateMap()) return;
 		const targetMapId = isEditMode ? originalMapId : mapName.trim();
-		await persistMap(targetMapId, isEditMode ? 'Map updated successfully.' : 'Map saved successfully.');
+		await persistMap(
+			targetMapId,
+			isEditMode ? 'Map updated successfully.' : 'Map saved successfully.',
+			isEditMode ? 'update' : 'create'
+		);
 	}
 
 	async function saveAsNew() {
 		if (!validateMap({ saveAsNew: true })) return;
-		await persistMap(mapName.trim(), 'New map saved successfully.');
+		await persistMap(mapName.trim(), 'New map saved successfully.', 'create');
 	}
 
 	async function validateWithSolver() {
@@ -363,6 +405,7 @@
 						mapId
 						name
 						description
+						builtin
 					}
 				}
 			`;
@@ -584,6 +627,19 @@
 			<section class="bg-white rounded-2xl border border-[#e8e8e8] shadow-sm p-6">
 				<h2 class="text-xl font-light text-[#393c41] mb-1">{isEditMode ? 'Edit configuration' : 'Configuration'}</h2>
 				<p class="text-sm text-gray-400 mb-5">{isEditMode ? `Saving changes updates ${originalMapId}. Change the name and use Save as new to duplicate.` : isDuplicateMode ? `This is a duplicate draft of ${duplicateSourceId}. Save map will create a new map.` : 'Matches the GameMap schema used by saved maps.'}</p>
+				{#if editingBuiltin}
+					<div class="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+						<span class="font-semibold">Built-in map.</span>
+						Built-in maps can only be changed by an administrator. Use
+						<span class="font-semibold">Save as new</span> to keep this layout as your own editable map.
+					</div>
+				{:else if isEditMode && !hasEditKey}
+					<div class="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+						<span class="font-semibold">No edit token for this map.</span>
+						Edit tokens are issued once, when a map is created, and only to the browser that created it.
+						Use <span class="font-semibold">Save as new</span> to make your own editable copy.
+					</div>
+				{/if}
 				<div class="space-y-4">
 					<div>
 						<label for="mapName" class="block text-xs font-semibold text-[#393c41] mb-1.5">Map name *</label>
@@ -608,7 +664,7 @@
 						</div>
 					</div>
 
-					<button onclick={saveConfiguration} disabled={isSaving || isLoadingMap || isValidating} class="w-full bg-[#393c41] text-white text-sm px-4 py-3 rounded-full hover:bg-black transition-colors disabled:opacity-50 mt-2">
+					<button onclick={saveConfiguration} disabled={isSaving || isLoadingMap || isValidating || !canSaveEdits} class="w-full bg-[#393c41] text-white text-sm px-4 py-3 rounded-full hover:bg-black transition-colors disabled:opacity-50 mt-2">
 						{isSaving ? 'Saving…' : isEditMode ? 'Save changes' : 'Save map'}
 					</button>
 					<button type="button" onclick={validateWithSolver} disabled={isSaving || isLoadingMap || isValidating} class="w-full border border-gray-200 bg-white text-[#393c41] text-sm px-4 py-3 rounded-full hover:border-gray-400 transition-colors disabled:opacity-50">

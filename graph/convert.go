@@ -203,7 +203,7 @@ func toMapInfo(c *service.MapInfo) *model.MapInfo {
 	if c == nil {
 		return nil
 	}
-	return &model.MapInfo{Filename: c.Filename, MapID: c.MapID, Name: c.Name, Description: c.Description, GridSize: c.GridSize, MaxBattery: c.MaxBattery}
+	return &model.MapInfo{Filename: c.Filename, MapID: c.MapID, Name: c.Name, Description: c.Description, GridSize: c.GridSize, MaxBattery: c.MaxBattery, Builtin: c.Builtin}
 }
 func toAttempt(a *service.AttemptInfo) *model.AttemptInfo {
 	if a == nil {

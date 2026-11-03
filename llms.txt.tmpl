@@ -351,10 +351,24 @@ declared in `cellConfigs`, e.g.
 
 ### Map administration
 
-`createMap(name, map: GameMapInput)` and `updateMap(name, patch: GameMapPatchInput)` take the
-same fields as `validateMap` (patch fields are all optional). They need the server's
-`ADMIN_API_KEY`, sent as the `X-Admin-Key` HTTP header; the MCP tools `create_map`,
-`update_map` and `delete_map` need the same header. Deleting maps is MCP-only.
+`createMap(name, map: GameMapInput)` and `updateMap(name, patch: GameMapPatchInput, editKey)`
+take the same fields as `validateMap` (patch fields are all optional).
+
+Creating a map needs **no credentials**. `createMap` returns the new map plus
+`editKey` (and `builtin: false`); the token is returned exactly once, so store it.
+`updateMap` and `deleteMap` require that token in their `editKey` argument.
+Maps shipped with the server report `builtin: true` in `maps { builtin }` and are
+**read-only** for token holders — use `createMap` with a new name to make your own
+editable copy. The owner of a map is whoever holds its edit key; there are no accounts.
+
+`deleteMap(name, editKey): DeleteSessionResult` deletes a map you created. Built-in
+maps cannot be deleted without the admin key.
+
+The MCP tools `create_map`, `update_map` and `delete_map` follow the same rules, using
+an `edit_key` argument; `create_map` returns the key in its result.
+
+Operators can override both rules by setting `ADMIN_API_KEY` and sending it as the
+`X-Admin-Key` HTTP header (this works for built-in maps too).
 
 ---
 
@@ -423,9 +437,9 @@ Most tool results are text in TOON format (compact YAML-like) with snake_case fi
 | validate_map     | map* (create_map fields; `description` also required here)                      |
 | get_map          | name*, password (UI password; restricted)                                       |
 | create_map       | name*, grid_size*, max_battery*, starting_battery*, layout*, legend*,           |
-|                  | description, cell_configs — admin key                                           |
-| update_map       | name*, any create_map field — admin key                                         |
-| delete_map       | name* — admin key                                                               |
+|                  | description, cell_configs — no auth; returns edit_key                           |
+| update_map       | name*, edit_key (unless admin), any create_map field                            |
+| delete_map       | name*, edit_key (unless admin)                                                  |
 
 `intent` is a free-text note explaining your reasoning; it is not interpreted.
 `game_state`, `move` and `bulk_move` results include `local_view_3x3`: always 3 rows of 3,

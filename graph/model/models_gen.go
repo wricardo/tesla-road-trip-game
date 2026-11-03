@@ -126,6 +126,8 @@ type MapInfo struct {
 	Description string `json:"description"`
 	GridSize    int    `json:"gridSize"`
 	MaxBattery  int    `json:"maxBattery"`
+	// True for maps shipped with the server.
+	Builtin bool `json:"builtin"`
 }
 
 type MapValidationResult struct {

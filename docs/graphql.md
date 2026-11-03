@@ -50,8 +50,9 @@ curl -s http://localhost:8000/graphql \
 | `move(sessionID: ID!, direction: Direction!, reset: Boolean = false): MoveResult!` | Execute one move. Optional `reset: true` resets the session before moving. Broadcasts a session update. |
 | `bulkMove(sessionID: ID!, moves: [Direction!]!, reset: Boolean = false): BulkMoveResult!` | Execute a sequence of moves. Stops early on game-ending or invalid conditions reported in `stoppedReason` / `stopReasonCode`. Broadcasts a session update. |
 | `reset(sessionID: ID!): GameState!` | Reset a session to the map's starting state. Broadcasts a session update. |
-| `createMap(name: String!, map: GameMapInput!): GameMap!` | Save a new map definition (requires admin API key). If `map.name` is empty internally, the resolver uses the `name` argument. |
-| `updateMap(name: String!, patch: GameMapPatchInput!): GameMap!` | Partially update a map (requires admin API key); omitted fields keep existing values. |
+| `createMap(name: String!, map: GameMapInput!): GameMap!` | Create a new map. Needs no credentials and never overwrites: the name must be unused (built-in names are taken). The response carries a one-time `editKey` that `updateMap`/`deleteMap` require. If `map.name` is empty internally, the resolver uses the `name` argument. |
+| `updateMap(name: String!, patch: GameMapPatchInput!, editKey: String): GameMap!` | Partially update a map you created, passing the `editKey` from `createMap`; omitted fields keep existing values. Built-in maps reject edit keys — they need `X-Admin-Key`. |
+| `deleteMap(name: String!, editKey: String): DeleteSessionResult!` | Delete a map you created. Built-in maps need `X-Admin-Key`. |
 | `validateMap(map: GameMapInput!): MapValidationResult!` | Check a map definition for validity and winnability without saving it. |
 
 ## Subscriptions
@@ -301,11 +302,26 @@ mutation CreateMap($name: String!, $map: GameMapInput!) {
     startingBattery
     layout
     cellConfigs { key type allowedDirections }
+    builtin
+    editKey
   }
 }
 ```
 
 A `GameMapInput` requires `name`, `description`, `gridSize`, `maxBattery`, `startingBattery`, `layout`, and `legend`; `cellConfigs` is optional (defaults to `[]`) and sets per-cell `allowedDirections` for one-way roads. Use `validateMap` first to check winnability.
+
+`createMap` needs no credentials. It returns `editKey` exactly once — store it, because
+`updateMap` and `deleteMap` need it. The map is owned by whoever holds that key:
+
+```graphql
+mutation UpdateMap($name: String!, $patch: GameMapPatchInput!, $editKey: String) {
+  updateMap(name: $name, patch: $patch, editKey: $editKey) { name description builtin }
+}
+```
+
+Maps shipped with the server have `builtin: true` (see `maps { builtin }`) and cannot be
+changed with an edit key. Copy them with `createMap` under a new name instead. An operator
+who sets `ADMIN_API_KEY` can override ownership by sending the `X-Admin-Key` header.
 
 ## Type reference
 
@@ -464,6 +480,7 @@ type MapInfo {
   description: String!
   gridSize: Int!
   maxBattery: Int!
+  builtin: Boolean!
 }
 
 type GameMap {
@@ -475,6 +492,8 @@ type GameMap {
   layout(password: String): [String!]!
   legend: [LegendEntry!]!
   cellConfigs: [CellConfigEntry!]!
+  builtin: Boolean!
+  editKey: String
 }
 
 type LegendEntry { key: String!, value: String! }
