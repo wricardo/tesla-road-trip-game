@@ -172,26 +172,59 @@ func validateWinnable(config *GameConfig) error {
 		return false
 	}
 
-	// The state space is positions × battery levels × park subsets, growing
-	// exponentially with park count. Cap it: a legitimate map stays far below
-	// this, and refusing with a clear error beats being OOM-killed mid-deploy.
-	const maxSearchStates = 8_000_000
+	// The search space is positions × battery levels × park subsets. Encode each
+	// state as an integer and track visited states in a bitset rather than a map:
+	// a map keyed by a 24-byte struct costs ~50 bytes per state, so a 20M-state
+	// map allocated over a gigabyte and got the server OOM-killed. A bitset needs
+	// one bit per state, and the size is known up front so an oversized map is
+	// rejected before anything is allocated.
+	masks := uint64(1) << len(parks)
+	total := uint64(config.GridSize) * uint64(config.GridSize) * uint64(config.MaxBattery+1) * masks
+	const maxStates = 24_000_000 // ~3 MB bitset, ~192 MB queue in the worst case
+	if total > maxStates {
+		return fmt.Errorf(
+			"config validation: map %q is too complex to verify winnability "+
+				"(%d parks, grid %d, max battery %d); reduce the parks or the battery",
+			config.Name, len(parks), config.GridSize, config.MaxBattery)
+	}
 
-	allParks := uint64(1<<len(parks)) - 1
-	start := state{x: home.x, y: home.y, battery: config.StartingBattery}
-	queue := []state{start}
-	seen := map[state]bool{start: true}
+	stride := uint64(config.MaxBattery+1) * masks
+	encode := func(x, y, battery int, parkMask uint64) uint64 {
+		return (uint64(y*config.GridSize+x))*stride + uint64(battery)*masks + parkMask
+	}
+	// The queue holds encoded indices rather than structs: 8 bytes per state
+	// instead of 32, which is what made the map-based version allocate over a
+	// gigabyte for a 900-cell map.
+	decode := func(i uint64) (x, y, battery int, parkMask uint64) {
+		parkMask = i % masks
+		rest := i / masks
+		battery = int(rest % uint64(config.MaxBattery+1))
+		cell := rest / uint64(config.MaxBattery+1)
+		return int(cell % uint64(config.GridSize)), int(cell / uint64(config.GridSize)), battery, parkMask
+	}
+
+	visited := make([]uint64, (total+63)/64)
+	isSet := func(i uint64) bool { return visited[i>>6]&(1<<(i&63)) != 0 }
+	set := func(i uint64) { visited[i>>6] |= 1 << (i & 63) }
+
+	allParks := masks - 1
+	startIdx := encode(home.x, home.y, config.StartingBattery, 0)
+	// Preallocate modestly: reserving the whole theoretical space up front would
+	// mean hundreds of MB for maps that explore far less.
+	queue := make([]uint64, 0, 4096)
+	queue = append(queue, startIdx)
+	set(startIdx)
 
 	for head := 0; head < len(queue); head++ {
-		current := queue[head]
-		if current.parks == allParks {
+		curX, curY, curBattery, curParks := decode(queue[head])
+		if curParks == allParks {
 			return nil
 		}
-		if current.battery <= 0 {
+		if curBattery <= 0 {
 			continue
 		}
 
-		currentChar := rune(config.Layout[current.y][current.x])
+		currentChar := rune(config.Layout[curY][curX])
 
 		for _, dir := range dirList {
 			// exit constraint: current cell must allow this direction
@@ -199,7 +232,7 @@ func validateWinnable(config *GameConfig) error {
 				continue
 			}
 
-			nx, ny := current.x+dir.dx, current.y+dir.dy
+			nx, ny := curX+dir.dx, curY+dir.dy
 			if nx < 0 || ny < 0 || nx >= config.GridSize || ny >= config.GridSize {
 				continue
 			}
@@ -214,23 +247,24 @@ func validateWinnable(config *GameConfig) error {
 				continue
 			}
 
-			next := state{x: nx, y: ny, battery: current.battery - 1, parks: current.parks}
+			nextBattery := curBattery - 1
+			nextParks := curParks
 			if cell == 'H' || cell == 'S' {
-				next.battery = config.MaxBattery
+				nextBattery = config.MaxBattery
 			}
 			if idx, ok := parks[point{x: nx, y: ny}]; ok {
-				next.parks |= 1 << idx
+				nextParks |= 1 << idx
+				if nextParks == allParks {
+					return nil // collected the last park; the walk is monotonic
+				}
 			}
-			if seen[next] {
+
+			nextIdx := encode(nx, ny, nextBattery, nextParks)
+			if isSet(nextIdx) {
 				continue
 			}
-			if len(seen) >= maxSearchStates {
-				return fmt.Errorf(
-					"config validation: map %q is too complex to verify winnability (%d parks, grid %d); reduce the park count or the battery",
-					config.Name, len(parks), config.GridSize)
-			}
-			seen[next] = true
-			queue = append(queue, next)
+			set(nextIdx)
+			queue = append(queue, nextIdx)
 		}
 	}
 
