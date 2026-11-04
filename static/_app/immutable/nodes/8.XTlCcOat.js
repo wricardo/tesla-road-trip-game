@@ -1,4 +1,4 @@
-import{$ as e,A as t,C as n,D as r,E as i,G as a,I as o,K as s,M as c,Q as l,R as u,S as d,T as f,U as p,X as m,Y as h,at as g,ct as _,et as v,it as y,k as b,q as x,st as S,u as C,v as w,w as T,x as ee,z as te}from"../chunks/D1OJptGk.js";import{t as E}from"../chunks/2ubak72D.js";import"../chunks/CP97kCR3.js";import{n as D,s as ne,t as O}from"../chunks/Du21IcFO.js";import{t as re}from"../chunks/DSiqSSti.js";import"../chunks/CHnhCHpF.js";import{n as k}from"../chunks/DqFkiEfT.js";import{i as A,t as j}from"../chunks/C-hNJNUn.js";import{n as ie,r as M,t as ae}from"../chunks/B8fn68uT.js";import{t as N}from"../chunks/D05INHKf.js";import{t as oe}from"../chunks/DcSGOyYD.js";var se=class{#e;#t;#n=m(null);get map(){return c(this.#n)}set map(e){h(this.#n,e,!0)}#r=m(!1);get starting(){return c(this.#r)}set starting(e){h(this.#r,e,!0)}#i=m(``);get error(){return c(this.#i)}set error(e){h(this.#i,e,!0)}constructor(e,t=e=>void E(`/watch/${e}`)){this.#e=e,this.#t=t}open(e){this.starting||(this.error=``,this.map=e)}cancel(){this.starting||(this.map=null,this.error=``)}async begin(e,t){let n=this.map;if(!(!n||this.starting)){this.starting=!0,this.error=``;try{let r=await N(this.#e,{mapID:n.mapId,name:t,fogEnabled:e.fogEnabled,fogRadius:e.fogRadius,gridPassword:e.gridPassword,moveDelayMs:e.moveDelayMs});this.#t(r)}catch(e){this.error=e instanceof Error?e.message:`Could not create the session`}finally{this.starting=!1}}}};function ce(){return typeof window<`u`?`${window.location.origin}/graphql`:`/graphql`}function P({map:e,editKey:t,apiUrl:n}){let r=e.name||e.mapId,i=t?`The map's edit key (password) is:
+import{$ as e,A as t,C as n,D as r,E as i,G as a,I as o,K as s,M as c,Q as l,R as u,S as d,T as f,U as p,X as m,Y as h,at as g,ct as _,et as v,it as y,k as b,q as x,st as S,u as C,v as w,w as T,x as ee,z as te}from"../chunks/D1OJptGk.js";import{t as E}from"../chunks/B-KqxgKf.js";import"../chunks/CP97kCR3.js";import{n as D,s as ne,t as O}from"../chunks/Du21IcFO.js";import{t as re}from"../chunks/C8IhN0cf.js";import"../chunks/Cjb4Od71.js";import{n as k}from"../chunks/DqFkiEfT.js";import{i as A,t as j}from"../chunks/C-hNJNUn.js";import{n as ie,r as M,t as ae}from"../chunks/B8fn68uT.js";import{t as N}from"../chunks/D05INHKf.js";import{t as oe}from"../chunks/DcSGOyYD.js";var se=class{#e;#t;#n=m(null);get map(){return c(this.#n)}set map(e){h(this.#n,e,!0)}#r=m(!1);get starting(){return c(this.#r)}set starting(e){h(this.#r,e,!0)}#i=m(``);get error(){return c(this.#i)}set error(e){h(this.#i,e,!0)}constructor(e,t=e=>void E(`/watch/${e}`)){this.#e=e,this.#t=t}open(e){this.starting||(this.error=``,this.map=e)}cancel(){this.starting||(this.map=null,this.error=``)}async begin(e,t){let n=this.map;if(!(!n||this.starting)){this.starting=!0,this.error=``;try{let r=await N(this.#e,{mapID:n.mapId,name:t,fogEnabled:e.fogEnabled,fogRadius:e.fogRadius,gridPassword:e.gridPassword,moveDelayMs:e.moveDelayMs});this.#t(r)}catch(e){this.error=e instanceof Error?e.message:`Could not create the session`}finally{this.starting=!1}}}};function ce(){return typeof window<`u`?`${window.location.origin}/graphql`:`/graphql`}function P({map:e,editKey:t,apiUrl:n}){let r=e.name||e.mapId,i=t?`The map's edit key (password) is:
 
     ${t}`:`I do not have the edit key for this map, so you will need to ask me for it before you can save.`,a=t?"Save the result with updateMap, passing the edit key above as `editKey`.":"Once I give you the edit key, save with updateMap passing it as `editKey`.";return`I want to change a map in the Tesla Road Trip game. Please help me edit it with GraphQL.
 
@@ -36,6 +36,10 @@ HOW TO DO IT
    - layout must have exactly ${e.gridSize} rows of ${e.gridSize} characters.
    - Characters: R road, H home, P park, S supercharger, W water, B building.
    - At least one H and at least one P are required.
+   - \`legend\` and \`cellConfigs\` are LISTS of {key, value} / {key, type,
+     allowedDirections} objects, both when read and when written. The query
+     above returns them in exactly the shape updateMap accepts, so pass the
+     read values straight back rather than rebuilding them.
    - Every park must be reachable from a home without running out of battery.
      Homes and superchargers refill the battery.
    - Keep \`legend\` with all six standard characters.
@@ -56,7 +60,8 @@ HOW TO DO IT
         "description": "...",
         "layout": ["...", "..."],
         "legend": [{"key":"R","value":"road"}, ...],
-        "cellConfigs": []
+        "cellConfigs": [],
+        "startingBattery": ${e.maxBattery}
       }
     }
 

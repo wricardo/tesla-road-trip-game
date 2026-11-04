@@ -79,6 +79,10 @@ HOW TO DO IT
    - layout must have exactly ${map.gridSize} rows of ${map.gridSize} characters.
    - Characters: R road, H home, P park, S supercharger, W water, B building.
    - At least one H and at least one P are required.
+   - \`legend\` and \`cellConfigs\` are LISTS of {key, value} / {key, type,
+     allowedDirections} objects, both when read and when written. The query
+     above returns them in exactly the shape updateMap accepts, so pass the
+     read values straight back rather than rebuilding them.
    - Every park must be reachable from a home without running out of battery.
      Homes and superchargers refill the battery.
    - Keep \`legend\` with all six standard characters.
@@ -99,7 +103,8 @@ HOW TO DO IT
         "description": "...",
         "layout": ["...", "..."],
         "legend": [{"key":"R","value":"road"}, ...],
-        "cellConfigs": []
+        "cellConfigs": [],
+        "startingBattery": ${map.maxBattery}
       }
     }
 
