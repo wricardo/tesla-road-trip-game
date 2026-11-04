@@ -29,7 +29,13 @@
 		<div class="aspect-square w-full rounded-xl bg-[#f7f7f7] animate-pulse"></div>
 	{/if}
 	<div class="min-w-0">
-		<h3 class="text-lg font-light text-[#171a20] truncate" title={map.mapId}>{name}</h3>
+		<h3 class="text-lg font-light text-[#171a20] truncate">
+			<a
+				href={`/maps/${encodeURIComponent(map.mapId)}`}
+				title={`Open ${name}`}
+				class="hover:text-red-600 hover:underline underline-offset-2 transition-colors"
+			>{name}</a>
+		</h3>
 		<p class="text-sm text-gray-500 font-light leading-relaxed line-clamp-2 min-h-[2.5rem]">{map.description}</p>
 	</div>
 	<div class="flex flex-wrap gap-1.5 text-xs">

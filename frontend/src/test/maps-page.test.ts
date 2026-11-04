@@ -57,6 +57,15 @@ describe('maps page', () => {
 		expect(screen.getByRole('link', { name: /Design a map/ })).toHaveAttribute('href', '/editor');
 	});
 
+	it('links each map name to that map\'s details page', async () => {
+		render(MapsPage);
+
+		const link = await screen.findByRole('link', { name: 'Classic Layout' });
+		expect(link).toHaveAttribute('href', '/maps/classic');
+		// Play must stay a button on the card, not become part of the link.
+		expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument();
+	});
+
 	it('opens the settings modal on Play instead of creating a session immediately', async () => {
 		render(MapsPage);
 
