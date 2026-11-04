@@ -33,6 +33,8 @@ vi.mock('$app/navigation', () => ({
 }));
 
 vi.mock('$app/stores', async () => {
+	// svelte/store is only imported here because vi.mock factories are hoisted
+	// above the module's static imports; this module path is known at author time.
 	const { readable } = await import('svelte/store');
 	return {
 		page: readable({

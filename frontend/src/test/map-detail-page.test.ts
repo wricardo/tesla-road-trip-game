@@ -33,6 +33,8 @@ const LAYOUT = {
 vi.mock('$app/navigation', () => ({ goto: vi.fn() }));
 
 vi.mock('$app/stores', async () => {
+	// svelte/store is only imported here because vi.mock factories are hoisted
+	// above the module's static imports; this module path is known at author time.
 	const { readable } = await import('svelte/store');
 	// Rebuild on subscribe so tests can change runtime.mapId between cases.
 	type PageStore = { params: { id: string }; url: URL };

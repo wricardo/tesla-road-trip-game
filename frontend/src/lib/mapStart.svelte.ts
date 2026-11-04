@@ -1,4 +1,4 @@
-import { type Client } from '@urql/svelte';
+import type { Client } from '@urql/svelte';
 import { goto } from '$app/navigation';
 import { createGameSession } from '$lib/createSession';
 import type { MapSummary } from '$lib/maps';
