@@ -56,6 +56,22 @@ func NewEngine(config *GameConfig) (*GameEngine, error) {
 	return engine, nil
 }
 
+// NewEngineForLoad builds an engine for an already-accepted map, skipping the
+// winnability proof. Rehydrating a saved session must not re-run that search:
+// it is combinatorial (position × battery × park subsets) and doing it once per
+// stored session on startup has OOM-killed the server. Structure is still
+// validated, so a corrupt or stale map still fails.
+func NewEngineForLoad(config *GameConfig) (*GameEngine, error) {
+	if err := ValidateGameConfigStructure(config); err != nil {
+		return nil, err
+	}
+
+	return &GameEngine{
+		config: config,
+		state:  InitGameStateFromConfig(config),
+	}, nil
+}
+
 // NewEngineWithDefaults creates a new game engine with default configuration
 func NewEngineWithDefaults() *GameEngine {
 	engine := &GameEngine{

@@ -102,8 +102,9 @@ func (fp *FilePersistence) Load(id string) (*service.Session, error) {
 		return nil, fmt.Errorf("failed to load map '%s': %w", data.MapName, err)
 	}
 
-	// Create game engine with configuration
-	gameEngine, err := engine.NewEngine(gameConfig)
+	// Create the engine without re-proving winnability: the map was validated
+	// when it was saved, and the proof is too expensive to repeat per session.
+	gameEngine, err := engine.NewEngineForLoad(gameConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create game engine: %w", err)
 	}

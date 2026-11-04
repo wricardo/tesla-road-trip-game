@@ -8,8 +8,23 @@ import (
 	"strings"
 )
 
-// ValidateGameConfig validates a game configuration for correctness and playability
+// ValidateGameConfig validates a game configuration for correctness and
+// playability. It includes a winnability proof (an exhaustive search over
+// position × battery × park-subset states), which is expensive: call it when a
+// map is authored, not when a saved session is reloaded.
 func ValidateGameConfig(config *GameConfig) error {
+	if err := ValidateGameConfigStructure(config); err != nil {
+		return err
+	}
+	return validateWinnable(config)
+}
+
+// ValidateGameConfigStructure performs every check ValidateGameConfig does
+// except the winnability search: required fields, grid/battery bounds, row
+// widths, legal characters, the legend and the presence of a home and a park.
+// It is cheap (linear in the grid) and is what session rehydration needs, since
+// a map that was accepted when created does not need to be re-proven on load.
+func ValidateGameConfigStructure(config *GameConfig) error {
 	// Validate required fields
 	if config.Name == "" {
 		return fmt.Errorf("config validation: name is required")
@@ -99,10 +114,6 @@ func ValidateGameConfig(config *GameConfig) error {
 		}
 	}
 
-	if err := validateWinnable(config); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -161,6 +172,11 @@ func validateWinnable(config *GameConfig) error {
 		return false
 	}
 
+	// The state space is positions × battery levels × park subsets, growing
+	// exponentially with park count. Cap it: a legitimate map stays far below
+	// this, and refusing with a clear error beats being OOM-killed mid-deploy.
+	const maxSearchStates = 8_000_000
+
 	allParks := uint64(1<<len(parks)) - 1
 	start := state{x: home.x, y: home.y, battery: config.StartingBattery}
 	queue := []state{start}
@@ -207,6 +223,11 @@ func validateWinnable(config *GameConfig) error {
 			}
 			if seen[next] {
 				continue
+			}
+			if len(seen) >= maxSearchStates {
+				return fmt.Errorf(
+					"config validation: map %q is too complex to verify winnability (%d parks, grid %d); reduce the park count or the battery",
+					config.Name, len(parks), config.GridSize)
 			}
 			seen[next] = true
 			queue = append(queue, next)
