@@ -1,7 +1,7 @@
 # Tesla Road Trip Game - Makefile
 # Development tooling for the Tesla Road Trip Game server
 
-.PHONY: help build build-frontend build-tui tui test test-verbose test-coverage clean run dev restart dev-live fmt fmt-check lint vet vet-safe vet-all deps validate claude-game verify tools status setup
+.PHONY: help build build-frontend build-tui tui test test-verbose test-coverage verify-ui clean run dev restart dev-live fmt fmt-check lint vet vet-safe vet-all deps validate claude-game verify tools status setup
 
 # Default target
 help:
@@ -22,6 +22,7 @@ help:
 	@echo "  test         - Run all tests"
 	@echo "  test-verbose - Run tests with verbose output"
 	@echo "  test-coverage - Run tests with coverage report"
+	@echo "  verify-ui    - Drive the real UI in headless Chrome (needs the app running)"
 	@echo "  validate     - Validate all game configurations"
 	@echo ""
 	@echo "Code Quality:"
@@ -82,6 +83,29 @@ test-coverage:
 	go test -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report saved to coverage.html"
+
+# Real-browser UI check. Starts a throwaway server on its own port (so it never
+# touches a server you have running), drives Chrome over the DevTools Protocol,
+# then shuts everything down.
+#   make verify-ui              headless
+#   make verify-ui HEADED=1     watch the run in a window
+verify-ui: build-frontend build
+	@echo "Running browser checks against a temporary server..."
+	@port=$${VERIFY_UI_PORT:-8765}; \
+	dir=$$(mktemp -d); \
+	SESSIONS_DIR=$$dir/sessions ./tesla-road-trip -port $$port -host 127.0.0.1 > $$dir/server.log 2>&1 & \
+	srv=$$!; \
+	trap 'kill $$srv 2>/dev/null; rm -rf $$dir' EXIT INT TERM; \
+	ready=""; \
+	for i in $$(seq 1 80); do \
+		if curl -fsS -m 2 -o /dev/null -X POST http://127.0.0.1:$$port/graphql \
+			-H 'content-type: application/json' --data '{"query":"{maps{mapId}}"}' 2>/dev/null; then \
+			ready=1; break; \
+		fi; \
+		sleep 0.25; \
+	done; \
+	if [ -z "$$ready" ]; then echo "server did not start; see $$dir/server.log"; cat $$dir/server.log; exit 1; fi; \
+	cd frontend && BASE=http://127.0.0.1:$$port HEADED="$${HEADED:-0}" node e2e/ui.mjs
 
 # Development targets
 run: build-frontend build

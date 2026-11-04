@@ -35,3 +35,12 @@ jobs:
       - run: npm --prefix frontend ci
       - run: npm --prefix frontend test
       - run: npm --prefix frontend run build
+
+      # Real-browser pass. jsdom cannot catch layout regressions (a modal whose
+      # primary button fell off a short viewport, clipped placeholder text), so
+      # drive the built UI in headless Chrome via the DevTools Protocol.
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Browser UI checks
+        run: make verify-ui

@@ -65,6 +65,18 @@ cp .env.example .env
 | `ADMIN_API_KEY` | unset | Optional. `X-Admin-Key` header value that overrides map ownership (edit built-in maps) |
 | `ALLOW_UNAUTHENTICATED_ADMIN` | `false` | Local-only bypass: treat every request as admin |
 | `CUSTOM_MAPS_DIR` | `$CONFIG_DIR/custom` | Writable directory for user-created maps (and their edit tokens) |
+
+### Browser UI checks
+
+`make verify-ui` builds the frontend, starts a throwaway server on an unused
+port, and drives the real UI in headless Chrome over the DevTools Protocol (no
+Playwright, no npm dependencies). It covers the map gallery, the start-session
+modal and the shareable map pages, including the layout checks jsdom cannot do.
+
+```bash
+make verify-ui            # headless
+make verify-ui HEADED=1   # watch it run in a window
+```
 | `ALLOWED_ORIGINS` | all | WebSocket origin allowlist (comma-separated) |
 
 ## Endpoints
