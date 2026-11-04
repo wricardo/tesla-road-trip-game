@@ -59,7 +59,7 @@
 <svelte:window {onkeydown} />
 
 <div
-	class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+	class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 p-4"
 	role="presentation"
 	onclick={(e) => e.target === e.currentTarget && onclose()}
 >
@@ -67,7 +67,7 @@
 		role="dialog"
 		aria-modal="true"
 		aria-labelledby="start-title"
-		class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+		class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl my-auto"
 		data-testid="start-modal"
 	>
 		<form onsubmit={submit} novalidate>
@@ -82,7 +82,7 @@
 		<fieldset class="mt-5 rounded-2xl border border-gray-200 p-4">
 			<legend class="px-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Fog mode</legend>
 			<label class="inline-flex items-center gap-2 text-sm text-[#393c41]">
-				<input type="checkbox" bind:checked={fogEnabled} class="rounded border-gray-300" />
+				<input id="start-fog-enabled" type="checkbox" bind:checked={fogEnabled} class="rounded border-gray-300" />
 				Hide the map beyond a small radius
 			</label>
 
@@ -105,7 +105,7 @@
 							id="start-grid-password"
 							type="text"
 							bind:value={gridPassword}
-							placeholder="leave blank to auto-generate"
+							placeholder="auto-generate"
 							class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:border-gray-400"
 						/>
 					</div>
