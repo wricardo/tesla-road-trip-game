@@ -151,15 +151,40 @@ jobs:
             -p "$EC2_PORT" \
             -i ~/.ssh/deploy_key \
             "$EC2_SSH_USER"@"$EC2_HOST" '
+            set -uo pipefail
+            UNIT=tesla-road-trip-game.service
+
+            # Discover the port the unit actually listens on instead of assuming
+            # one. A hardcoded 8080 previously made this step fail (or falsely
+            # pass) while the app served fine on another port.
+            PORT=$(systemctl show -p ExecStart --value "$UNIT" 2>/dev/null \
+              | grep -oE -- "-port[= ][0-9]+" | grep -oE "[0-9]+$" | head -1)
+            if [ -z "${PORT:-}" ]; then
+              PORT=$(ss -ltnp 2>/dev/null | grep -i "tesla-road-trip" \
+                | grep -oE ":[0-9]+" | head -1 | tr -d ":")
+            fi
+            PORT="${PORT:-8000}"
+            echo "smoke: probing http://127.0.0.1:${PORT}/graphql"
+
             for attempt in $(seq 1 12); do
-              if response=$(curl -fsS http://127.0.0.1:8080/graphql \
+              if response=$(curl -fsS "http://127.0.0.1:${PORT}/graphql" \
                 -H "content-type: application/json" \
                 --data "{\"query\":\"query { maps { mapId } }\"}"); then
                 if echo "$response" | grep -q "\"maps\""; then
+                  echo "smoke: OK"
                   exit 0
                 fi
               fi
               sleep 5
             done
+
+            # Fail loudly, with enough detail to diagnose without a shell.
+            echo "smoke: FAILED after 12 attempts on port ${PORT}"
+            echo "--- systemctl status"
+            systemctl status "$UNIT" --no-pager -l | head -40 || true
+            echo "--- recent journal"
+            sudo journalctl -u "$UNIT" -n 80 --no-pager || true
+            echo "--- listening sockets"
+            ss -ltnp | head -20 || true
             exit 1
           '
