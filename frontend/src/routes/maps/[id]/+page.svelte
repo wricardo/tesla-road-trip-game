@@ -5,6 +5,8 @@
 	import { fetchMapLayout } from '$lib/mapData';
 	import { countTiles, prettyMapName, type MapLayout, type MapSummary } from '$lib/maps';
 	import { MapSessionStarter } from '$lib/mapStart.svelte';
+	import { getMapEditKey } from '$lib/mapEditKeys';
+	import { buildEditWithAIPrompt, graphqlEndpointUrl } from '$lib/editWithAI';
 	import MapThumb from '$lib/components/MapThumb.svelte';
 	import StartSessionModal from '$lib/components/StartSessionModal.svelte';
 
@@ -21,7 +23,6 @@
 
 	// undefined = loading, null = failed.
 	let layout = $state<MapLayout | null | undefined>(undefined);
-	let copyState = $state<'idle' | 'copied' | 'failed'>('idle');
 
 	$effect(() => {
 		const id = mapId;
@@ -51,15 +52,38 @@
 		!$mapsResult.fetching && $mapsResult.error === undefined && layout === null && summary === null
 	);
 
-	async function share() {
-		const url = $page.url.href;
+	// The edit key lives in localStorage. Surface it on the page too, so the user
+	// can see (and hand to an AI) the token that authorizes edits — not just the
+	// browser silently holding it.
+	const editKey = $derived(mapId ? getMapEditKey(mapId) : null);
+
+	const aiPrompt = $derived(
+		buildEditWithAIPrompt({
+			map: {
+				mapId,
+				name: displayName,
+				gridSize,
+				maxBattery
+			},
+			editKey,
+			apiUrl: graphqlEndpointUrl()
+		})
+	);
+
+	let copied = $state<'idle' | 'link' | 'key' | 'prompt' | 'failed'>('idle');
+
+	async function copyText(text: string, what: 'link' | 'key' | 'prompt') {
 		try {
-			await navigator.clipboard.writeText(url);
-			copyState = 'copied';
+			await navigator.clipboard.writeText(text);
+			copied = what;
 		} catch {
-			copyState = 'failed';
+			copied = 'failed';
 		}
-		setTimeout(() => (copyState = 'idle'), 2500);
+		setTimeout(() => (copied = 'idle'), 2500);
+	}
+
+	async function share() {
+		await copyText($page.url.href, 'link');
 	}
 </script>
 
@@ -99,7 +123,7 @@
 						type="button"
 						onclick={share}
 						class="border border-gray-200 bg-white text-[#393c41] text-sm px-6 py-3 rounded-full hover:border-gray-400 transition-colors"
-					>{copyState === 'copied' ? 'Link copied ✓' : copyState === 'failed' ? 'Copy failed' : 'Copy link'}</button>
+					>{copied === 'link' ? 'Link copied ✓' : copied === 'failed' ? 'Copy failed' : 'Copy link'}</button>
 				</div>
 			</div>
 		{/if}
@@ -174,7 +198,47 @@
 							type="button"
 							onclick={share}
 							class="mt-4 w-full border border-gray-200 bg-white text-[#393c41] text-sm px-4 py-2.5 rounded-full hover:border-gray-400 transition-colors"
-						>{copyState === 'copied' ? 'Link copied ✓' : copyState === 'failed' ? 'Copy failed' : 'Copy link'}</button>
+						>{copied === 'link' ? 'Link copied ✓' : copied === 'failed' ? 'Copy failed' : 'Copy link'}</button>
+					</section>
+
+					<section class="bg-white rounded-2xl border border-[#e8e8e8] shadow-sm p-6" data-testid="edit-key-section">
+						<h2 class="text-lg font-light text-[#393c41] mb-2">Edit key</h2>
+						{#if editKey}
+							<p class="text-xs text-gray-500">
+								Anyone with this key can change {displayName}. It was issued once, when the map was created,
+								and is stored in this browser — keep it if you want to edit the map later.
+							</p>
+							<div class="mt-3 flex items-start gap-2">
+								<code class="flex-1 min-w-0 break-all rounded-xl bg-[#f7f7f7] px-3 py-2 text-xs text-[#393c41] font-mono" data-testid="edit-key-value">{editKey}</code>
+								<button
+									type="button"
+									onclick={() => copyText(editKey, 'key')}
+									class="shrink-0 border border-gray-200 bg-white text-[#393c41] text-xs px-3 py-2 rounded-full hover:border-gray-400 transition-colors"
+								>{copied === 'key' ? 'Copied ✓' : 'Copy'}</button>
+							</div>
+						{:else}
+							<p class="text-xs text-gray-500">
+								This browser has no edit key for {displayName}, so it can only be changed by an administrator
+								or with a key you saved when you created the map.
+							</p>
+						{/if}
+					</section>
+
+					<section class="bg-white rounded-2xl border border-[#e8e8e8] shadow-sm p-6" data-testid="edit-with-ai-section">
+						<h2 class="text-lg font-light text-[#393c41] mb-2">Edit with AI</h2>
+						<p class="text-xs text-gray-500">
+							Copy this prompt into an AI agent. It includes the GraphQL endpoint, this map's id and its edit key,
+							so the agent can read the map, change it and save it back.
+						</p>
+						<button
+							type="button"
+							onclick={() => copyText(aiPrompt, 'prompt')}
+							class="mt-4 w-full bg-[#393c41] text-white text-sm px-4 py-2.5 rounded-full hover:bg-black transition-colors"
+						>{copied === 'prompt' ? 'Prompt copied ✓' : 'Copy AI prompt'}</button>
+						<details class="mt-3">
+							<summary class="cursor-pointer text-xs text-gray-500 hover:text-[#393c41]">Preview prompt</summary>
+							<pre class="mt-2 max-h-64 overflow-auto rounded-xl bg-[#f7f7f7] p-3 text-[11px] leading-relaxed text-[#393c41] whitespace-pre-wrap" data-testid="ai-prompt-preview">{aiPrompt}</pre>
+						</details>
 					</section>
 				</aside>
 			</div>

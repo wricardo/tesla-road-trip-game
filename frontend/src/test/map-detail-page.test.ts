@@ -78,6 +78,7 @@ describe('map detail page', () => {
 		runtime.mapId = 'classic';
 		runtime.mutations = [];
 		runtime.layoutFound = true;
+		window.localStorage.clear();
 	});
 
 	afterEach(() => {
@@ -156,8 +157,80 @@ describe('map detail page', () => {
 		await fireEvent.click(copy);
 
 		expect(writeText).toHaveBeenCalledWith('http://localhost:8000/maps/classic');
-		// Both the header and the share panel show the copied state.
+		// The button reflects the copied state (header and share panel both do).
 		expect((await screen.findAllByText('Link copied ✓')).length).toBeGreaterThan(0);
+		vi.unstubAllGlobals();
+	});
+});
+
+describe('map detail page — editing affordances', () => {
+	beforeEach(() => {
+		runtime.mapId = 'classic';
+		runtime.mutations = [];
+		runtime.layoutFound = true;
+		window.localStorage.clear();
+	});
+
+	afterEach(() => {
+		cleanup();
+		vi.clearAllMocks();
+	});
+
+	it('shows the stored edit key on the page, not only in localStorage', async () => {
+		window.localStorage.setItem(
+			'tesla-road-trip.mapEditKeys',
+			JSON.stringify({ classic: 'KEY-ABC-123' })
+		);
+		render(MapDetailPage);
+
+		const section = await screen.findByTestId('edit-key-section');
+		expect(section).toHaveTextContent('Edit key');
+		expect(screen.getByTestId('edit-key-value')).toHaveTextContent('KEY-ABC-123');
+	});
+
+	it('explains when this browser has no key for the map', async () => {
+		render(MapDetailPage);
+		const section = await screen.findByTestId('edit-key-section');
+		expect(section).toHaveTextContent('no edit key');
+		expect(screen.queryByTestId('edit-key-value')).not.toBeInTheDocument();
+	});
+
+	it('offers an AI prompt that embeds the key and the GraphQL endpoint', async () => {
+		window.localStorage.setItem(
+			'tesla-road-trip.mapEditKeys',
+			JSON.stringify({ classic: 'KEY-ABC-123' })
+		);
+		render(MapDetailPage);
+
+		const section = await screen.findByTestId('edit-with-ai-section');
+		expect(section).toHaveTextContent('Edit with AI');
+
+		const prompt = screen.getByTestId('ai-prompt-preview').textContent ?? '';
+		expect(prompt).toContain('KEY-ABC-123');
+		expect(prompt).toContain('classic');
+		// The UI talks to a relative endpoint; the prompt must be absolute.
+		// jsdom serves the page from http://localhost:3000.
+		expect(prompt).toMatch(/^I want to change a map[\s\S]*http:\/\/[^\s]+\/graphql/);
+		expect(prompt).toContain('updateMap');
+	});
+
+	it('copies the AI prompt to the clipboard', async () => {
+		const writeText = vi.fn().mockResolvedValue(undefined);
+		vi.stubGlobal('navigator', { clipboard: { writeText } });
+		window.localStorage.setItem(
+			'tesla-road-trip.mapEditKeys',
+			JSON.stringify({ classic: 'KEY-ABC-123' })
+		);
+		render(MapDetailPage);
+
+		await screen.findByTestId('edit-with-ai-section');
+		await fireEvent.click(screen.getByRole('button', { name: 'Copy AI prompt' }));
+
+		expect(writeText).toHaveBeenCalledTimes(1);
+		const copied = writeText.mock.calls[0][0] as string;
+		expect(copied).toContain('KEY-ABC-123');
+		expect(copied).toContain('/graphql');
+		expect(await screen.findByText('Prompt copied ✓')).toBeInTheDocument();
 		vi.unstubAllGlobals();
 	});
 });
