@@ -7,15 +7,13 @@
 		preview = undefined,
 		previewError = false,
 		busy = false,
-		onplay,
-		showAdminLinks = false
+		onplay
 	}: {
 		map: MapSummary;
 		preview?: MapLayout;
 		previewError?: boolean;
 		busy?: boolean;
 		onplay: (map: MapSummary) => void;
-		showAdminLinks?: boolean;
 	} = $props();
 
 	const name = $derived(prettyMapName(map.name || map.mapId));
@@ -39,16 +37,12 @@
 		<span class="rounded-full bg-emerald-50 text-emerald-800 px-2 py-0.5">🌳 {parks ?? '…'} parks</span>
 		<span class="rounded-full bg-[#f7f7f7] text-[#393c41] px-2 py-0.5">🔋 ≤ {map.maxBattery} battery</span>
 	</div>
-	<div class="mt-auto flex items-center gap-2">
+	<div class="mt-auto">
 		<button
 			type="button"
 			onclick={() => onplay(map)}
 			disabled={busy}
-			class="flex-1 bg-[#393c41] text-white text-sm px-4 py-2 rounded-full hover:bg-black transition-colors disabled:opacity-50"
+			class="w-full bg-[#393c41] text-white text-sm px-4 py-2 rounded-full hover:bg-black transition-colors disabled:opacity-50"
 		>{busy ? 'Starting…' : 'Play'}</button>
-		{#if showAdminLinks}
-			<a href={`/editor?map=${map.mapId}`} class="text-xs text-gray-600 border border-gray-200 rounded-full px-3 py-2 hover:border-gray-400 transition-colors">Edit</a>
-			<a href={`/editor?map=${map.mapId}&duplicate=1`} class="text-xs text-gray-600 border border-gray-200 rounded-full px-3 py-2 hover:border-gray-400 transition-colors">Duplicate</a>
-		{/if}
 	</div>
 </article>

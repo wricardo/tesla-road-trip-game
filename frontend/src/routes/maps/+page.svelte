@@ -5,7 +5,9 @@
 	import { prettyMapName, sortMaps, type MapLayout, type MapSummary } from '$lib/maps';
 	import { fetchMapLayout } from '$lib/mapData';
 	import { createGameSession } from '$lib/createSession';
+	import type { StartSettings } from '$lib/startSettings';
 	import MapCard from '$lib/components/MapCard.svelte';
+	import StartSessionModal from '$lib/components/StartSessionModal.svelte';
 
 	const client = getContextClient();
 	const mapsResult = queryStore({ client, query: gql(MAPS_QUERY) });
@@ -30,18 +32,43 @@
 		return maps.filter((m) => !q || `${prettyMapName(m.name)} ${m.name} ${m.mapId} ${m.description}`.toLowerCase().includes(q));
 	});
 
-	let creatingId = $state<string | null>(null);
+	// Play opens the settings modal; the session is only created once the player
+	// confirms fog/move-delay settings there.
+	let pendingMap = $state<MapSummary | null>(null);
+	let starting = $state(false);
 	let createError = $state('');
-	async function play(map: MapSummary) {
-		if (creatingId) return;
-		creatingId = map.mapId;
+
+	function play(map: MapSummary) {
+		if (starting) return;
+		createError = '';
+		pendingMap = map;
+	}
+
+	function closeModal() {
+		if (starting) return;
+		pendingMap = null;
+		createError = '';
+	}
+
+	async function startSession(settings: StartSettings) {
+		const map = pendingMap;
+		if (!map || starting) return;
+		starting = true;
 		createError = '';
 		try {
-			goto(`/watch/${await createGameSession(client, { mapID: map.mapId })}`);
+			const id = await createGameSession(client, {
+				mapID: map.mapId,
+				fogEnabled: settings.fogEnabled,
+				fogRadius: settings.fogRadius,
+				gridPassword: settings.gridPassword,
+				moveDelayMs: settings.moveDelayMs
+			});
+			goto(`/watch/${id}`);
 		} catch (err) {
+			// Keep the modal open so the settings can be adjusted and retried.
 			createError = err instanceof Error ? err.message : 'Could not create the session';
 		} finally {
-			creatingId = null;
+			starting = false;
 		}
 	}
 </script>
@@ -92,10 +119,6 @@
 		<span class="inline-flex items-center gap-1"><span class="h-4 w-4 rounded-sm bg-slate-700"></span>Blocked</span>
 	</div>
 
-	{#if createError}
-		<p class="mb-4 rounded-2xl border border-red-200 bg-red-50 px-5 py-3 text-sm text-red-700">{createError}</p>
-	{/if}
-
 	{#if $mapsResult.fetching && maps.length === 0}
 		<div class="flex items-center justify-center py-24 text-gray-400 bg-white rounded-2xl border border-[#e8e8e8]">
 			<div class="text-center"><span class="text-4xl mb-4 block">🗺️</span><p class="text-lg font-light">Loading maps…</p></div>
@@ -116,11 +139,14 @@
 					{map}
 					preview={previews[map.mapId] ?? undefined}
 					previewError={previews[map.mapId] === null}
-					busy={creatingId === map.mapId}
+					busy={starting && pendingMap?.mapId === map.mapId}
 					onplay={play}
-					showAdminLinks
 				/>
 			{/each}
 		</div>
 	{/if}
 </div>
+
+{#if pendingMap}
+	<StartSessionModal map={pendingMap} {starting} error={createError} onstart={startSession} onclose={closeModal} />
+{/if}
