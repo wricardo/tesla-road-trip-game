@@ -20,14 +20,15 @@ from .env import TeslaEnv
 from .features import N_CHANNELS, encode
 
 TAU = 20.0
-# Linear targets keep 1-move differences visible everywhere: exp(-d/20) maps
-# distances 60 and 61 to 0.0498 and 0.0474, which a sigmoid simply cannot
-# resolve, and most of a 124-move map lives out there. D_MAX is the horizon the
-# value is allowed to distinguish.
+# Measured, not assumed: exp(-d/20) flattened long horizons (60 vs 61 -> 0.0498
+# vs 0.0474), so linear targets were tried on the theory that finer differences
+# would help. They improved local move ranking (easy 0.71 -> 0.86) and *reduced*
+# whole-game wins 4 -> 2. `exp` is the default because games decide, not proxies;
+# `--target linear` stays available to reproduce the negative result.
 D_MAX = 150.0
 
 
-def target_of(distance: int, mode: str = "linear") -> float:
+def target_of(distance: int, mode: str = "exp") -> float:
     if distance < 0:
         return 0.0
     if mode == "exp":
