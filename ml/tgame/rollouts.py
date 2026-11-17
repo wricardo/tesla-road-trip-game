@@ -52,6 +52,7 @@ def collect(
     seed: int = 0,
     explore: float = 0.2,
     max_extra: int = 60,
+    hints: bool = False,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, int, list[str]]:
     """Returns (features, masks, labels, size, maps_used).
 
@@ -81,7 +82,7 @@ def collect(
                 best = oracle.best_action(env)
                 if best is None:
                     break
-                feats.append(encode(env))
+                feats.append(encode(env, hints=hints))
                 masks.append(legal)
                 labels.append(best)
                 got += 1
@@ -112,7 +113,10 @@ def items_to_arrays(items, size: int):
     return f, np.array([m for _f, m, _l in items]), np.array([l for _f, _m, l in items], dtype=np.int64)
 
 
-def collect_from_policy(net, m, size: int, oracle, episodes: int = 3, max_steps: int = 600):
+def collect_from_policy(
+    net, m, size: int, oracle, episodes: int = 3, max_steps: int = 600,
+    hints: bool = False,
+):
     """DAgger step: states the *current policy* visits, labelled by the solver."""
     from .net import greedy_action
 
@@ -125,6 +129,6 @@ def collect_from_policy(net, m, size: int, oracle, episodes: int = 3, max_steps:
             best = oracle.best_action(env)
             if best is None:
                 break
-            items.append((encode(env), env.legal_mask(), best))
-            env.step(greedy_action(net, env, size))
+            items.append((encode(env, hints=hints), env.legal_mask(), best))
+            env.step(greedy_action(net, env, size, hints=hints))
     return items

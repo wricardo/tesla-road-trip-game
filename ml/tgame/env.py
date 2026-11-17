@@ -169,9 +169,15 @@ class TeslaEnv:
         return (self.x, self.y, self.battery, self.visited, self.done, self.win)
 
 
-def from_live_state(grid_types, park_ids, visited_ids, pos, battery, max_battery) -> TeslaEnv:
+def from_live_state(
+    grid_types, park_ids, visited_ids, pos, battery, max_battery, allow=None
+) -> TeslaEnv:
     """Build an env from a GraphQL game state so a trained policy can drive the
-    real server. Park ids are 'park_<n>' as produced by the Go engine."""
+    real server. Park ids are 'park_<n>' as produced by the Go engine.
+
+    `allow` carries each cell's permitted directions (the engine's semantics:
+    empty means all four). Without it, one-way maps are invisible to the policy.
+    """
     h, w = len(grid_types), len(grid_types[0])
     cell = np.array([[int(t) for t in row] for row in grid_types], dtype=np.int8)
     park_id = np.full((h, w), -1, dtype=np.int16)
@@ -180,13 +186,15 @@ def from_live_state(grid_types, park_ids, visited_ids, pos, battery, max_battery
             pid = park_ids[y][x]
             if pid:
                 park_id[y, x] = int(pid.split("_")[1])
+    if allow is None:
+        allow = np.full((h, w), 15, dtype=np.uint8)
     m = GameMap(
         name="live",
         h=h,
         w=w,
         cell=cell,
         park_id=park_id,
-        allow=np.full((h, w), 15, dtype=np.uint8),
+        allow=np.asarray(allow, dtype=np.uint8),
         max_battery=max_battery,
         start_battery=battery,
         start=pos,

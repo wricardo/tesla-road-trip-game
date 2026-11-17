@@ -11,14 +11,16 @@ from .features import encode
 from .planner import Oracle, TooComplex
 
 
-def run_episode(net: PolicyNet, m, size: int, max_steps: int = 400) -> tuple[bool, int, int, str]:
+def run_episode(
+    net: PolicyNet, m, size: int, max_steps: int = 400, hints: bool = False
+) -> tuple[bool, int, int, str]:
     """Returns (win, steps, score, how it ended). How it ended matters: a crash
     and a stranding are different mistakes and need different fixes."""
     env = TeslaEnv(m)
     steps = 0
     reason = "timeout"
     while not env.done and steps < max_steps:
-        a = greedy_action(net, env, size)
+        a = greedy_action(net, env, size, hints=hints)
         _r, _done, info = env.step(a)
         steps += 1
         if env.win:
@@ -30,7 +32,10 @@ def run_episode(net: PolicyNet, m, size: int, max_steps: int = 400) -> tuple[boo
     return env.win, steps, env.score, reason
 
 
-def evaluate(net: PolicyNet, maps: list[str], size: int, verbose: bool = True) -> dict:
+def evaluate(
+    net: PolicyNet, maps: list[str], size: int, verbose: bool = True,
+    hints: bool = False,
+) -> dict:
     rows = []
     for name in maps:
         m = load(name)
@@ -38,7 +43,7 @@ def evaluate(net: PolicyNet, maps: list[str], size: int, verbose: bool = True) -
             opt = Oracle(m).optimal_moves(TeslaEnv(m))
         except TooComplex:
             opt = -1
-        win, steps, score, reason = run_episode(net, m, size)
+        win, steps, score, reason = run_episode(net, m, size, hints=hints)
         rows.append((name, win, steps, opt, score, m.nparks))
         if verbose:
             tag = "WIN " if win else "LOSS"

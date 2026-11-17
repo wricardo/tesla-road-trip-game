@@ -160,7 +160,11 @@ def main() -> None:
         args.out,
         net,
         size,
-        {"test_win_rate": test["win_rate"], "train_win_rate": train["win_rate"]},
+        {
+            "test_win_rate": test["win_rate"],
+            "train_win_rate": train["win_rate"],
+            "hints": False,
+        },
     )
     print(f"saved {args.out}")
 

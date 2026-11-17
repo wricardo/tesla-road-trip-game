@@ -1,10 +1,13 @@
-"""Feature maps for the policy network.
+"""Feature maps for the network: local planes, plus optional BFS hints.
 
-A 3x3 CNN on raw cell types cannot see 15 cells down a corridor, and battery
-management needs exactly that kind of long-range information. So the encoder
-hands the network a few *derived* planes that any agent could compute itself:
-BFS distances to the nearest reachable unvisited park and to the nearest
-charger. Nothing here leaks the answer: no target park, no planned path.
+The default encoder is local. It exposes the map, the objective set, the car,
+the battery and the one-way restrictions -- everything a player can read off the
+screen -- but no search result. The network has to learn to navigate.
+
+Planes 6-7 (BFS distances to the nearest unvisited park and the nearest
+charger) are an opt-in `hints=True` mode. They exist only as a labelled
+distillation baseline: with them the policy is copying the encoder's search, so
+results from that setting must never be described as learned planning.
 """
 from __future__ import annotations
 
@@ -46,25 +49,15 @@ def _bfs_from(pred: list[list[int]], sources: list[int], n: int) -> np.ndarray:
 
 
 class MapFeatures:
-    """Per-map cached distance planes."""
+    """Per-map cached planes. BFS distance planes are built on first use only,
+    so the default (hint-free) encoder never pays for the search."""
 
     def __init__(self, m: GameMap):
         self.m = m
-        n = m.h * m.w
-        pred = _predecessors(m)
-        self.park_dist = np.full((max(m.nparks, 1), m.h, m.w), BIG, dtype=np.int32)
-        for y in range(m.h):
-            for x in range(m.w):
-                pid = int(m.park_id[y, x])
-                if pid >= 0:
-                    self.park_dist[pid] = _bfs_from(pred, [y * m.w + x], n).reshape(m.h, m.w)
-        chargers = [
-            y * m.w + x
-            for y in range(m.h)
-            for x in range(m.w)
-            if m.cell[y, x] in (HOME, SUPERCHARGER)
-        ]
-        self.charger_dist = _bfs_from(pred, chargers, n).reshape(m.h, m.w)
+        self._n = m.h * m.w
+        self._pred = _predecessors(m)
+        self._park_dist: np.ndarray | None = None
+        self._charger_dist: np.ndarray | None = None
         self.passable = np.isin(m.cell, PASSABLE).astype(np.float32)
         # One-way roads are part of the state: they gate both entry and exit, so
         # the policy cannot plan around them unless it can see them. One plane
@@ -76,6 +69,37 @@ class MapFeatures:
         self.is_super = (m.cell == SUPERCHARGER).astype(np.float32)
         self.norm = float(m.h + m.w)
 
+    @property
+    def park_dist(self) -> np.ndarray:
+        if self._park_dist is None:
+            m = self.m
+            self._park_dist = np.full(
+                (max(m.nparks, 1), m.h, m.w), BIG, dtype=np.int32
+            )
+            for y in range(m.h):
+                for x in range(m.w):
+                    pid = int(m.park_id[y, x])
+                    if pid >= 0:
+                        self._park_dist[pid] = _bfs_from(
+                            self._pred, [y * m.w + x], self._n
+                        ).reshape(m.h, m.w)
+        return self._park_dist
+
+    @property
+    def charger_dist(self) -> np.ndarray:
+        if self._charger_dist is None:
+            m = self.m
+            chargers = [
+                y * m.w + x
+                for y in range(m.h)
+                for x in range(m.w)
+                if m.cell[y, x] in (HOME, SUPERCHARGER)
+            ]
+            self._charger_dist = _bfs_from(self._pred, chargers, self._n).reshape(
+                m.h, m.w
+            )
+        return self._charger_dist
+
     def encode(
         self,
         x: int,
@@ -83,6 +107,7 @@ class MapFeatures:
         battery: int,
         visited: int,
         max_battery: int,
+        hints: bool = False,
     ) -> np.ndarray:
         m = self.m
         f = np.empty((N_CHANNELS, m.h, m.w), dtype=np.float32)
@@ -100,12 +125,16 @@ class MapFeatures:
         f[5] = 0.0
         f[5, y, x] = 1.0
 
-        if m.nparks and unvisited.any():
-            nearest = np.where(unvisited[:, None, None], self.park_dist, BIG).min(axis=0)
+        if hints:
+            if m.nparks and unvisited.any():
+                nearest = np.where(unvisited[:, None, None], self.park_dist, BIG).min(axis=0)
+            else:
+                nearest = np.zeros((m.h, m.w), dtype=np.int32)
+            f[6] = np.clip(nearest / self.norm, 0.0, 1.0)
+            f[7] = np.clip(self.charger_dist / self.norm, 0.0, 1.0)
         else:
-            nearest = np.zeros((m.h, m.w), dtype=np.int32)
-        f[6] = np.clip(nearest / self.norm, 0.0, 1.0)
-        f[7] = np.clip(self.charger_dist / self.norm, 0.0, 1.0)
+            f[6] = 0.0
+            f[7] = 0.0
         f[8] = float(battery) / max(max_battery, 1)
         f[9:13] = self.blocked
         return f
@@ -122,6 +151,15 @@ def map_features(m: GameMap) -> MapFeatures:
     return mf
 
 
-def encode(env) -> np.ndarray:
+# Planes 6 and 7 are hand-computed search results (BFS distances). They are off
+# by default: the network gets local information only and must learn to
+# navigate. `hints=True` turns the problem into distillation of the encoder's
+# search, which is useful as a baseline but is not learned planning.
+HINT_PLANES = (6, 7)
+
+
+def encode(env, hints: bool = False) -> np.ndarray:
     mf = map_features(env.m)
-    return mf.encode(env.x, env.y, env.battery, env.visited, env.m.max_battery)
+    return mf.encode(
+        env.x, env.y, env.battery, env.visited, env.m.max_battery, hints=hints
+    )

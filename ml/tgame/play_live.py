@@ -1,6 +1,11 @@
-"""Play a real session on the game server with the trained policy.
+"""Play a real session on the game server with a trained network.
 
     python -m tgame.play_live --map easy --url http://localhost:9191
+
+The network never sees BFS distance planes here: planes 6-7 are zeroed, so all
+navigation comes out of the weights. A value checkpoint is played with beam
+search over V (the AlphaZero shape); a policy checkpoint is played greedily from
+its logits, using the hint setting it was trained with.
 
 Creates a session, then loops: read the server's game state, rebuild the
 feature maps from it, ask the network for a move, POST it. The server is the
@@ -12,16 +17,22 @@ from __future__ import annotations
 import argparse
 import json
 import urllib.request
+from pathlib import Path
+
+import numpy as np
 
 from .env import from_live_state
-from .maps import CELL_NAMES
-from .net import load_policy, greedy_action
+from .maps import CARDINAL, CELL_NAMES
+from .net import greedy_action, load_any
+from .search import search_action
+
+RUNS = Path(__file__).resolve().parents[1] / "runs"
 
 TYPE_INDEX = {name: i for i, name in enumerate(CELL_NAMES)}
 DIR_NAMES = ("UP", "DOWN", "LEFT", "RIGHT")
 
 STATE_FIELDS = """
-  grid { type visited id }
+  grid { type visited id allowedDirections }
   playerPos { x y }
   battery maxBattery score gameOver victory message mapName
   visitedParks { id visited }
@@ -77,10 +88,18 @@ def env_from_state(state: dict):
     ids = [
         [c["id"] if c["type"] == "park" else "" for c in row] for row in state["grid"]
     ]
+    # Empty allowedDirections means "all four" in the engine; otherwise the bit
+    # set is the only way the policy can know a one-way cell exists.
+    allow = np.full((len(grid), len(grid[0])), 15, dtype=np.uint8)
+    for y, row in enumerate(state["grid"]):
+        for x, c in enumerate(row):
+            dirs = c.get("allowedDirections") or []
+            if dirs:
+                allow[y, x] = sum(CARDINAL[d] for d in dirs)
     visited = [p["id"] for p in state["visitedParks"] if p["visited"]]
     pos = (state["playerPos"]["x"], state["playerPos"]["y"])
     return from_live_state(
-        grid, ids, visited, pos, state["battery"], state["maxBattery"]
+        grid, ids, visited, pos, state["battery"], state["maxBattery"], allow
     )
 
 
@@ -113,19 +132,42 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--map", default="easy")
     ap.add_argument("--url", default="http://localhost:9191")
-    ap.add_argument("--model", default="ml/runs/bc.pt")
+    ap.add_argument("--model", default=str(RUNS / "value.pt"))
+    ap.add_argument("--beam", type=int, default=8)
+    ap.add_argument("--depth", type=int, default=10)
+    ap.add_argument(
+        "--hints",
+        action="store_true",
+        help="policy checkpoints only: re-enable the BFS planes (distillation baseline)",
+    )
     ap.add_argument("--max-steps", type=int, default=500)
     ap.add_argument("--quiet", action="store_true")
     args = ap.parse_args()
 
-    net, size = load_policy(args.model)
+    kind, net, size, trained_hints = load_any(args.model)
+    if kind == "value":
+        hints = False
+        mode = f"value + beam search (beam={args.beam}, depth={args.depth}), hints off"
+    else:
+        hints = args.hints or trained_hints
+        mode = f"policy greedy, hints {'ON' if hints else 'off'}"
+    if args.hints and not hints:
+        ap.error("--hints only applies to policy checkpoints")
+    print(f"model {args.model} -> {mode}")
+
     sid, state = create_session(args.url, args.map)
     print(f"session {sid} on {state['mapName']} ({len(state['grid'])}x{len(state['grid'][0])})")
 
     steps = 0
     while not state["gameOver"] and steps < args.max_steps:
         env = env_from_state(state)
-        action = greedy_action(net, env, size)
+        if kind == "value":
+            action = search_action(net, env, size, hints=False, beam=args.beam, depth=args.depth)
+        else:
+            action = greedy_action(net, env, size, hints=hints)
+        if action is None:
+            print("  no legal move found; stopping")
+            break
         result = move(args.url, sid, action)
         state = result["gameState"]
         steps += 1
