@@ -72,3 +72,8 @@ tesla-road-trip
 
 # Local server PID written by make restart
 .server.pid
+
+# ML training environment and checkpoints (local only)
+.venv-ml/
+ml/runs/
+__pycache__/
