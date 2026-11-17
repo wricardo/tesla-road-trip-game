@@ -37,7 +37,7 @@ def main() -> None:
     ap.add_argument("--batch", type=int, default=128)
     ap.add_argument("--lr", type=float, default=1e-3)
     ap.add_argument("--width", type=int, default=32)
-    ap.add_argument("--target", choices=("linear", "exp"), default="linear")
+    ap.add_argument("--target", choices=("exp", "linear"), default="exp")
     ap.add_argument("--beam", type=int, default=8)
     ap.add_argument("--depth", type=int, default=10)
     ap.add_argument("--train-maps", nargs="*", default=None)
