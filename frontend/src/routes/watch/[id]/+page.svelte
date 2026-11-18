@@ -133,8 +133,10 @@
 			: (animatedPos ?? gameState?.playerPos ?? null)
 	);
 	const activeGrid = $derived<Cell[][]>(fullGrid ?? gameState?.nearbyGrid ?? []);
-	const showFogMaskBoard = $derived(!!gameState?.fogEnabled && !isUsingFullGrid && !!sessionGridSize);
-	const boardSize = $derived<number>(showFogMaskBoard ? (sessionGridSize ?? 0) : activeGrid.length);
+	const fogBoardVisible = $derived(!!gameState?.fogEnabled && !!sessionGridSize);
+	const fullMapRevealed = $derived(!!gameState?.fogEnabled && !!gameState?.victory);
+	const showFogMaskBoard = $derived(fogBoardVisible && !isUsingFullGrid);
+	const boardSize = $derived<number>(fogBoardVisible ? (sessionGridSize ?? 0) : activeGrid.length);
 	const boardIndices = $derived<number[]>(Array.from({ length: boardSize }, (_, i) => i));
 	const isLargeMap = $derived((boardSize ?? 0) >= 30);
 
@@ -441,7 +443,10 @@ ${gameState?.fogEnabled
 	$effect(() => {
 		const gs = gameState;
 		if (!gs) return;
-		if (gs.fogEnabled === true) {
+		// Fog hides the map until the run is won: a won session returns grid and
+		// layout without the password, so every viewer gets the full board.
+		const fogHidesMap = gs.fogEnabled === true && !gs.victory;
+		if (fogHidesMap) {
 			autoLoadedNonFogGrid = false;
 			if (fullGridMode === 'auto') {
 				fullGrid = null;
@@ -449,12 +454,19 @@ ${gameState?.fogEnabled
 			}
 			return;
 		}
-		if (gs.fogEnabled !== false) return;
 		if (fullGrid || loadingFullGrid || autoLoadedNonFogGrid) return;
 		autoLoadedNonFogGrid = true;
 		void (async () => {
 			try {
-				fullGrid = await fetchFullGrid('');
+				const grid = await fetchFullGrid('');
+				// A reset can land while this request is in flight; never paint the
+				// solved map onto a fresh, still-fogged run.
+				const current = gameState;
+				if (current && current.fogEnabled && !current.victory) {
+					autoLoadedNonFogGrid = false;
+					return;
+				}
+				fullGrid = grid;
 				fullGridMode = 'auto';
 			} catch {
 				// If this fails we fall back to nearbyGrid rendering.
@@ -833,7 +845,7 @@ ${gameState?.fogEnabled
 			<div class="flex flex-wrap items-center gap-2">
 				<h1 class="text-2xl lg:text-3xl font-light text-[#171a20] tracking-tight">{mapName || 'Loading…'}</h1>
 				{#if gameState?.fogEnabled}
-					<span class="inline-flex items-center rounded-full bg-blue-100 text-blue-800 px-2 py-0.5 text-xs">🌫 Fog r{gameState.fogRadius}</span>
+					<span class="inline-flex items-center rounded-full bg-blue-100 text-blue-800 px-2 py-0.5 text-xs">🌫 Fog r{gameState.fogRadius}{fullMapRevealed ? ' · revealed' : ''}</span>
 				{/if}
 			</div>
 			<p class="mt-1 text-sm text-gray-600">
@@ -860,7 +872,7 @@ ${gameState?.fogEnabled
 				</div>
 			{/if}
 
-			<div class="p-3 sm:p-4 flex items-start justify-center board-pane">
+			<div class="p-3 sm:p-4 flex items-start board-pane">
 				{#if boardSize > 0}
 					<table class="game-board border-collapse" role="grid" aria-label="Game board" style={`--grid-size: ${boardSize}; --board-width: ${isLargeMap ? '92vw' : 'calc(100vw - 30rem)'}`}>
 						<tbody>
@@ -873,7 +885,7 @@ ${gameState?.fogEnabled
 									{@const isCrash = crashCell?.x === x && crashCell?.y === y}
 									{@const isBlocked = blockedCell?.x === x && blockedCell?.y === y}
 									<td class="game-cell text-center border transition-colors
-										{cell ? cellColorClass(cell) : 'bg-slate-300 border-slate-300'}
+										{cell ? cellColorClass(cell) : 'bg-slate-300 border-slate-400'}
 										{isTrail && !isPlayer ? 'ring-2 ring-inset ring-sky-300' : ''}
 										{cell?.visited && !isPlayer && cell.type !== 'park' ? 'opacity-60' : ''}"
 										class:crash-cell={isCrash}
@@ -1043,6 +1055,9 @@ ${gameState?.fogEnabled
 			{#if gameState?.fogEnabled}
 				<div class="rounded-2xl bg-white border border-[#e8e8e8] shadow-sm p-4">
 					<h2 class="text-xs font-semibold uppercase tracking-widest text-gray-600">Fog mode</h2>
+					{#if fullMapRevealed}
+						<p class="text-xs text-gray-600 mt-1">You won — the whole map is revealed.</p>
+					{:else}
 					<p class="text-xs text-gray-600 mt-1">This session hides the map beyond {gameState.fogRadius} cell{gameState.fogRadius === 1 ? '' : 's'} of the car. Enter the password chosen at creation to reveal the full map.</p>
 					{#if generatedFogPassword}
 						<p class="text-xs text-gray-700 mt-2">
@@ -1082,6 +1097,7 @@ ${gameState?.fogEnabled
 					{#if fullGridError}
 						<p class="text-xs text-red-700 mt-2">{fullGridError}</p>
 					{/if}
+					{/if}
 				</div>
 			{/if}
 		</aside>
@@ -1116,18 +1132,21 @@ ${gameState?.fogEnabled
 <style>
 	.board-pane {
 		min-height: calc(100vh - 16rem);
-		overflow: visible;
+		overflow: auto;
 	}
 
 	.game-board {
+		/* Floor shrinks with the grid so a 100x100 map stays inside the pane
+		   instead of a 28px-per-cell board (~2800px) overflowing the page. */
 		--cell-size: clamp(
-			1.75rem,
+			max(0.5rem, min(1.75rem, calc(var(--board-width) / var(--grid-size) * 0.75))),
 			min(
-				calc((var(--board-width) - 5rem) / var(--grid-size)),
+				calc((var(--board-width) - 2rem) / var(--grid-size)),
 				calc((100vh - 16rem) / var(--grid-size))
 			),
 			4.1rem
 		);
+		margin-inline: auto;
 	}
 
 	.game-cell {
@@ -1260,7 +1279,7 @@ ${gameState?.fogEnabled
 	/* Stacked layout below lg: the board gets the full width. */
 	@media (max-width: 1023px) {
 		.game-board {
-			--cell-size: clamp(1.75rem, calc((100vw - 4rem) / var(--grid-size)), 3.25rem);
+			--cell-size: clamp(0.2rem, calc((100vw - 4rem) / var(--grid-size)), 3.25rem);
 		}
 	}
 </style>

@@ -499,6 +499,64 @@ describe('watch page', () => {
 		await screen.findByText('Full grid unlocked for this session.');
 	});
 
+	it('reveals the full grid once a fog session is won', async () => {
+		mockRuntime.sessionGridSize = 5;
+		const fullGrid = makeFullGrid5x5();
+		fullGrid[4][4] = { type: 'water', visited: false, id: '4,4', allowedDirections: [] };
+		mockRuntime.queryImpl = (query) => {
+			if (typeof query === 'string' && query.includes('query GameState')) {
+				return {
+					data: { gameState: makeGameState({ fogEnabled: true, fogRadius: 1, victory: true, score: 3, totalParks: 3 }) },
+					error: null
+				};
+			}
+			if (typeof query === 'string' && query.includes('query FullGrid')) {
+				return { data: { gameState: { grid: fullGrid } }, error: null };
+			}
+			throw new Error(`Unexpected query: ${String(query)}`);
+		};
+
+		const { container } = render(WatchPage);
+
+		await screen.findByText('🌫 Fog r1 · revealed');
+		await screen.findByLabelText('water');
+
+		expect(container.querySelectorAll('td')).toHaveLength(25);
+		expect(screen.getByText('You won — the whole map is revealed.')).toBeInTheDocument();
+		expect(screen.queryByPlaceholderText('Grid password')).toBeNull();
+
+		const fullGridCalls = mockRuntime.queryCalls.filter(
+			(call) => typeof call.query === 'string' && call.query.includes('query FullGrid')
+		);
+		expect(fullGridCalls).toHaveLength(1);
+		expect(fullGridCalls[0].variables.password).toBe('');
+	});
+
+	it('hides the map again when a won fog session is reset', async () => {
+		mockRuntime.sessionGridSize = 5;
+		const fullGrid = makeFullGrid5x5();
+		fullGrid[4][4] = { type: 'water', visited: false, id: '4,4', allowedDirections: [] };
+		mockRuntime.queryImpl = (query) => {
+			if (typeof query === 'string' && query.includes('query GameState')) {
+				return { data: { gameState: makeGameState({ fogEnabled: true, fogRadius: 1, victory: true }) }, error: null };
+			}
+			if (typeof query === 'string' && query.includes('query FullGrid')) {
+				return { data: { gameState: { grid: fullGrid } }, error: null };
+			}
+			throw new Error(`Unexpected query: ${String(query)}`);
+		};
+
+		render(WatchPage);
+		await screen.findByLabelText('water');
+
+		mockRuntime.wsSinks[0].next({
+			data: { sessionUpdated: makeGameState({ fogEnabled: true, fogRadius: 1, victory: false }) }
+		});
+
+		await screen.findByText('🌫 Fog r1');
+		await waitFor(() => expect(screen.queryByLabelText('water')).toBeNull());
+	});
+
 	it('renders player movement on fog board when moving by keyboard', async () => {
 		mockRuntime.sessionGridSize = 5;
 		mockRuntime.queryImpl = (query) => {
