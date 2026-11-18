@@ -100,11 +100,31 @@
 		return raw.split(',').map((id) => id.trim()).filter(Boolean);
 	}
 
+	// Sessions arrive newest-first (sessions(sort: ACTION, order: DESC)), so a plain
+	// slice is "latest N" in action order.
 	const availableIds = $derived<string[]>(
 		selectedMap
 			? allSessions.filter((s) => s.mapName === selectedMap).map((s) => s.id)
 			: []
 	);
+
+	// Latest 5 by default; "Load more" reveals the next batch.
+	const PAGE_SIZE = 5;
+	let visibleCount = $state(PAGE_SIZE);
+	$effect(() => {
+		selectedMap; // reset paging when the map changes
+		untrack(() => {
+			visibleCount = PAGE_SIZE;
+		});
+	});
+	const visibleIds = $derived<string[]>(availableIds.slice(0, visibleCount));
+	const hasMore = $derived(availableIds.length > visibleIds.length);
+
+	function loadMore() {
+		const next = availableIds.slice(visibleCount, visibleCount + PAGE_SIZE);
+		visibleCount += PAGE_SIZE;
+		setSelectedSessions([...new Set([...selectedIds, ...next])]);
+	}
 	const sessionMetaByID = $derived.by(() => {
 		const m = new Map<string, { displayName: string; fogEnabled: boolean; fogRadius: number }>();
 		for (const s of allSessions) {
@@ -461,15 +481,16 @@
 		if (!selectedMap && mapChips.length > 0) selectMap(mapChips[0].mapId);
 	});
 
-	// First load only: pre-select up to 4 sessions still in progress on the chosen map.
-	const AUTO_SELECT_MAX = 4;
-	let autoSelected = false;
+	// Default to watching the latest sessions on whichever map is selected first;
+	// re-arm on every map switch (selectMap drops ?sessions).
+	let autoSelectedMap = '';
 	$effect(() => {
-		if (autoSelected || !selectedMap || allSessions.length === 0) return;
-		autoSelected = true;
+		const map = selectedMap;
+		if (!map || allSessions.length === 0 || autoSelectedMap === map) return;
+		autoSelectedMap = map;
 		if ($page.url.searchParams.get('sessions')) return;
-		const active = allSessions.filter((s) => s.mapName === selectedMap && isActiveSession(s)).map((s) => s.id);
-		if (active.length > 0) setSelectedSessions(active.slice(0, AUTO_SELECT_MAX));
+		const latest = availableIds.slice(0, PAGE_SIZE);
+		if (latest.length > 0) setSelectedSessions(latest);
 	});
 
 	function setSelectedSessions(ids: string[]) {
@@ -597,14 +618,17 @@
 			</div>
 			{#if availableIds.length > 1}
 				<div class="flex gap-3 px-1 pb-1 text-xs">
-					<button type="button" onclick={() => setSelectedSessions(availableIds)} class="text-gray-700 underline hover:text-gray-900">Select all</button>
+					<button type="button" onclick={() => setSelectedSessions(visibleIds)} class="text-gray-700 underline hover:text-gray-900">Select all</button>
 					<button type="button" onclick={() => setSelectedSessions([])} disabled={selectedIds.length === 0} class="text-gray-700 underline hover:text-gray-900 disabled:opacity-40 disabled:no-underline">Clear</button>
 				</div>
 			{/if}
-			{#each availableIds as id, i}
+			{#each visibleIds as id, i}
 				<!-- Live state exists only for selected sessions; fall back to the polled summary. -->
 				{@const s = states.get(id) ?? allSessions.find((x) => x.id === id)?.gameState}
 				{@const meta = sessionMetaByID.get(id)}
+				<!-- Keep the glyph identical to the one the shared grid draws for this session. -->
+				{@const orderIdx = sessionOrder.indexOf(id)}
+				{@const paletteIdx = orderIdx >= 0 ? orderIdx : i}
 				<label class="bg-white rounded-xl border border-[#e8e8e8] px-3 py-2.5 shadow-sm hover:shadow-md transition-shadow flex items-start gap-2 cursor-pointer">
 					<input
 						type="checkbox"
@@ -612,7 +636,7 @@
 						checked={selectedIds.includes(id)}
 						onchange={() => toggleSession(id)}
 					/>
-					<span class="text-lg leading-none mt-0.5">{carColors[i % carColors.length]}</span>
+					<span class="text-lg leading-none mt-0.5">{carColors[paletteIdx % carColors.length]}</span>
 					<div class="flex-1 min-w-0">
 						<div class="flex items-center justify-between gap-1">
 							<div class="min-w-0">
@@ -638,6 +662,13 @@
 					</div>
 				</label>
 			{/each}
+			{#if hasMore}
+				<button
+					type="button"
+					onclick={loadMore}
+					class="mt-1 w-full rounded-xl border border-dashed border-gray-300 px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 transition-colors"
+				>Load more ({availableIds.length - visibleIds.length} older)</button>
+			{/if}
 			{#if availableIds.length === 0}
 				<p class="text-xs text-gray-400 text-center py-4">No sessions on this map</p>
 			{/if}
