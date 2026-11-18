@@ -9,7 +9,7 @@ Thank you for your interest in contributing to the Tesla Road Trip Game! This do
 - **Go 1.25+** (see `go.mod`)
 - **Node.js 20.19+ or 22.12+** and npm (frontend build)
 - **Git** for version control
-- **Make** for build automation (optional but recommended)
+- **just** for task automation (optional but recommended)
 
 ### Development Setup
 
@@ -21,18 +21,18 @@ Thank you for your interest in contributing to the Tesla Road Trip Game! This do
 
 2. **Install dependencies**
    ```bash
-   make setup
+   just setup
    ```
 
 3. **Verify setup**
    ```bash
-   make test
-   make build
+   just test
+   just build
    ```
 
 4. **Start development server**
    ```bash
-   make dev-live   # backend :9090 + frontend :5173 with live reload
+   just dev-live   # backend :9090 + frontend :5173 with live reload
    ```
 
 ## 🔄 Development Workflow
@@ -46,7 +46,7 @@ Thank you for your interest in contributing to the Tesla Road Trip Game! This do
 
 2. **Ensure tests pass**
    ```bash
-   make test
+   just test
    ```
 
 ### Making Changes
@@ -54,25 +54,25 @@ Thank you for your interest in contributing to the Tesla Road Trip Game! This do
 1. **Code Quality Checks**
    ```bash
    # Format code
-   make fmt
+   just fmt
 
    # Run linter
-   make lint
+   just lint
 
    # Static analysis
-   make vet
+   just vet
    ```
 
 2. **Test Your Changes**
    ```bash
    # Run all tests
-   make test
+   just test
 
    # Run tests with coverage
-   make test-coverage
+   just test-coverage
 
    # Validate configurations (if config changes)
-   make validate
+   just validate
    ```
 
 3. **Advanced Testing**
@@ -126,7 +126,7 @@ Thank you for your interest in contributing to the Tesla Road Trip Game! This do
 - **Test thoroughly** to ensure all parks are reachable
 - **Follow naming conventions**: `difficulty_theme.json`
 - **Include descriptive name and description** in the JSON
-- **Validate using `make validate`** before submitting
+- **Validate using `just validate`** before submitting
 
 ### 📚 Documentation
 
@@ -258,22 +258,22 @@ Before submitting, ensure:
 
 1. **All existing tests pass**
    ```bash
-   make test
+   just test
    ```
 
 2. **No linting errors**
    ```bash
-   make lint
+   just lint
    ```
 
 3. **Code is properly formatted**
    ```bash
-   make fmt
+   just fmt
    ```
 
 4. **Configurations are valid** (if applicable)
    ```bash
-   make validate
+   just validate
    ```
 
 ### Test Coverage
@@ -303,18 +303,18 @@ For significant changes, test:
 3. **MCP integration**
    ```bash
    # Test MCP tools if MCP-related changes
-   make claude-game-stdin
+   just claude-game
    ```
 
 ## 📋 Pull Request Checklist
 
 Before submitting your PR, ensure:
 
-- [ ] **Tests pass**: `make test` succeeds
-- [ ] **Code is formatted**: `make fmt` applied
-- [ ] **No lint errors**: `make lint` passes
+- [ ] **Tests pass**: `just test` succeeds
+- [ ] **Code is formatted**: `just fmt` applied
+- [ ] **No lint errors**: `just lint` passes
 - [ ] **Documentation updated**: README and code comments current
-- [ ] **Configurations valid**: `make validate` passes (if applicable)
+- [ ] **Configurations valid**: `just validate` passes (if applicable)
 - [ ] **Commit messages clear**: Descriptive commit messages
 - [ ] **PR description complete**: Explains what, why, and how
 
@@ -414,7 +414,7 @@ Brief description of changes and motivation.
 
 ### Development Resources
 
-- **Makefile**: Available development commands
+- **justfile**: Available development commands (`just --list`)
 - **Scripts**: Development and testing automation
 - **Configs**: Example game configurations
 - **Tests**: Comprehensive test examples

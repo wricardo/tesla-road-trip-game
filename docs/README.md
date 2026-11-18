@@ -77,23 +77,23 @@ docs/
 
 ### Testing
 ```bash
-make test              # Run all tests
-make test-coverage     # Run tests with coverage
-make validate          # Validate game configurations
+just test              # Run all tests
+just test-coverage     # Run tests with coverage
+just validate          # Validate game configurations
 ```
 
 ### Building
 ```bash
-make build             # Build binary
-make run               # Run server
-make dev-watch         # Development mode with hot reload
+just build             # Build binary
+just run               # Run server
+just dev-live          # Development mode with hot reload
 ```
 
 ### Code Quality
 ```bash
-make fmt               # Format code
-make lint              # Run linter
-make vet               # Run go vet
+just fmt               # Format code
+just lint              # Run linter
+just vet               # Run go vet
 ```
 
 ## 📝 Contributing to Documentation

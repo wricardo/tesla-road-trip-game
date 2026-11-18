@@ -12,7 +12,7 @@ Grid-based, multi-session game server. Players drive a Tesla around a map to vis
 |------|---------|-----------|
 | Go | 1.25+ (see `go.mod`) | server, TUI, tests |
 | Node.js + npm | 20.19+ or 22.12+ | rebuilding the web UI (optional) |
-| make | any | convenience targets (optional) |
+| just | 1.27+ (CI pins 1.59.0) | task runner for all commands below |
 
 A prebuilt copy of the web UI is committed in `static/`, so Node is only needed if you change the frontend.
 
@@ -21,7 +21,7 @@ A prebuilt copy of the web UI is committed in `static/`, so Node is only needed 
 ```bash
 git clone https://github.com/wricardo/tesla-road-trip-game.git
 cd tesla-road-trip-game
-make build              # or: go build -o tesla-road-trip .
+just build              # or: go build -o tesla-road-trip .
 ./tesla-road-trip       # http://localhost:8000
 ```
 
@@ -32,9 +32,31 @@ The server must be started from the repo root: it reads maps from `./maps`, writ
 ### Full setup (with frontend)
 
 ```bash
-make setup              # go mod download + npm ci in frontend/
-make run                # build frontend + server, run on :8000
+just setup              # go mod download + npm ci in frontend/
+just run                # build frontend + server, run on :8000
 ```
+
+### Development dependencies
+
+Install `just` first (`brew install just`, or the installer from
+[just.systems](https://just.systems/man/en/installation.html)), then the tools
+the quality and browser recipes need:
+
+```bash
+just tools              # goimports + golangci-lint
+```
+
+| Tool | Version | Needed for |
+|------|---------|-----------|
+| Go | 1.25+ (see `go.mod`) | build, test, vet, map validation |
+| Node.js + npm | 20.19+ or 22.12+ | `just build-frontend`, `just verify-ui` |
+| just | 1.27+ (CI pins 1.59.0) | every recipe |
+| goimports | latest | `just fmt`, `just verify` |
+| golangci-lint | latest | `just lint`, `just verify` |
+| Chrome or Chromium | current stable | `just verify-ui` (headless by default) |
+| claude CLI | optional | `just claude-game` (MCP client example) |
+| Python 3 | 3.10+ (optional) | `ml/` training harness (see [ml/README.md](ml/README.md)) |
+| gqlgen | v0.17.73 (pinned in `go.mod`) | regenerating GraphQL code after schema edits |
 
 ### Server options
 
@@ -65,19 +87,20 @@ cp .env.example .env
 | `ADMIN_API_KEY` | unset | Optional. `X-Admin-Key` header value that overrides map ownership (edit built-in maps) |
 | `ALLOW_UNAUTHENTICATED_ADMIN` | `false` | Local-only bypass: treat every request as admin |
 | `CUSTOM_MAPS_DIR` | `$CONFIG_DIR/custom` | Writable directory for user-created maps (and their edit tokens) |
+| `ALLOWED_ORIGINS` | all | WebSocket origin allowlist (comma-separated) |
 
 ### Browser UI checks
 
-`make verify-ui` builds the frontend, starts a throwaway server on an unused
-port, and drives the real UI in headless Chrome over the DevTools Protocol (no
-Playwright, no npm dependencies). It covers the map gallery, the start-session
-modal and the shareable map pages, including the layout checks jsdom cannot do.
+`just verify-ui` builds the frontend and server, starts a throwaway server on an
+unused port, and drives the real UI in headless Chrome over the DevTools Protocol
+(no Playwright, no npm dependencies). It covers the map gallery, the
+start-session modal and the shareable map pages, including the layout checks
+jsdom cannot do.
 
 ```bash
-make verify-ui            # headless
-make verify-ui HEADED=1   # watch it run in a window
+just verify-ui            # headless
+just verify-ui 1          # watch it run in a window
 ```
-| `ALLOWED_ORIGINS` | all | WebSocket origin allowlist (comma-separated) |
 
 ## Endpoints
 
@@ -94,8 +117,8 @@ make verify-ui HEADED=1   # watch it run in a window
 ## Clients
 
 - **Web UI** — served at `/`.
-- **TUI** — `make build-tui && ./tesla-road-trip-tui -server http://localhost:8000` (add `-session <id>` to jump into a session).
-- **Claude Code / MCP** — with the server running on :8000, `make claude-game` starts Claude with [mcp.json](mcp.json). For other MCP clients, point them at `http://localhost:8000/mcp`.
+- **TUI** — `just build-tui && ./tesla-road-trip-tui -server http://localhost:8000` (add `-session <id>` to jump into a session).
+- **Claude Code / MCP** — with the server running on :8000, `just claude-game` starts Claude with [mcp.json](mcp.json). For other MCP clients, point them at `http://localhost:8000/mcp`.
 - **Any GraphQL client** — e.g. [gqlcli](https://github.com/wricardo/gqlcli), `curl`, or `/playground`.
 
 ## 🎲 Game Rules
@@ -206,7 +229,7 @@ Notes:
 Maps live in `maps/*.json` (schema: [map-schema.json](map-schema.json), docs: [docs/config-schema.md](docs/config-schema.md)). List them at runtime with the `maps` GraphQL query. Validate all maps with:
 
 ```bash
-make validate
+just validate
 ```
 
 `cd cmd/analyze && go run .` prints heuristics (size, battery, parks, chargers, reachability) per map.
@@ -214,12 +237,12 @@ make validate
 ## Development
 
 ```bash
-make help           # list targets
-make test           # go test ./...
-make test-coverage  # coverage.html
-make verify         # gofmt check + go vet + golangci-lint (run `make tools` first)
-make fmt            # gofmt -s + goimports
-make dev-live       # backend :9090 + Vite frontend :5173 with live reload
+just --list         # list recipes (groups: setup, build, run, test, quality)
+just test           # go test ./...
+just test-coverage  # coverage.html
+just verify         # gofmt check + go vet + golangci-lint (run `just tools` first)
+just fmt            # gofmt -s + goimports
+just dev-live       # backend :9090 + Vite frontend :5173 with live reload
 ```
 
 Frontend only:
@@ -234,7 +257,7 @@ npm run build       # → frontend/build (served by the Go server when present)
 
 After changing `graph/schema.graphqls`, regenerate with `go run github.com/99designs/gqlgen generate`. Do not edit `graph/generated/`.
 
-To update the committed UI fallback after frontend changes: `make build-frontend && rm -rf static && cp -R frontend/build static`.
+To update the committed UI fallback after frontend changes: `just build-frontend && rm -rf static && cp -R frontend/build static`.
 
 ### Layout
 

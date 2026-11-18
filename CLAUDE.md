@@ -8,25 +8,25 @@ Tesla Road Trip Game — grid-based multi-session game server in Go where player
 
 ## Development Commands
 
-Server uses default port 8000. Use `make` for all common tasks.
+Server uses default port 8000. Use `just` for all common tasks (`just --list` shows every recipe).
 
 ### Build and Run
 ```bash
-make build          # Build binary → ./tesla-road-trip
-make run            # Build + run (port 8000)
-make dev            # Same as run, explicit port 8000
+just build          # Build binary → ./tesla-road-trip
+just run            # Build frontend + backend, run (port 8000)
+just dev            # Build backend, run on port 8000
 ./tesla-road-trip -port 9090              # Custom port
 ./tesla-road-trip -public-url https://example.com  # Set public URL in /llms.txt
 # stdio-mcp mode is currently disabled in main.go
 ```
 
-**Port conflicts**: Port 8000 is often taken by other processes. `make dev-live` uses 9090 (frontend dev). Use 9191+ for standalone server to avoid conflicts. Check first: `lsof -i :PORT | grep LISTEN`.
+**Port conflicts**: Port 8000 is often taken by other processes. `just dev-live` uses 9090 (frontend dev). Use 9191+ for standalone server to avoid conflicts. Check first: `lsof -i :PORT | grep LISTEN`.
 
 **macOS port shadowing**: Both `*:8000` (wildcard) and `localhost:8000` (specific) can bind simultaneously. The wildcard listener wins for `curl localhost:8000` — always verify which server responds with a known query.
 
 ### TUI Client
 ```bash
-make build-tui                                          # Build → ./tesla-road-trip-tui
+just build-tui                                          # Build → ./tesla-road-trip-tui
 ./tesla-road-trip-tui -server http://localhost:9191     # Connect to custom port
 ./tesla-road-trip-tui -server URL -session <id>        # Jump directly to session (skip list)
 ```
@@ -41,20 +41,20 @@ make build-tui                                          # Build → ./tesla-road
 
 ### Testing
 ```bash
-make test                   # All Go tests
-make test-verbose            # Verbose output
-make test-coverage           # Coverage report → coverage.html
+just test                   # All Go tests
+just test-verbose            # Verbose output
+just test-coverage           # Coverage report → coverage.html
 go test ./game/engine/...    # Single package
 go test -run TestName ./...  # Single test
-make validate                # Validate all configs
+just validate                # Validate all configs
 ```
 
 ### Code Quality
 ```bash
-make verify         # fmt-check + vet-safe + lint (fast CI)
-make fmt            # Format (gofmt -s + goimports)
-make lint           # golangci-lint
-make vet-safe       # go vet core packages (skips flaky test pkg)
+just verify         # fmt-check + vet-safe + lint (fast CI)
+just fmt            # Format (gofmt -s + goimports)
+just lint           # golangci-lint
+just vet-safe       # go vet core packages (skips flaky test pkg)
 ```
 
 ### Frontend (SvelteKit + Tailwind)
@@ -68,15 +68,15 @@ npm run check       # Type-check
 
 ### Full-Stack Live Dev
 ```bash
-make dev-live       # Backend on :9090 + frontend on :5173 (both with live reload)
+just dev-live       # Backend on :9090 + frontend on :5173 (both with live reload)
 # Or separately:
-make dev-backend    # Backend only on :9090
-make frontend-dev   # Frontend only on :5173 (proxies to :9090)
+just dev-backend    # Backend only on :9090
+just frontend-dev   # Frontend only on :5173 (proxies to :9090)
 ```
 
 ### Install Dev Tools
 ```bash
-make tools          # Install goimports + golangci-lint
+just tools          # Install goimports + golangci-lint
 ```
 
 ### GraphQL Code Generation
@@ -87,8 +87,7 @@ Schema lives in `graph/schema.graphqls`. Do not edit `graph/generated/` directly
 
 ### MCP Server
 ```bash
-make claude-game         # Claude with HTTP MCP (./mcp.json)
-make claude-game-stdin   # Claude with stdio MCP (./mcp-stdin.json)
+just claude-game         # Claude with HTTP MCP (./mcp.json)
 # Note: binary stdio-mcp mode is currently disabled; use HTTP /mcp
 ```
 

@@ -3,7 +3,7 @@
 // map details page. Drives Chrome over the DevTools Protocol, so it needs no
 // npm dependencies and no Playwright install.
 //
-// Usage (see `make verify-ui`, which builds and starts the server for you):
+// Usage (see `just verify-ui`, which builds and starts the server for you):
 //   node e2e/ui.mjs                     # headless, against http://127.0.0.1:8000
 //   BASE=http://127.0.0.1:9001 node e2e/ui.mjs
 //   HEADED=1 node e2e/ui.mjs            # watch the run in a real window
@@ -308,7 +308,7 @@ async function main() {
 		if (!res.ok) throw new Error(`HTTP ${res.status}`);
 	} catch (err) {
 		console.error(`Cannot reach ${BASE}/graphql (${err.message}).`);
-		console.error('Start the server first, or use `make verify-ui`.');
+		console.error('Start the server first, or use `just verify-ui`.');
 		return 2;
 	}
 

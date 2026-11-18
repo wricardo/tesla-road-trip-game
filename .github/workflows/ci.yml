@@ -42,5 +42,8 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+      - uses: extractions/setup-just@v3
+        with:
+          just-version: "1.59.0"
       - name: Browser UI checks
-        run: make verify-ui
+        run: just verify-ui
