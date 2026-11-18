@@ -34,7 +34,7 @@ func TestValidationConstants(t *testing.T) {
 		expected int
 	}{
 		{"MinGridSize", MinGridSize, 5},
-		{"MaxGridSize", MaxGridSize, 50},
+		{"MaxGridSize", MaxGridSize, 100},
 		{"MinBattery", MinBattery, 1},
 		{"MaxBattery", MaxBattery, 100},
 		{"MaxBulkMoves", MaxBulkMoves, 50},

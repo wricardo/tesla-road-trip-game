@@ -562,7 +562,7 @@
 						onchange={resizeGrid}
 						class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-gray-400"
 					>
-						{#if ![5, 8, 10, 15, 20, 25, 30].includes(gridSize)}
+						{#if ![5, 8, 10, 15, 20, 25, 30, 40, 50, 75, 100].includes(gridSize)}
 							<option value={gridSize}>{gridSize}×{gridSize}</option>
 						{/if}
 						<option value={5}>5×5</option>
@@ -572,6 +572,10 @@
 						<option value={20}>20×20</option>
 						<option value={25}>25×25</option>
 						<option value={30}>30×30</option>
+						<option value={40}>40×40</option>
+						<option value={50}>50×50</option>
+						<option value={75}>75×75</option>
+						<option value={100}>100×100</option>
 					</select>
 				</div>
 				<div class="flex-1 flex justify-end">

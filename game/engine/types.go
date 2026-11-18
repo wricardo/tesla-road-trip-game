@@ -12,11 +12,14 @@ const (
 	Building     CellType = "building"
 
 	// Validation constants
-	MinGridSize         = 5
-	MaxGridSize         = 50
-	MinBattery          = 1
-	MaxBattery          = 100
-	MaxBulkMoves        = 50
+	MinGridSize  = 5
+	MaxGridSize  = 100
+	MinBattery   = 1
+	MaxBattery   = 100
+	MaxBulkMoves = 50
+	// MaxMovesPerCell caps one run (moves since the last reset) at this many
+	// moves per grid cell, so a stuck client cannot loop forever.
+	MaxMovesPerCell     = 2
 	UnreachableDistance = 999999
 	WebSocketBufferSize = 256
 )
@@ -54,6 +57,7 @@ type GameMessages struct {
 	CantMove           string
 	BatteryStatus      string
 	HitWall            string
+	MaxMovesExceeded   string
 }
 
 // DefaultMessages is the canonical gameplay copy. Maps do not customize messages.
@@ -69,6 +73,7 @@ var DefaultMessages = GameMessages{
 	CantMove:           "Can't move there!",
 	BatteryStatus:      "Battery: %d/%d",
 	HitWall:            "You crashed into a wall! Game Over!",
+	MaxMovesExceeded:   "Max move attempts exceeded! Game Over!",
 }
 
 // GameConfig represents the game configuration from JSON

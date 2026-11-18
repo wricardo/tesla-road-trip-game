@@ -27,7 +27,7 @@
       "type": "integer",
       "description": "Size of the square grid",
       "minimum": 5,
-      "maximum": 50
+      "maximum": 100
     },
     "max_battery": {
       "type": "integer",
@@ -45,12 +45,12 @@
       "type": "array",
       "description": "Grid layout as array of strings",
       "minItems": 5,
-      "maxItems": 50,
+      "maxItems": 100,
       "items": {
         "type": "string",
         "pattern": "^[RHPSWB|\\-^v><JL7r]+$",
         "minLength": 5,
-        "maxLength": 50
+        "maxLength": 100
       }
     },
     "legend": {

@@ -67,7 +67,7 @@ func TestValidateGameConfig_InvalidGridSize(t *testing.T) {
 		gridSize int
 	}{
 		{"too small", 4},
-		{"too large", 51},
+		{"too large", MaxGridSize + 1},
 	}
 
 	for _, test := range tests {

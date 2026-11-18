@@ -72,7 +72,7 @@ Coordinates: `grid[y][x]`; `right` = x+1, `down` = y+1. Each move costs 1 batter
 **Parameters:**
 - `map` (object, required) with:
   - `name`, `description` (string, required)
-  - `grid_size`, `max_battery`, `starting_battery` (integer, required; `grid_size` 5-50)
+  - `grid_size`, `max_battery`, `starting_battery` (integer, required; `grid_size` 5-100)
   - `layout` (array of strings, required) - One row per string of R/H/P/S/W/B chars
   - `legend` (array of `{key, value}`, required) - e.g. `{"key":"R","value":"road"}`
   - `cell_configs` (array of `{key, type, allowed_directions}`, optional) - One-way cells

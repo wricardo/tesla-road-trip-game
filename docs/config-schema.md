@@ -39,7 +39,7 @@ type GameConfig struct {
 |-------|------|-------------|-------------|
 | `name` | string | 1-100 chars | Configuration name |
 | `description` | string | 1-500 chars | Mode description |
-| `grid_size` | integer | 5-50 | Square grid dimension |
+| `grid_size` | integer | 5-100 | Square grid dimension |
 | `max_battery` | integer | 1-100 | Maximum battery capacity |
 | `starting_battery` | integer | 1-max_battery | Initial battery level |
 | `layout` | string[] | Must match grid_size | Grid layout rows |
@@ -132,7 +132,7 @@ if err != nil {
 ```
 
 Common validation errors:
-- `config validation: grid_size must be between 5 and 50, got 60`
+- `config validation: grid_size must be between 5 and 100, got 60`
 - `config validation: layout must contain at least one home (H) cell`
 
 ## JSON Schema Validation
