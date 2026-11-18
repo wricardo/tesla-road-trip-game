@@ -880,3 +880,39 @@ func TestGameService_CreateSession_GeneratesFogPassword(t *testing.T) {
 		t.Fatalf("non-fog sessions must not get a password")
 	}
 }
+
+func TestGameService_MoveCapStopReason(t *testing.T) {
+	ctx := context.Background()
+	svc := service.NewGameService(NewMockSessionManager(), NewMockConfigManager())
+	info, err := svc.CreateSession(ctx, "test")
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+
+	// The mock map is 5x5, so one run may use at most 50 moves.
+	const limit = 2 * 25
+	for i := 0; i < limit; i++ {
+		dir := "left"
+		if i%2 == 1 {
+			dir = "right"
+		}
+		res, err := svc.Move(ctx, info.ID, dir, false)
+		if err != nil {
+			t.Fatalf("move %d: %v", i+1, err)
+		}
+		if !res.Success || res.GameState.GameOver {
+			t.Fatalf("move %d (%s): success=%v over=%v msg=%q", i+1, dir, res.Success, res.GameState.GameOver, res.Message)
+		}
+	}
+
+	res, err := svc.BulkMove(ctx, info.ID, []string{"left"}, false, service.BulkMoveOptions{})
+	if err != nil {
+		t.Fatalf("capping bulk move: %v", err)
+	}
+	if !res.GameOver || res.GameOverCode != "max_moves" || res.StopReasonCode != "max_moves" {
+		t.Fatalf("want max_moves stop, got over=%v gameOverCode=%q stop=%q", res.GameOver, res.GameOverCode, res.StopReasonCode)
+	}
+	if res.MovesExecuted != 1 || !strings.Contains(res.Message, engine.DefaultMessages.MaxMovesExceeded) {
+		t.Fatalf("want 1 executed move and cap message, got moves=%d message=%q", res.MovesExecuted, res.Message)
+	}
+}

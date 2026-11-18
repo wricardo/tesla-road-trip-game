@@ -110,3 +110,17 @@ func CountCellType(grid [][]Cell, cellType CellType) int {
 	}
 	return count
 }
+
+// TotalCells counts every cell in the grid. Rows may be ragged.
+func TotalCells(grid [][]Cell) int {
+	total := 0
+	for _, row := range grid {
+		total += len(row)
+	}
+	return total
+}
+
+// MaxMovesForGrid is the per-run move cap for grid: MaxMovesPerCell per cell.
+func MaxMovesForGrid(grid [][]Cell) int {
+	return MaxMovesPerCell * TotalCells(grid)
+}

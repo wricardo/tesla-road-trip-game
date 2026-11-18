@@ -552,4 +552,5 @@ Gameplay rules exposed through the API:
 - `victory` becomes `true` once all parks are visited.
 - Moving into a building, water, or off the map ends the game immediately (the crash costs no battery). Never probe by bumping into cells; read `nearbyGrid`/`grid` instead.
 - Moves against a one-way cell's `allowedDirections` are rejected without cost and do not end the game.
+- A run (moves since the last reset) may use at most 2 moves per grid cell. Attempts past that cap end the game with `max_moves` and a "Max move attempts exceeded" message, so a stuck client cannot loop forever.
 - After `bulkMove`, inspect `stoppedReason`, `stopReasonCode`, `attemptedTo`, and `possibleMoves` before replanning. `possibleMoves` lists the directions you can legally move from the end position (walls, map edge, one-way roads, battery considered); it is empty after game over.

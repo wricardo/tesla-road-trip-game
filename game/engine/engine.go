@@ -152,8 +152,26 @@ func (e *GameEngine) Move(direction string) bool {
 
 	// Add to history
 	e.state.AddMoveToHistory(direction, prevPos, e.state.PlayerPos, success)
+	e.enforceMoveCap()
 
 	return success
+}
+
+// enforceMoveCap ends the run once it has spent more moves than MaxMovesPerCell
+// per grid cell without a reset. CurrentMovesCount counts every attempt (legal,
+// rejected, or blocked), so a client stuck retrying directions also ends here.
+// A move that already ended the game (victory, crash, battery) keeps its own
+// result and message.
+func (e *GameEngine) enforceMoveCap() {
+	if e.state.GameOver {
+		return
+	}
+	limit := MaxMovesForGrid(e.state.Grid)
+	if e.state.CurrentMovesCount > limit {
+		e.state.GameOver = true
+		e.state.Message = fmt.Sprintf("%s [used %d moves, limit %d]",
+			DefaultMessages.MaxMovesExceeded, e.state.CurrentMovesCount, limit)
+	}
 }
 
 // CanMove checks if the player can move in the specified direction

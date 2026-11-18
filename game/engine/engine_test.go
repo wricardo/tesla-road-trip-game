@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -506,5 +507,55 @@ func TestGameStateCloneIsDeep(t *testing.T) {
 	}
 	if (*GameState)(nil).Clone() != nil {
 		t.Error("nil clone should be nil")
+	}
+}
+
+func TestEngine_MoveCapEndsStuckRun(t *testing.T) {
+	eng, err := NewEngine(createTestConfig())
+	if err != nil {
+		t.Fatalf("Failed to create engine: %v", err)
+	}
+	limit := MaxMovesForGrid(eng.GetState().Grid)
+	if want := 2 * 25; limit != want {
+		t.Fatalf("expected cap %d for 5x5 grid, got %d", want, limit)
+	}
+
+	// Bounce home <-> road: every move is legal and charges at home, so only
+	// the move cap can end this run.
+	for i := 0; i < limit; i++ {
+		dir := "left"
+		if i%2 == 1 {
+			dir = "right"
+		}
+		if !eng.Move(dir) {
+			t.Fatalf("move %d (%s) unexpectedly rejected", i+1, dir)
+		}
+		if eng.IsGameOver() {
+			t.Fatalf("game over at move %d, before cap %d", i+1, limit)
+		}
+	}
+
+	if !eng.Move("left") {
+		t.Fatal("expected the move that exceeds the cap to execute")
+	}
+	state := eng.GetState()
+	if !state.GameOver || state.Victory {
+		t.Fatalf("expected non-victory game over at cap, got over=%v victory=%v", state.GameOver, state.Victory)
+	}
+	if !strings.HasPrefix(state.Message, DefaultMessages.MaxMovesExceeded) {
+		t.Fatalf("expected max moves message, got %q", state.Message)
+	}
+	if state.CurrentMovesCount != limit+1 {
+		t.Fatalf("expected %d counted attempts, got %d", limit+1, state.CurrentMovesCount)
+	}
+	if eng.Move("right") {
+		t.Fatal("expected moves to be refused after the cap ended the game")
+	}
+
+	if reset := eng.Reset(); reset.GameOver || reset.CurrentMovesCount != 0 {
+		t.Fatalf("reset should clear the capped run: over=%v count=%d", reset.GameOver, reset.CurrentMovesCount)
+	}
+	if !eng.Move("left") {
+		t.Fatal("expected a fresh run to accept moves after reset")
 	}
 }

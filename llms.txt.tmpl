@@ -36,6 +36,9 @@ history, sessionUpdated); operations that address the session object itself take
 - One-way roads: see "Directional roads" below. A wrong-way move is rejected, costs no battery
   and never ends the game.
 - Reaching 0 battery away from a charger ends the game (`stranded` / `out_of_battery`).
+- One run may use at most 2 moves per grid cell (grid width x height x 2) before a reset.
+  Attempts past that end the game (`gameOverCode: "max_moves"`) with a "Max move attempts
+  exceeded" message, so a stuck driver cannot loop forever.
 - Once `gameOver` is true (win or loss) further moves are refused without moving: `move`
   returns `success: false` with a message starting "Game is already over", and `bulkMove`
   returns `stopReasonCode: "already_over"`. This is not a blocked path. Call `reset` (or pass
@@ -229,10 +232,11 @@ mutation {
   the codes below explain why, they are not the only signal.
 - `stopReasonCode`: `blocked_building`, `blocked_water`, `blocked_boundary`,
   `blocked_direction` (one-way road), `out_of_battery`, `stranded`, `game_over` (the game ended
-  during this request), `already_over` (it had ended before; nothing ran), `victory` (also set
-  when the last requested move wins). Empty when every move ran and the game continues.
+  during this request), `max_moves` (the run hit the 2-moves-per-cell cap), `already_over` (it
+  had ended before; nothing ran), `victory` (also set when the last requested move wins). Empty
+  when every move ran and the game continues.
 - `gameOverCode` (empty while the game runs): `victory`, `crashed` (hit a building, water or the
-  map edge), `stranded`, `out_of_battery`, `game_over`.
+  map edge), `stranded`, `out_of_battery`, `max_moves`, `game_over`.
 - More than 50 moves: the rest are dropped and `truncated: true`.
 - `possibleMoves`: directions you can legally move from the end position (walls, map edge and
   one-way roads considered).

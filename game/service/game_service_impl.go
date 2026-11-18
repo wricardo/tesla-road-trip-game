@@ -532,6 +532,8 @@ func gameOverCode(st *engine.GameState) string {
 		return "victory"
 	case strings.HasPrefix(st.Message, engine.DefaultMessages.HitWall):
 		return "crashed"
+	case strings.HasPrefix(st.Message, engine.DefaultMessages.MaxMovesExceeded):
+		return "max_moves"
 	case st.Message == engine.DefaultMessages.Stranded:
 		return "stranded"
 	case st.Message == engine.DefaultMessages.OutOfBattery:
