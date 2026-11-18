@@ -163,7 +163,7 @@ query State($sessionID: ID!) {
 
 ### Get the full grid
 
-`grid(password: String)` returns the whole map, row-major (`grid[y][x]`; `RIGHT` is x+1, `DOWN` is y+1). In a non-fog session no password is needed. In a fog session, selecting `grid` without the correct password raises an error and, because `gameState` is non-null, nulls the whole response, so only select `grid` there when you hold the password.
+`grid(password: String)` returns the whole map, row-major (`grid[y][x]`; `RIGHT` is x+1, `DOWN` is y+1). In a non-fog session no password is needed. In a fog session, selecting `grid` without the correct password raises an error and, because `gameState` is non-null, nulls the whole response, so only select `grid` there when you hold the password. Once the run is won (`victory: true`) the map is revealed: `grid` and `gameMap.layout` are returned without a password, and a reset hides them again.
 
 ```graphql
 query FullGrid($sessionID: ID!, $password: String) {

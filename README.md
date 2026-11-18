@@ -208,7 +208,7 @@ The `move` mutation returns:
   - Fields: `x`, `y`, `tileChar`, `tileType`, `passable`
 - `gameState` includes:
   - `nearbyGrid { x y type visited id allowedDirections }`: `(2r+1) x (2r+1)` window around the player with `r = fogRadius` (3x3 without fog). Each cell's `x` / `y` are its map coordinates; off-map cells read `building` with their off-map coordinates.
-  - `grid(password:)`: full row-major map (`grid[y][x]`); in fog sessions it requires the grid password, and a wrong/missing password nulls the whole response.
+  - `grid(password:)`: full row-major map (`grid[y][x]`); in fog sessions it requires the grid password, and a wrong/missing password nulls the whole response. A won run (`victory: true`) is revealed without a password until it is reset.
   - `batteryRisk`: `SAFE`, `LOW`, `CAUTION`, `DANGER`, `CRITICAL`, `WARNING` (no charger), or `UNKNOWN`
 
 The `bulkMove` mutation adds:

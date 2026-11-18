@@ -12,6 +12,12 @@ import (
 
 func timeString(t time.Time) string { return t.Format(time.RFC3339) }
 
+// gridAccess derives the fog policy for a state. A won run is revealed: fog
+// hides the map from a player who has not solved it, and winning solves it.
+func gridAccess(gs *engine.GameState) model.GridAccess {
+	return model.GridAccess{FogEnabled: gs.FogEnabled, GridPassword: gs.GridPassword, Revealed: gs.Victory}
+}
+
 func toPosition(p engine.Position) *model.Position { return &model.Position{X: p.X, Y: p.Y} }
 
 func toSession(s *service.SessionInfo) *model.Session {
@@ -25,7 +31,7 @@ func toSession(s *service.SessionInfo) *model.Session {
 	gs := toGameState(s.GameState)
 	gm := toGameMap(s.GameMap)
 	if gm != nil && s.GameState != nil {
-		gm.SetLayoutAccess(model.GridAccess{FogEnabled: s.GameState.FogEnabled, GridPassword: s.GameState.GridPassword})
+		gm.SetLayoutAccess(gridAccess(s.GameState))
 	}
 	var generated *string
 	if s.GeneratedGridPassword != "" {
@@ -41,7 +47,7 @@ func toUnifiedSession(s *service.SessionInfo) *model.UnifiedSession {
 	gs := toGameState(s.GameState)
 	gm := toGameMap(s.GameMap)
 	if gm != nil && s.GameState != nil {
-		gm.SetLayoutAccess(model.GridAccess{FogEnabled: s.GameState.FogEnabled, GridPassword: s.GameState.GridPassword})
+		gm.SetLayoutAccess(gridAccess(s.GameState))
 	}
 	return &model.UnifiedSession{SessionID: s.ID, CreatedAt: timeString(s.CreatedAt), LastActionAt: timeString(s.LastActionAt), GameState: gs, GameMap: gm}
 }
@@ -70,7 +76,7 @@ func toGameState(gs *engine.GameState) *model.GameState {
 	}
 	local := buildLocalViewGrid(gs)
 	out := &model.GameState{Grid: grid, PlayerPos: toPosition(gs.PlayerPos), Battery: gs.Battery, MaxBattery: gs.MaxBattery, Score: gs.Score, TotalParks: engine.CountTotalParks(gs.Grid), VisitedParks: visited, Message: gs.Message, GameOver: gs.GameOver, Victory: gs.Victory, MapName: gs.MapName, MoveHistory: toMoveHistory(gs.MoveHistory), TotalMoves: gs.TotalMoves, ResetCount: gs.ResetCount, NearbyGrid: local, CurrentMoves: toMoveHistory(gs.CurrentMoves), CurrentMovesCount: gs.CurrentMovesCount, BatteryRisk: gs.BatteryRisk, FogEnabled: gs.FogEnabled, FogRadius: gs.FogRadius, MoveDelayMs: gs.MoveDelayMs}
-	out.SetGridAccess(model.GridAccess{FogEnabled: gs.FogEnabled, GridPassword: gs.GridPassword})
+	out.SetGridAccess(gridAccess(gs))
 	return out
 }
 

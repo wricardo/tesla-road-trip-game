@@ -98,6 +98,8 @@ A session created with `fogEnabled: true` hides the map:
 - `gameState.grid(password: "secret")` returns the full grid; without the right password it
   errors with `forbidden: grid password required when fog mode is enabled`.
 - `session { gameMap { layout(password: "secret") } }` follows the same rule.
+- A won run reveals the map: once `gameState.victory` is true, `grid` and
+  `gameMap.layout` are returned without a password (a reset hides them again).
 - The password is never returned by any other API call. MCP and REST responses omit `grid` and `layout`
   for fog sessions entirely; use GraphQL with the password to see the full map.
 - Without fog, `grid` needs no password.

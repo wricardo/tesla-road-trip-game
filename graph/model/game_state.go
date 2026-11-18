@@ -6,6 +6,9 @@ package model
 type GridAccess struct {
 	FogEnabled   bool
 	GridPassword string
+	// Revealed lifts fog for this response because the run is won: the map has
+	// been solved, so grid/layout are returned without the password.
+	Revealed bool
 }
 
 // GameState is bound in gqlgen.yml instead of being generated so it can carry

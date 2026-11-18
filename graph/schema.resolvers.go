@@ -19,7 +19,7 @@ import (
 // Layout is the resolver for the layout field.
 func (r *gameMapResolver) Layout(ctx context.Context, obj *model.GameMap, password *string) ([]string, error) {
 	policy := obj.LayoutAccess()
-	if !policy.FogEnabled {
+	if !policy.FogEnabled || policy.Revealed {
 		return obj.Layout, nil
 	}
 	if password == nil || *password != policy.GridPassword {
@@ -42,7 +42,7 @@ func (r *gameMapResolver) EditKey(ctx context.Context, obj *model.GameMap) (*str
 // Grid is the resolver for the grid field.
 func (r *gameStateResolver) Grid(ctx context.Context, obj *model.GameState, password *string) ([][]*model.Cell, error) {
 	policy := obj.GridAccess()
-	if !policy.FogEnabled {
+	if !policy.FogEnabled || policy.Revealed {
 		return obj.Grid, nil
 	}
 	if password == nil || *password != policy.GridPassword {
