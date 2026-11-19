@@ -64,8 +64,8 @@ just tools              # goimports + golangci-lint
 |------|---------|-------------|
 | `-port` | `8000` | HTTP port |
 | `-host` | `localhost` | Bind address (use `0.0.0.0` to expose on LAN) |
-| `-config-dir` | `maps` | Map directory (env `CONFIG_DIR`) |
-| `-sessions-dir` | `sessions` | Session persistence directory (env `SESSIONS_DIR`) |
+| `-config-dir` | `$CONFIG_DIR` or `maps` | Map directory (env `CONFIG_DIR`) |
+| `-sessions-dir` | `$SESSIONS_DIR` or `sessions` | Session persistence directory (env `SESSIONS_DIR`) |
 | `-public-url` | request host | Base URL rendered in `/llms.txt` |
 | `-debug` | `false` | Debug logging |
 
@@ -87,7 +87,14 @@ cp .env.example .env
 | `ADMIN_API_KEY` | unset | Optional. `X-Admin-Key` header value that overrides map ownership (edit built-in maps) |
 | `ALLOW_UNAUTHENTICATED_ADMIN` | `false` | Local-only bypass: treat every request as admin |
 | `CUSTOM_MAPS_DIR` | `$CONFIG_DIR/custom` | Writable directory for user-created maps (and their edit tokens) |
-| `ALLOWED_ORIGINS` | all | WebSocket origin allowlist (comma-separated) |
+| `ALLOWED_ORIGINS` | all | WebSocket origin allowlist (comma-separated; `*` or empty allows all) |
+
+Every variable is declared once in `appconfig.Config` and loaded with
+[`kelseyhightower/envconfig`](https://github.com/kelseyhightower/envconfig) —
+that package is the only place environment parsing lives. Booleans accept
+`true`, `1`, or `yes`; any other value means off; empty keeps the default.
+`ALLOW_UNAUTHENTICATED_ADMIN` is stricter: only the exact string `true` enables it.
+`-config-dir` / `-sessions-dir` flags override `CONFIG_DIR` / `SESSIONS_DIR`.
 
 ### Browser UI checks
 

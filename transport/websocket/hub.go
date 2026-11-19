@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -28,20 +27,15 @@ const (
 	maxMessageSize = 512
 )
 
-// newUpgraderFromEnv builds a WebSocket upgrader whose CheckOrigin respects
-// the ALLOWED_ORIGINS environment variable.
+// newUpgrader builds a WebSocket upgrader whose CheckOrigin respects an
+// origin allowlist.
 //
-// ALLOWED_ORIGINS: comma-separated list of allowed origins (e.g.
-// "http://localhost:5173,https://myapp.example.com").
-// Empty or "*" → allow all origins (development default).
-func newUpgraderFromEnv() websocket.Upgrader {
+// Empty or "*" → allow all origins (development default); otherwise exact-match.
+func newUpgrader(allowedOrigins []string) websocket.Upgrader {
 	var allowed []string
-	raw := os.Getenv("ALLOWED_ORIGINS")
-	if raw != "" && raw != "*" {
-		for _, o := range strings.Split(raw, ",") {
-			if o = strings.TrimSpace(o); o != "" {
-				allowed = append(allowed, o)
-			}
+	for _, o := range allowedOrigins {
+		if o = strings.TrimSpace(o); o != "" && o != "*" {
+			allowed = append(allowed, o)
 		}
 	}
 	return websocket.Upgrader{
@@ -73,9 +67,9 @@ func makeCheckOrigin(allowed []string) func(*http.Request) bool {
 	}
 }
 
-// DefaultUpgrader returns a WebSocket upgrader configured from ALLOWED_ORIGINS env.
-func DefaultUpgrader() websocket.Upgrader {
-	return newUpgraderFromEnv()
+// NewUpgrader returns a WebSocket upgrader honoring the given origin allowlist.
+func NewUpgrader(allowedOrigins []string) websocket.Upgrader {
+	return newUpgrader(allowedOrigins)
 }
 
 // Message represents a WebSocket message
@@ -162,10 +156,11 @@ type Hub struct {
 	lobbySubs   map[chan *StateUpdate]bool
 }
 
-// NewHub creates a new WebSocket hub with origin policy from ALLOWED_ORIGINS env.
-func NewHub() *Hub {
+// NewHub creates a new WebSocket hub. allowedOrigins restricts browser origins;
+// empty means allow all (development default).
+func NewHub(allowedOrigins ...string) *Hub {
 	return &Hub{
-		upgrader:    newUpgraderFromEnv(),
+		upgrader:    newUpgrader(allowedOrigins),
 		sessions:    make(map[string]map[*Client]bool),
 		broadcast:   make(chan *Message),
 		sessionSubs: make(map[string]map[chan *StateUpdate]bool),
@@ -459,7 +454,7 @@ func (c *Client) writePump() {
 
 			// Add queued messages to the current WebSocket message
 			n := len(c.send)
-			for i := 0; i < n; i++ {
+			for range n {
 				w.Write([]byte{'\n'})
 				w.Write(<-c.send)
 			}

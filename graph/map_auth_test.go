@@ -5,11 +5,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/wricardo/tesla-road-trip-game/appconfig"
 )
 
 // newOwnedMapServer builds a GraphQL server over a temp maps dir where
 // "classic" is built-in, so the whole authorization policy can be exercised.
-func newOwnedMapServer(t *testing.T) string {
+// Options configure the resolver (e.g. appconfig.AdminPolicy).
+func newOwnedMapServer(t *testing.T, opts ...Option) string {
 	t.Helper()
 	root := t.TempDir()
 	builtin := filepath.Join(root, "builtin")
@@ -17,10 +20,8 @@ func newOwnedMapServer(t *testing.T) string {
 		t.Fatalf("mkdir: %v", err)
 	}
 	copyMapFile(t, "../maps/classic.json", filepath.Join(builtin, "classic.json"))
-	t.Setenv("CUSTOM_MAPS_DIR", filepath.Join(root, "custom"))
-	t.Setenv("ADMIN_API_KEY", "")
 
-	return newTestGraphQLServerAt(t, builtin)
+	return newTestGraphQLServerAt(t, builtin, filepath.Join(root, "custom"), opts...)
 }
 
 func copyMapFile(t *testing.T, src, dst string) {
@@ -153,8 +154,7 @@ func TestBuiltinMapRejectsTokenButAllowsAdmin(t *testing.T) {
 }
 
 func TestAdminKeyOverridesOwnership(t *testing.T) {
-	url := newOwnedMapServer(t)
-	t.Setenv("ADMIN_API_KEY", "s3cret")
+	url := newOwnedMapServer(t, WithAdminPolicy(appconfig.AdminPolicy{APIKey: "s3cret"}))
 
 	req := newAdminRequest(t, url, updateMapMutation, map[string]any{
 		"name": "classic", "patch": map[string]any{"description": "admin edit"},

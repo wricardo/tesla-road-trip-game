@@ -15,9 +15,11 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -31,6 +33,7 @@ import (
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/joho/godotenv"
 	"github.com/wricardo/tesla-road-trip-game/api"
+	"github.com/wricardo/tesla-road-trip-game/appconfig"
 	"github.com/wricardo/tesla-road-trip-game/game/config"
 	"github.com/wricardo/tesla-road-trip-game/game/service"
 	"github.com/wricardo/tesla-road-trip-game/game/session"
@@ -50,8 +53,8 @@ const (
 var (
 	port        = flag.Int("port", 8000, "HTTP server port")
 	host        = flag.String("host", "localhost", "HTTP server host")
-	configDir   = flag.String("config-dir", getConfigDirDefault(), "Directory containing game configurations")
-	sessionsDir = flag.String("sessions-dir", getSessionsDirDefault(), "Directory for persisted game sessions")
+	configDir   = flag.String("config-dir", "", "Directory containing game configurations (default $CONFIG_DIR or maps)")
+	sessionsDir = flag.String("sessions-dir", "", "Directory for persisted game sessions (default $SESSIONS_DIR or sessions)")
 	debug       = flag.Bool("debug", false, "Enable debug logging")
 	version     = flag.Bool("version", false, "Show version information")
 	publicURL   = flag.String("public-url", "", "Public base URL served in llms.txt (e.g. https://myserver.com). Defaults to the request's scheme and Host")
@@ -62,39 +65,6 @@ var llmsTxtSource string
 
 // llmsTxtTemplate renders /llms.txt; edit llms.txt.tmpl, not this file.
 var llmsTxtTemplate = template.Must(template.New("llms").Parse(llmsTxtSource))
-
-// getConfigDirDefault returns the default configuration directory.
-// It first honors the CONFIG_DIR environment variable, then falls back to "maps".
-func getConfigDirDefault() string {
-	if configDir := os.Getenv("CONFIG_DIR"); configDir != "" {
-		return configDir
-	}
-	return "maps"
-}
-
-// getSessionsDirDefault returns the default session persistence directory.
-// It first honors the SESSIONS_DIR environment variable, then falls back to "sessions".
-func getSessionsDirDefault() string {
-	if sessionsDir := os.Getenv("SESSIONS_DIR"); sessionsDir != "" {
-		return sessionsDir
-	}
-	return "sessions"
-}
-
-// envBool reads an env var as a boolean. Returns defaultVal if the var is unset.
-// Recognized true values: "true", "1", "yes". Everything else is false.
-func envBool(key string, defaultVal bool) bool {
-	v := os.Getenv(key)
-	if v == "" {
-		return defaultVal
-	}
-	switch v {
-	case "true", "1", "yes":
-		return true
-	default:
-		return false
-	}
-}
 
 // withHTTPRequest is middleware that stores the *http.Request in context so
 // GraphQL resolvers can read headers (e.g. X-Admin-Key).
@@ -194,10 +164,22 @@ func main() {
 		mode = args[0]
 	}
 
+	// Load environment configuration once; flags override directory settings.
+	cfg, err := appconfig.Load()
+	if err != nil {
+		log.Fatalf("Invalid environment configuration: %v", err)
+	}
+	if *configDir != "" {
+		cfg.ConfigDir = *configDir
+	}
+	if *sessionsDir != "" {
+		cfg.SessionsDir = *sessionsDir
+	}
+
 	log.Printf("Starting %s v%s (mode: %s)", AppName, Version, mode)
 
 	// Initialize services
-	gameService, err := initializeServices()
+	gameService, err := initializeServices(cfg)
 	if err != nil {
 		log.Fatalf("Failed to initialize services: %v", err)
 	}
@@ -209,7 +191,7 @@ func main() {
 
 	case "server", "http":
 		// Run HTTP server with GraphQL and WebSocket
-		runHTTPServer(gameService)
+		runHTTPServer(gameService, cfg)
 
 	default:
 		log.Fatalf("Unknown mode: %s. Use 'server' (default) or 'stdio-mcp'", mode)
@@ -217,28 +199,29 @@ func main() {
 }
 
 // runHTTPServer starts the HTTP server with GraphQL, WebSocket hub, and an /mcp proxy endpoint.
-func runHTTPServer(gameService service.GameService) {
-	// Create WebSocket hub
-	hub := websocket.NewHub()
+func runHTTPServer(gameService service.GameService, cfg appconfig.Config) {
+	// Create WebSocket hub with the configured origin allowlist.
+	hub := websocket.NewHub(cfg.AllowedOrigins...)
 	go hub.Run()
 
 	// Create static/WebSocket server
 	apiServer := api.NewServer(gameService, hub)
 
-	// Setup HTTP server address
-	addr := fmt.Sprintf("%s:%d", *host, *port)
+	// Setup HTTP server address. JoinHostPort brackets IPv6 literals (e.g. ::1)
+	// so ListenAndServe accepts them.
+	addr := net.JoinHostPort(*host, strconv.Itoa(*port))
 
 	// Create main router.
 	mainRouter := http.NewServeMux()
 
-	// Feature gates from environment variables.
-	// All default to enabled to preserve backward compatibility.
-	introspectionEnabled := envBool("GRAPHQL_INTROSPECTION", true)
-	playgroundEnabled := envBool("GRAPHQL_PLAYGROUND", true)
-	mcpEnabled := envBool("MCP_ENABLED", true)
+	// Feature gates come from the loaded environment configuration; all default
+	// to enabled to preserve backward compatibility.
+	introspectionEnabled := bool(cfg.GraphQLIntrospection)
+	playgroundEnabled := bool(cfg.GraphQLPlayground)
+	mcpEnabled := bool(cfg.MCPEnabled)
 
 	// GraphQL is the public game API.
-	graphqlResolver := graph.NewResolver(gameService, hub)
+	graphqlResolver := graph.NewResolver(gameService, hub, graph.WithAdminPolicy(cfg.Admin()))
 	gqlSrv := handler.New(generated.NewExecutableSchema(generated.Config{Resolvers: graphqlResolver}))
 	enableGraphQLOperationLogging(gqlSrv)
 	if introspectionEnabled {
@@ -256,7 +239,7 @@ func runHTTPServer(gameService service.GameService) {
 		// pongs for 2x this interval are closed so dead peers do not hold
 		// subscriptions open until the kernel TCP timeout.
 		PingPongInterval: 10 * time.Second,
-		Upgrader:         websocket.DefaultUpgrader(),
+		Upgrader:         websocket.NewUpgrader(cfg.AllowedOrigins),
 	})
 	mainRouter.Handle("/graphql", withHTTPRequest(gqlSrv))
 	if playgroundEnabled {
@@ -293,7 +276,7 @@ func runHTTPServer(gameService service.GameService) {
 
 	// MCP HTTP endpoint (Streamable HTTP transport).
 	if mcpEnabled {
-		mcpSrv := mcptransport.NewServer(gameService, hub)
+		mcpSrv := mcptransport.NewServer(gameService, hub, mcptransport.WithAdminPolicy(cfg.Admin()))
 		mainRouter.Handle("/mcp", mcpSrv.Handler())
 		log.Println("MCP endpoint: enabled at /mcp (set MCP_ENABLED=false to disable)")
 	} else {
@@ -354,15 +337,15 @@ func runHTTPServer(gameService service.GameService) {
 
 // initializeServices wires session/config managers and the game service.
 // It also starts a background cleanup routine to prune stale sessions.
-func initializeServices() (service.GameService, error) {
+func initializeServices(cfg appconfig.Config) (service.GameService, error) {
 	// Create config manager first (needed for persistence)
-	configManager, err := config.NewManager(*configDir)
+	configManager, err := config.NewManager(cfg.ConfigDir, cfg.CustomMapsDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create config manager: %w", err)
 	}
 
 	// Create session persistence
-	persistence, err := session.NewFilePersistence(*sessionsDir, configManager)
+	persistence, err := session.NewFilePersistence(cfg.SessionsDir, configManager)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create session persistence: %w", err)
 	}

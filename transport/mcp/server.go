@@ -15,6 +15,7 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/toon-format/toon-go"
+	"github.com/wricardo/tesla-road-trip-game/appconfig"
 	"github.com/wricardo/tesla-road-trip-game/game/engine"
 	"github.com/wricardo/tesla-road-trip-game/game/service"
 	"github.com/wricardo/tesla-road-trip-game/transport/websocket"
@@ -36,13 +37,9 @@ var (
 
 // adminAuthorized reports whether the request carries valid admin credentials
 // (X-Admin-Key matches ADMIN_API_KEY, or the local-dev bypass).
-func adminAuthorized(ctx context.Context) bool {
-	required := os.Getenv("ADMIN_API_KEY")
-	if required == "" {
-		return os.Getenv("ALLOW_UNAUTHENTICATED_ADMIN") == "true"
-	}
-	r, _ := ctx.Value(mcpHTTPRequestKey{}).(*http.Request)
-	return r != nil && r.Header.Get("X-Admin-Key") == required
+func (s *Server) adminAuthorized(ctx context.Context) bool {
+	req, _ := ctx.Value(mcpHTTPRequestKey{}).(*http.Request)
+	return s.admin.Authorized(req)
 }
 
 // authorizeMapMutation enforces the map write policy for MCP tools:
@@ -56,7 +53,7 @@ func (s *Server) authorizeMapMutation(ctx context.Context, name string, editKey 
 	if err != nil || !exists {
 		return false, fmt.Errorf("map %q not found", name)
 	}
-	if adminAuthorized(ctx) {
+	if s.adminAuthorized(ctx) {
 		return true, nil
 	}
 	if builtin {
@@ -98,15 +95,24 @@ type Server struct {
 	svc       service.GameService
 	hub       *websocket.Hub
 	mcpServer *server.MCPServer
+	admin     appconfig.AdminPolicy
 }
 
-// NewServer creates an MCP server that calls GameService directly.
-func NewServer(svc service.GameService, hubs ...*websocket.Hub) *Server {
-	var hub *websocket.Hub
-	if len(hubs) > 0 {
-		hub = hubs[0]
-	}
+// Option configures optional MCP server dependencies.
+type Option func(*Server)
+
+// WithAdminPolicy sets the map-mutation authorization policy.
+func WithAdminPolicy(policy appconfig.AdminPolicy) Option {
+	return func(s *Server) { s.admin = policy }
+}
+
+// NewServer creates an MCP server that calls GameService directly. Pass a nil
+// hub when state broadcasts are not needed.
+func NewServer(svc service.GameService, hub *websocket.Hub, opts ...Option) *Server {
 	s := &Server{svc: svc, hub: hub}
+	for _, opt := range opts {
+		opt(s)
+	}
 	s.mcpServer = server.NewMCPServer(
 		"Tesla Road Trip Game",
 		"2.0.0",

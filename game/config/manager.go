@@ -38,14 +38,14 @@ type Manager struct {
 }
 
 // NewManager creates a new configuration manager. User-created maps are stored
-// in CUSTOM_MAPS_DIR when set, otherwise in "<configDir>/custom".
-func NewManager(configDir string) (*Manager, error) {
+// in customDir when non-empty, otherwise in "<configDir>/custom".
+func NewManager(configDir, customDir string) (*Manager, error) {
 	// Ensure config directory exists
 	if _, err := os.Stat(configDir); os.IsNotExist(err) {
 		return nil, fmt.Errorf("config directory does not exist: %s", configDir)
 	}
 
-	customDir := strings.TrimSpace(os.Getenv("CUSTOM_MAPS_DIR"))
+	customDir = strings.TrimSpace(customDir)
 	if customDir == "" {
 		customDir = filepath.Join(configDir, "custom")
 	}

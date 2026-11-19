@@ -67,7 +67,7 @@ func TestNewManager(t *testing.T) {
 		defaultConfig.Name = "Default"
 		writeConfigFile(t, dir, "default", defaultConfig)
 
-		manager, err := NewManager(dir)
+		manager, err := NewManager(dir, "")
 		if err != nil {
 			t.Fatalf("Failed to create manager: %v", err)
 		}
@@ -77,7 +77,7 @@ func TestNewManager(t *testing.T) {
 	})
 
 	t.Run("non-existent directory", func(t *testing.T) {
-		_, err := NewManager("/non/existent/path")
+		_, err := NewManager("/non/existent/path", "")
 		if err == nil {
 			t.Error("Expected error for non-existent directory")
 		}
@@ -87,7 +87,7 @@ func TestNewManager(t *testing.T) {
 		dir := createTestConfigDir(t)
 		defer os.RemoveAll(dir)
 
-		manager, err := NewManager(dir)
+		manager, err := NewManager(dir, "")
 		if err != nil {
 			t.Errorf("NewManager should succeed even without config files, got error: %v", err)
 		}
@@ -119,7 +119,7 @@ func TestManager_LoadConfig(t *testing.T) {
 	easyConfig.MaxBattery = 20
 	writeConfigFile(t, dir, "easy", easyConfig)
 
-	manager, err := NewManager(dir)
+	manager, err := NewManager(dir, "")
 	if err != nil {
 		t.Fatalf("Failed to create manager: %v", err)
 	}
@@ -207,7 +207,7 @@ func TestManager_GetDefault(t *testing.T) {
 	defaultConfig.Name = "Default Config"
 	writeConfigFile(t, dir, "default", defaultConfig)
 
-	manager, err := NewManager(dir)
+	manager, err := NewManager(dir, "")
 	if err != nil {
 		t.Fatalf("Failed to create manager: %v", err)
 	}
@@ -245,7 +245,7 @@ func TestManager_ListConfigs(t *testing.T) {
 	// Also add a non-JSON file that should be ignored
 	os.WriteFile(filepath.Join(dir, "readme.txt"), []byte("readme"), 0644)
 
-	manager, err := NewManager(dir)
+	manager, err := NewManager(dir, "")
 	if err != nil {
 		t.Fatalf("Failed to create manager: %v", err)
 	}
@@ -282,7 +282,7 @@ func TestManager_ReloadConfig(t *testing.T) {
 	writeConfigFile(t, dir, "default", config)
 	writeConfigFile(t, dir, "changeable", config)
 
-	manager, err := NewManager(dir)
+	manager, err := NewManager(dir, "")
 	if err != nil {
 		t.Fatalf("Failed to create manager: %v", err)
 	}
@@ -317,7 +317,7 @@ func TestManager_ValidateConfig(t *testing.T) {
 	defaultConfig := createValidConfig()
 	writeConfigFile(t, dir, "default", defaultConfig)
 
-	manager, err := NewManager(dir)
+	manager, err := NewManager(dir, "")
 	if err != nil {
 		t.Fatalf("Failed to create manager: %v", err)
 	}
@@ -378,7 +378,7 @@ func TestManager_ConcurrentAccess(t *testing.T) {
 		writeConfigFile(t, dir, "config"+string(rune('0'+i)), config)
 	}
 
-	manager, err := NewManager(dir)
+	manager, err := NewManager(dir, "")
 	if err != nil {
 		t.Fatalf("Failed to create manager: %v", err)
 	}
@@ -424,7 +424,7 @@ func TestManager_CachingBehavior(t *testing.T) {
 	testConfig.Name = "Test"
 	writeConfigFile(t, dir, "test", testConfig)
 
-	manager, err := NewManager(dir)
+	manager, err := NewManager(dir, "")
 	if err != nil {
 		t.Fatalf("Failed to create manager: %v", err)
 	}

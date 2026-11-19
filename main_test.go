@@ -3,6 +3,8 @@ package main
 import (
 	"os"
 	"testing"
+
+	"github.com/wricardo/tesla-road-trip-game/appconfig"
 )
 
 func TestConstants(t *testing.T) {
@@ -25,22 +27,17 @@ func TestConstants(t *testing.T) {
 }
 
 func TestInitializeServices(t *testing.T) {
-	// Test with default config directory
-	originalConfigDir := *configDir
-	originalSessionsDir := *sessionsDir
-	*configDir = "maps"
-	*sessionsDir = t.TempDir()
-	defer func() {
-		*configDir = originalConfigDir
-		*sessionsDir = originalSessionsDir
-	}()
+	tempSessions := t.TempDir()
+	cfg := appconfig.Default()
+	cfg.ConfigDir = "maps"
+	cfg.SessionsDir = tempSessions
 
 	// Create config directory if it doesn't exist for test
 	if _, err := os.Stat("maps"); os.IsNotExist(err) {
 		t.Skip("Skipping test - configs directory not found")
 	}
 
-	gameService, err := initializeServices()
+	gameService, err := initializeServices(cfg)
 	if err != nil {
 		t.Fatalf("Failed to initialize services: %v", err)
 	}
@@ -51,12 +48,11 @@ func TestInitializeServices(t *testing.T) {
 }
 
 func TestInitializeServices_InvalidConfigDir(t *testing.T) {
-	// Test with non-existent config directory
-	originalConfigDir := *configDir
-	*configDir = "/non/existent/path"
-	defer func() { *configDir = originalConfigDir }()
+	cfg := appconfig.Default()
+	cfg.ConfigDir = "/non/existent/path"
+	cfg.SessionsDir = t.TempDir()
 
-	_, err := initializeServices()
+	_, err := initializeServices(cfg)
 	if err == nil {
 		t.Error("Expected error for non-existent config directory")
 	}
@@ -72,19 +68,29 @@ func TestFlagDefaults(t *testing.T) {
 		t.Error("Host should have a default value")
 	}
 
-	if *configDir == "" {
+	// Directory defaults live in appconfig; the flags are overrides and may be
+	// empty so the environment/default supplies the value.
+	cfg := appconfig.Default()
+	if cfg.ConfigDir == "" {
 		t.Error("Config directory should have a default value")
 	}
 
-	if *sessionsDir == "" {
+	if cfg.SessionsDir == "" {
 		t.Error("Sessions directory should have a default value")
+	}
+	if *configDir != "" || *sessionsDir != "" {
+		t.Errorf("directory flags must default to empty so env wins, got %q/%q", *configDir, *sessionsDir)
 	}
 }
 
 func TestGetSessionsDirDefault(t *testing.T) {
 	t.Setenv("SESSIONS_DIR", "/tmp/tesla-sessions-test")
-	if got := getSessionsDirDefault(); got != "/tmp/tesla-sessions-test" {
-		t.Errorf("Expected SESSIONS_DIR override, got %q", got)
+	cfg, err := appconfig.Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.SessionsDir != "/tmp/tesla-sessions-test" {
+		t.Errorf("Expected SESSIONS_DIR override, got %q", cfg.SessionsDir)
 	}
 }
 
@@ -95,14 +101,9 @@ func TestGetSessionsDirDefault(t *testing.T) {
 
 func TestServiceInitialization(t *testing.T) {
 	// Test that we can initialize services without panicking
-	originalConfigDir := *configDir
-	originalSessionsDir := *sessionsDir
-	*configDir = "maps"
-	*sessionsDir = t.TempDir()
-	defer func() {
-		*configDir = originalConfigDir
-		*sessionsDir = originalSessionsDir
-	}()
+	cfg := appconfig.Default()
+	cfg.ConfigDir = "maps"
+	cfg.SessionsDir = t.TempDir()
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -115,7 +116,7 @@ func TestServiceInitialization(t *testing.T) {
 		t.Skip("Skipping test - configs directory not found")
 	}
 
-	_, err := initializeServices()
+	_, err := initializeServices(cfg)
 	if err != nil {
 		// This is expected if configs are missing, but shouldn't panic
 		t.Logf("Service initialization failed as expected: %v", err)

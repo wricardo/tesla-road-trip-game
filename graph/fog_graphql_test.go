@@ -26,7 +26,7 @@ type gqlResp struct {
 
 func newTestGraphQLServer(t *testing.T) *httptest.Server {
 	t.Helper()
-	cfg, err := config.NewManager("../maps")
+	cfg, err := config.NewManager("../maps", "")
 	if err != nil {
 		t.Fatalf("config.NewManager: %v", err)
 	}
@@ -39,16 +39,17 @@ func newTestGraphQLServer(t *testing.T) *httptest.Server {
 
 // newTestGraphQLServerAt builds a GraphQL server rooted at the given maps dir
 // and returns its URL. Unlike the plain helper it injects the request context,
-// which resolvers need to read header credentials.
-func newTestGraphQLServerAt(t *testing.T, mapsDir string) string {
+// which resolvers need to read header credentials. customDir may be empty to
+// use "<mapsDir>/custom".
+func newTestGraphQLServerAt(t *testing.T, mapsDir, customDir string, opts ...Option) string {
 	t.Helper()
-	cfg, err := config.NewManager(mapsDir)
+	cfg, err := config.NewManager(mapsDir, customDir)
 	if err != nil {
 		t.Fatalf("config.NewManager: %v", err)
 	}
 	sessions := session.NewManager()
 	svc := service.NewGameService(sessions, cfg)
-	resolver := NewResolver(svc, nil)
+	resolver := NewResolver(svc, nil, opts...)
 	h := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
 	srv := httptest.NewServer(withRequestContext(h))
 	t.Cleanup(srv.Close)
@@ -412,7 +413,7 @@ func newTinyMapServer(t *testing.T) string {
 	if err := os.WriteFile(filepath.Join(root, "tiny.json"), []byte(tiny), 0o644); err != nil {
 		t.Fatalf("write tiny map: %v", err)
 	}
-	return newTestGraphQLServerAt(t, root)
+	return newTestGraphQLServerAt(t, root, "")
 }
 
 // A won run is revealed: grid and layout come back without the password, so

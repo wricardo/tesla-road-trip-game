@@ -17,7 +17,7 @@ func TestManagerWithPersistence(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Create config manager
-	configManager, err := config.NewManager("../../maps")
+	configManager, err := config.NewManager("../../maps", t.TempDir())
 	if err != nil {
 		t.Fatalf("Failed to create config manager: %v", err)
 	}

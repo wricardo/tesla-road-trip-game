@@ -7,10 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 
+	"github.com/wricardo/tesla-road-trip-game/appconfig"
 	"github.com/wricardo/tesla-road-trip-game/game/service"
 	"github.com/wricardo/tesla-road-trip-game/graph/model"
 	"github.com/wricardo/tesla-road-trip-game/transport/websocket"
@@ -20,10 +20,24 @@ import (
 type Resolver struct {
 	Service service.GameService
 	Hub     *websocket.Hub
+	// Admin is the map-mutation authorization policy (X-Admin-Key).
+	Admin appconfig.AdminPolicy
 }
 
-func NewResolver(gameService service.GameService, hub *websocket.Hub) *Resolver {
-	return &Resolver{Service: gameService, Hub: hub}
+// Option configures optional Resolver dependencies.
+type Option func(*Resolver)
+
+// WithAdminPolicy sets the map-mutation authorization policy.
+func WithAdminPolicy(policy appconfig.AdminPolicy) Option {
+	return func(r *Resolver) { r.Admin = policy }
+}
+
+func NewResolver(gameService service.GameService, hub *websocket.Hub, opts ...Option) *Resolver {
+	r := &Resolver{Service: gameService, Hub: hub}
+	for _, opt := range opts {
+		opt(r)
+	}
+	return r
 }
 
 // HTTPRequestKey is the context key for the *http.Request injected by the
@@ -33,13 +47,9 @@ type HTTPRequestKey struct{}
 // adminAuthorized reports whether the current request carries valid admin
 // credentials (X-Admin-Key matches ADMIN_API_KEY, or the local-dev bypass).
 // Unlike checkAdminKey it never errors, so callers can use it as an override.
-func adminAuthorized(ctx context.Context) bool {
-	required := os.Getenv("ADMIN_API_KEY")
-	if required == "" {
-		return os.Getenv("ALLOW_UNAUTHENTICATED_ADMIN") == "true"
-	}
-	r, _ := ctx.Value(HTTPRequestKey{}).(*http.Request)
-	return r != nil && r.Header.Get("X-Admin-Key") == required
+func (r *Resolver) adminAuthorized(ctx context.Context) bool {
+	req, _ := ctx.Value(HTTPRequestKey{}).(*http.Request)
+	return r.Admin.Authorized(req)
 }
 
 // ErrBuiltinReadOnly is returned when a caller tries to modify a shipped map
@@ -85,7 +95,7 @@ func (r *Resolver) authorizeMapMutation(ctx context.Context, name string, editKe
 	if err != nil || !exists {
 		return false, fmt.Errorf("map %q not found", name)
 	}
-	if adminAuthorized(ctx) {
+	if r.adminAuthorized(ctx) {
 		return true, nil
 	}
 	if builtin {

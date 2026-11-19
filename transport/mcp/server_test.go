@@ -213,7 +213,7 @@ func TestHandleMoveWithoutHubDoesNotPanic(t *testing.T) {
 			return &service.MoveResult{Success: true, GameState: &engine.GameState{Battery: 1}}, nil
 		},
 	}
-	server := NewServer(mockSvc)
+	server := NewServer(mockSvc, nil)
 
 	if _, err := server.handleMove(context.Background(), mcp.CallToolRequest{
 		Params: mcp.CallToolParams{
@@ -313,7 +313,7 @@ func TestHandleMove_DefaultOutputOmitsHistoryFields(t *testing.T) {
 			}, nil
 		},
 	}
-	server := NewServer(mockSvc)
+	server := NewServer(mockSvc, nil)
 
 	result, err := server.handleMove(context.Background(), mcp.CallToolRequest{
 		Params: mcp.CallToolParams{
@@ -360,7 +360,7 @@ func TestHandleCreateSession_UsesGraphQLStyleArgsAndPrecedence(t *testing.T) {
 			return &service.SessionInfo{ID: "s1"}, nil
 		},
 	}
-	server := NewServer(mockSvc)
+	server := NewServer(mockSvc, nil)
 
 	_, err := server.handleCreateSession(context.Background(), mcp.CallToolRequest{Params: mcp.CallToolParams{Arguments: map[string]interface{}{
 		"map_id":        "map-id",
@@ -387,7 +387,7 @@ func TestHandleMoveHistory_AcceptsGraphQLPaginationArgs(t *testing.T) {
 			return &service.HistoryResponse{}, nil
 		},
 	}
-	server := NewServer(mockSvc)
+	server := NewServer(mockSvc, nil)
 
 	_, err := server.handleMoveHistory(context.Background(), mcp.CallToolRequest{Params: mcp.CallToolParams{Arguments: map[string]interface{}{
 		"session_id": "s-1",
@@ -410,7 +410,7 @@ func TestHandleListSessions_ReturnsGraphQLLikeEnvelope(t *testing.T) {
 			}, nil
 		},
 	}
-	server := NewServer(mockSvc)
+	server := NewServer(mockSvc, nil)
 
 	result, err := server.handleListSessions(context.Background(), mcp.CallToolRequest{Params: mcp.CallToolParams{Arguments: map[string]interface{}{
 		"sort":  "CREATED",

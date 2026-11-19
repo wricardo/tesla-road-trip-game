@@ -271,18 +271,9 @@ func validateWinnable(config *GameConfig) error {
 	return fmt.Errorf("config validation: parks are unreachable with max_battery %d and starting_battery %d", config.MaxBattery, config.StartingBattery)
 }
 
-// LoadGameConfig loads a game configuration from a JSON file
+// LoadGameConfig loads a game configuration from a JSON file path.
 func LoadGameConfig(filename string) (*GameConfig, error) {
-	// Support CONFIG_DIR environment variable for alternative config directory
-	configPath := filename
-	if configDir := os.Getenv("CONFIG_DIR"); configDir != "" {
-		// If filename starts with "configs/", replace with CONFIG_DIR
-		if strings.HasPrefix(filename, "configs/") {
-			configPath = filepath.Join(configDir, strings.TrimPrefix(filename, "configs/"))
-		}
-	}
-
-	data, err := os.ReadFile(configPath)
+	data, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}

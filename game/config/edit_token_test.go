@@ -21,8 +21,8 @@ func newTestManager(t *testing.T) (*Manager, string) {
 	}
 	writeConfigFile(t, builtinDir, "classic", createValidConfig())
 
-	t.Setenv("CUSTOM_MAPS_DIR", filepath.Join(root, "custom"))
-	m, err := NewManager(builtinDir)
+	customDir := filepath.Join(root, "custom")
+	m, err := NewManager(builtinDir, customDir)
 	if err != nil {
 		t.Fatalf("NewManager: %v", err)
 	}

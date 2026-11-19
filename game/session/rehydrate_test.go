@@ -28,7 +28,7 @@ func TestRehydrateManySessionsIsCheap(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	cfgMgr, err := config.NewManager(maps)
+	cfgMgr, err := config.NewManager(maps, "")
 	if err != nil {
 		t.Fatal(err)
 	}
